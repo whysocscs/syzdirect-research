@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/work/SyzDirect/source/analyzer/syscall_analyzer.py", line 375, in <module>
+    target = load_target(args.target)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/SyzDirect/source/analyzer/syscall_analyzer.py", line 355, in load_target
+    return TargetInfo(**data)
+           ^^^^^^^^^^^^^^^^^^
+TypeError: TargetInfo.__init__() got an unexpected keyword argument 'syscall'

@@ -1,0 +1,16 @@
+{
+  "target_id": "paper_002",
+  "kernel_commit": "v5.15",
+  "file_path": "net/ipv4/ip_sockglue.c",
+  "function": "ip_cmsg_send",
+  "line": 256,
+  "target_type": "bug_repro",
+  "bug_id": "KASAN-slab-out-of-bounds-in-ip_cmsg_send",
+  "entry_syscalls": [
+    "sendmsg"
+  ],
+  "related_syscalls": [
+    "socket",
+    "setsockopt"
+  ]
+}

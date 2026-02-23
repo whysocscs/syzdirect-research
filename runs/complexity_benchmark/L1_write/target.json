@@ -1,0 +1,12 @@
+{
+  "target_id": "L1_write",
+  "kernel_commit": "v6.1",
+  "file_path": "fs/read_write.c",
+  "function": "write",
+  "line": 100,
+  "target_type": "benchmark",
+  "complexity_level": 1,
+  "sequence": [
+    "write"
+  ]
+}

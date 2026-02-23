@@ -1,0 +1,17 @@
+{
+  "target_id": "paper_001",
+  "kernel_commit": "v5.15",
+  "file_path": "net/core/sock.c",
+  "function": "sock_def_write_space",
+  "line": 2847,
+  "target_type": "bug_repro",
+  "bug_id": "KASAN-use-after-free-in-sock_def_write_space",
+  "entry_syscalls": [
+    "setsockopt"
+  ],
+  "related_syscalls": [
+    "socket",
+    "bind",
+    "connect"
+  ]
+}

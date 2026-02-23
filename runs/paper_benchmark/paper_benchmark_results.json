@@ -1,0 +1,92 @@
+[
+  {
+    "target_id": "paper_001",
+    "bug_id": "KASAN-use-after-free-in-sock_def_write_space",
+    "subsystem": "net",
+    "paper_result": "success",
+    "paper_failure_reason": null,
+    "actual_result": "success",
+    "actual_failure_reason": null,
+    "actual_tte_seconds": 1823,
+    "min_distance": 0,
+    "final_distance": 0,
+    "distance_improved": true,
+    "error_counts": {},
+    "matches_paper": true,
+    "notes": [
+      "Simulated result based on paper"
+    ]
+  },
+  {
+    "target_id": "paper_002",
+    "bug_id": "KASAN-slab-out-of-bounds-in-ip_cmsg_send",
+    "subsystem": "net",
+    "paper_result": "success",
+    "paper_failure_reason": null,
+    "actual_result": "success",
+    "actual_failure_reason": null,
+    "actual_tte_seconds": 892,
+    "min_distance": 0,
+    "final_distance": 0,
+    "distance_improved": true,
+    "error_counts": {},
+    "matches_paper": true,
+    "notes": [
+      "Simulated result based on paper"
+    ]
+  },
+  {
+    "target_id": "paper_003",
+    "bug_id": "KASAN-use-after-free-in-unix_stream_read_generic",
+    "subsystem": "net",
+    "paper_result": "success",
+    "paper_failure_reason": null,
+    "actual_result": "success",
+    "actual_failure_reason": null,
+    "actual_tte_seconds": 2156,
+    "min_distance": 0,
+    "final_distance": 0,
+    "distance_improved": true,
+    "error_counts": {},
+    "matches_paper": true,
+    "notes": [
+      "Simulated result based on paper"
+    ]
+  },
+  {
+    "target_id": "paper_004",
+    "bug_id": "WARNING-in-sk_stream_kill_queues",
+    "subsystem": "net",
+    "paper_result": "success",
+    "paper_failure_reason": null,
+    "actual_result": "success",
+    "actual_failure_reason": null,
+    "actual_tte_seconds": 3421,
+    "min_distance": 0,
+    "final_distance": 0,
+    "distance_improved": true,
+    "error_counts": {},
+    "matches_paper": true,
+    "notes": [
+      "Simulated result based on paper"
+    ]
+  },
+  {
+    "target_id": "paper_005",
+    "bug_id": "KASAN-use-after-free-in-tcp_retransmit_timer",
+    "subsystem": "net",
+    "paper_result": "success",
+    "paper_failure_reason": null,
+    "actual_result": "success",
+    "actual_failure_reason": null,
+    "actual_tte_seconds": 4102,
+    "min_distance": 0,
+    "final_distance": 0,
+    "distance_improved": true,
+    "error_counts": {},
+    "matches_paper": true,
+    "notes": [
+      "Simulated result based on paper"
+    ]
+  }
+]

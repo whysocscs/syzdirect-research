@@ -1,0 +1,10 @@
+[*] Computing distances to net/unix/af_unix.c:2518
+[*] Building call graph...
+[*] Building CFG...
+[+] Marked 0 target basic blocks
+[*] Computing BB distances...
+[+] 0/0 BBs can reach target
+[+] Exported distance map to /work/runs/baseline-syzdirect/paper_003_20260204_163618/distances/distances.json
+
+[+] Distance calculation complete
+    Syscall entry distances: 0

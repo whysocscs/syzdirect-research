@@ -1,0 +1,13 @@
+{
+  "target_id": "socket$alg",
+  "kernel_commit": "v6.1",
+  "syscall": "socket",
+  "variant": "socket$alg",
+  "file": "socket_alg.txt",
+  "dependency_chain": [
+    "socket$alg"
+  ],
+  "complexity_level": 1,
+  "complexity_score": 1.6,
+  "target_type": "syscall_benchmark"
+}

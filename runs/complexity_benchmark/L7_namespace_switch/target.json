@@ -1,0 +1,15 @@
+{
+  "target_id": "L7_namespace_switch",
+  "kernel_commit": "v6.1",
+  "file_path": "fs/namespace.c",
+  "function": "pivot_root",
+  "line": 100,
+  "target_type": "benchmark",
+  "complexity_level": 7,
+  "sequence": [
+    "unshare",
+    "mount",
+    "pivot_root",
+    "chroot"
+  ]
+}

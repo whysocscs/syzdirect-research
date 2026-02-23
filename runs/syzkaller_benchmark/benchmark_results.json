@@ -1,0 +1,164 @@
+[
+  {
+    "syscall_name": "openat$fuse",
+    "complexity_level": 1,
+    "complexity_score": 1.8,
+    "dependency_chain": [
+      "openat$fuse"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 41.28454958063144,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 21186
+  },
+  {
+    "syscall_name": "socket$alg",
+    "complexity_level": 1,
+    "complexity_score": 1.6,
+    "dependency_chain": [
+      "socket$alg"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 37.198974689378325,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 25739
+  },
+  {
+    "syscall_name": "openat$ashmem",
+    "complexity_level": 2,
+    "complexity_score": 2.3,
+    "dependency_chain": [
+      "openat$ashmem"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 40.706738714296165,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 26226
+  },
+  {
+    "syscall_name": "mount$fuse",
+    "complexity_level": 2,
+    "complexity_score": 3.7,
+    "dependency_chain": [
+      "mount$fuse"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 31.388727459041988,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 25923
+  },
+  {
+    "syscall_name": "ioctl$FIBMAP",
+    "complexity_level": 3,
+    "complexity_score": 4.1,
+    "dependency_chain": [
+      "openat$sysfs",
+      "ioctl$FIBMAP"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 58.558109210666956,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 7653
+  },
+  {
+    "syscall_name": "ioctl$ASHMEM_SET_NAME",
+    "complexity_level": 3,
+    "complexity_score": 4.1,
+    "dependency_chain": [
+      "openat$ashmem",
+      "ioctl$ASHMEM_SET_NAME"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 42.06841353284996,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 20865
+  },
+  {
+    "syscall_name": "inotify_rm_watch",
+    "complexity_level": 4,
+    "complexity_score": 6.4,
+    "dependency_chain": [
+      "inotify_init",
+      "inotify_add_watch",
+      "inotify_rm_watch"
+    ],
+    "success": false,
+    "failure_class": "R3",
+    "tte_seconds": null,
+    "min_distance": 40,
+    "final_distance": 48,
+    "error_counts": {
+      "EINVAL": 48
+    },
+    "iterations": 47689
+  },
+  {
+    "syscall_name": "sendto$l2tp",
+    "complexity_level": 4,
+    "complexity_score": 6.0,
+    "dependency_chain": [
+      "socket$l2tp",
+      "sendto$l2tp"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 43.303078320321646,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 12916
+  },
+  {
+    "syscall_name": "kcmp",
+    "complexity_level": 5,
+    "complexity_score": 8.0,
+    "dependency_chain": [
+      "openat$sysfs",
+      "kcmp"
+    ],
+    "success": true,
+    "failure_class": null,
+    "tte_seconds": 57.92359940507019,
+    "min_distance": 0,
+    "final_distance": 0,
+    "error_counts": {},
+    "iterations": 3027
+  },
+  {
+    "syscall_name": "keyctl$KEYCTL_MOVE",
+    "complexity_level": 5,
+    "complexity_score": 8.5,
+    "dependency_chain": [
+      "add_key",
+      "add_key$keyring",
+      "keyctl$KEYCTL_MOVE"
+    ],
+    "success": false,
+    "failure_class": "R3",
+    "tte_seconds": null,
+    "min_distance": 50,
+    "final_distance": 60,
+    "error_counts": {
+      "EINVAL": 99
+    },
+    "iterations": 29530
+  }
+]

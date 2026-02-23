@@ -1,0 +1,15 @@
+{
+  "target_id": "inotify_rm_watch",
+  "kernel_commit": "v6.1",
+  "syscall": "inotify_rm_watch",
+  "variant": "inotify_rm_watch",
+  "file": "inotify.txt",
+  "dependency_chain": [
+    "inotify_init",
+    "inotify_add_watch",
+    "inotify_rm_watch"
+  ],
+  "complexity_level": 4,
+  "complexity_score": 6.4,
+  "target_type": "syscall_benchmark"
+}

@@ -1,0 +1,13 @@
+{
+  "target_id": "openat$ashmem",
+  "kernel_commit": "v6.1",
+  "syscall": "openat",
+  "variant": "openat$ashmem",
+  "file": "dev_ashmem.txt",
+  "dependency_chain": [
+    "openat$ashmem"
+  ],
+  "complexity_level": 2,
+  "complexity_score": 2.3,
+  "target_type": "syscall_benchmark"
+}

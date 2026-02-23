@@ -1,0 +1,15 @@
+{
+  "target_id": "keyctl$KEYCTL_MOVE",
+  "kernel_commit": "v6.1",
+  "syscall": "keyctl",
+  "variant": "keyctl$KEYCTL_MOVE",
+  "file": "key.txt",
+  "dependency_chain": [
+    "add_key",
+    "add_key$keyring",
+    "keyctl$KEYCTL_MOVE"
+  ],
+  "complexity_level": 5,
+  "complexity_score": 8.5,
+  "target_type": "syscall_benchmark"
+}

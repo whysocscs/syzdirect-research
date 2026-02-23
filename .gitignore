@@ -1,0 +1,26 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.ko
+*.bc
+*.ll
+
+# Logs
+*.pid
+*.exit
+
+# Large binaries
+*.vmlinux
+*.img
+*.gz
+*.tar
+*.zip
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store

@@ -1,0 +1,19 @@
+{
+  "target_id": "paper_003",
+  "kernel_commit": "v5.15",
+  "file_path": "net/unix/af_unix.c",
+  "function": "unix_stream_read_generic",
+  "line": 2518,
+  "target_type": "bug_repro",
+  "bug_id": "KASAN-use-after-free-in-unix_stream_read_generic",
+  "entry_syscalls": [
+    "recvmsg"
+  ],
+  "related_syscalls": [
+    "socket",
+    "bind",
+    "listen",
+    "accept",
+    "connect"
+  ]
+}
