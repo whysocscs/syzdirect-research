@@ -1,0 +1,72 @@
+------------[ cut here ]------------
+WARNING: CPU: 0 PID: 17806 at drivers/gpu/drm/vkms/vkms_crtc.c:21 vkms_vblank_simulate+0x1a7/0x1b0
+Modules linked in:
+CPU: 0 PID: 17806 Comm: syz-executor.2 Not tainted 5.11.0-rc7-984100-g291009f656e8-dirty #1
+Hardware name: QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+RIP: 0010:vkms_vblank_simulate+0x1a7/0x1b0
+Code: 96 88 fe bf 02 00 00 00 48 c7 c6 9a e0 00 86 31 c0 e8 4d 93 f8 ff b8 01 00 00 00 5b 41 5c 41 5d 41 5e 41 5f c3 e8 49 96 88 fe <0f> 0b e9 ac fe ff ff 66 90 55 41 57 41 56 41 55 41 54 53 48 83 ec
+RSP: 0018:ffffc90000003ea0 EFLAGS: 00010046
+RAX: 0000000000010000 RBX: 0000000000000003 RCX: ffff888030783680
+RDX: ffff888030783680 RSI: 0000000000000003 RDI: 0000000000003328
+RBP: ffffffff82ba05e0 R08: ffffffff82ba0787 R09: 0000000000000001
+R10: ffffffff8139b03d R11: ffff88803143aa00 R12: ffff88807dc3a840
+R13: ffff88800b7e7e48 R14: ffff88800b7e6d40 R15: 0000000000fe4c00
+FS:  00007f3bfb81b6c0(0000) GS:ffff88807dc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00005555555ba918 CR3: 0000000031682000 CR4: 0000000000750ef0
+PKRU: 55555554
+Call Trace:
+ <IRQ>
+ __hrtimer_run_queues+0x25d/0x3e0
+ hrtimer_interrupt+0x166/0x5e0
+ __sysvec_apic_timer_interrupt+0x6f/0x100
+ asm_call_irq_on_stack+0xf/0x20
+ </IRQ>
+ sysvec_apic_timer_interrupt+0xae/0x100
+ asm_sysvec_apic_timer_interrupt+0x12/0x20
+RIP: 0010:dump_stack+0x152/0x172
+Code: 15 86 e8 21 db 16 fc bf ff ff ff ff 4d 85 ff 75 07 e8 02 e8 44 fc eb 0a e8 fb e7 44 fc e8 16 41 48 fc 4c 89 34 24 ff 34 24 9d <65> 48 8b 04 25 28 00 00 00 48 3b 44 24 18 75 0b 48 83 c4 20 5b 41
+RSP: 0018:ffffc9000545bbc0 EFLAGS: 00000287
+RAX: d1a476906e629a00 RBX: 0000000000000000 RCX: 0000000000000001
+RDX: ffffc9000b87e000 RSI: 0000000000000000 RDI: 0000000000003ea2
+RBP: 00000000ffffffff R08: ffffffff8145f796 R09: 0000000000009bf1
+R10: ffffffff8149484a R11: 6637303030302052 R12: ffffffff825857f1
+R13: ffff888009841c00 R14: 0000000000000287 R15: 0000000000000200
+ should_fail+0x122/0x130
+ should_failslab+0x5/0x20
+ __kmalloc+0x88/0x310
+ tomoyo_encode+0x1d1/0x2e0
+ tomoyo_realpath_from_path+0x2d1/0x320
+ tomoyo_path_number_perm+0xc2/0x2e0
+ security_file_ioctl+0x3c/0x90
+ __se_sys_ioctl+0x4d/0x150
+ do_syscall_64+0x30/0x70
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+RIP: 0033:0x7f3bfce8193d
+Code: 48 83 c8 ff c3 0f 1f 84 00 00 00 00 00 f3 0f 1e fa 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 c7 c1 b8 ff ff ff f7 d8 64 89 01 48
+RSP: 002b:00007f3bfb81b0a8 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+RAX: ffffffffffffffda RBX: 00007f3bfcfb8f80 RCX: 00007f3bfce8193d
+RDX: 00000000200000c0 RSI: 0000000000004606 RDI: 0000000000000004
+RBP: 00007f3bfb81b110 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000001
+R13: ffffffffffffffb8 R14: 00007f3bfcfb8f80 R15: 00007ffe8d4daf20
+----------------
+Code disassembly (best guess), 2 bytes skipped:
+   0:	e8 21 db 16 fc       	call   0xfc16db26
+   5:	bf ff ff ff ff       	mov    $0xffffffff,%edi
+   a:	4d 85 ff             	test   %r15,%r15
+   d:	75 07                	jne    0x16
+   f:	e8 02 e8 44 fc       	call   0xfc44e816
+  14:	eb 0a                	jmp    0x20
+  16:	e8 fb e7 44 fc       	call   0xfc44e816
+  1b:	e8 16 41 48 fc       	call   0xfc484136
+  20:	4c 89 34 24          	mov    %r14,(%rsp)
+  24:	ff 34 24             	push   (%rsp)
+  27:	9d                   	popf
+* 28:	65 48 8b 04 25 28 00 	mov    %gs:0x28,%rax <-- trapping instruction
+  2f:	00 00
+  31:	48 3b 44 24 18       	cmp    0x18(%rsp),%rax
+  36:	75 0b                	jne    0x43
+  38:	48 83 c4 20          	add    $0x20,%rsp
+  3c:	5b                   	pop    %rbx
+  3d:	41                   	rex.B

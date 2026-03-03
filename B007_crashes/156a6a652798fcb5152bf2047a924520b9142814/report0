@@ -1,0 +1,44 @@
+INFO: task kworker/0:4:3937 blocked for more than 143 seconds.
+      Not tainted 5.11.0-rc7-984100-g291009f656e8-dirty #1
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+task:kworker/0:4     state:D stack:11808 pid: 3937 ppid:     2 flags:0x00004000
+Workqueue: usb_hub_wq hub_event
+Call Trace:
+ __schedule+0x33b/0x410
+ schedule+0x91/0xd0
+ usb_kill_urb+0xd5/0x180
+ usb_start_wait_urb+0xf5/0x200
+ usb_control_msg+0xe8/0x190
+ hub_port_init+0x5da/0x13d0
+ hub_port_connect+0x647/0x12c0
+ hub_port_connect_change+0x3c5/0x600
+ port_event+0x7fd/0x990
+ hub_event+0x302/0x670
+ process_one_work+0x36c/0x5c0
+ worker_thread+0x407/0x7a0
+ kthread+0x190/0x1c0
+ ret_from_fork+0x1f/0x30
+
+Showing all locks held in the system:
+1 lock held by khungtaskd/1509:
+ #0: ffffffff865fa210 (rcu_read_lock){....}-{1:2}, at: rcu_lock_acquire+0x0/0x30
+5 locks held by kworker/0:4/3937:
+ #0: ffff88800b3f7338 ((wq_completion)usb_hub_wq){+.+.}-{0:0}, at: process_one_work+0x315/0x5c0
+ #1: ffffc90005b57e58 ((work_completion)(&hub->events)){+.+.}-{0:0}, at: process_one_work+0x33b/0x5c0
+ #2: ffff888103dcfa18 (&dev->mutex){....}-{3:3}, at: hub_event+0x8d/0x670
+ #3: ffff888103dda578 (&port_dev->status_lock){+.+.}-{3:3}, at: hub_port_connect+0x635/0x12c0
+ #4: ffff888103d79de8 (hcd->address0_mutex){+.+.}-{3:3}, at: hub_port_init+0xd3/0x13d0
+1 lock held by in:imklog/7892:
+ #0: ffff888016a0d6f0 (&f->f_pos_lock){+.+.}-{3:3}, at: __fdget_pos+0x164/0x190
+
+=============================================
+
+NMI backtrace for cpu 0
+CPU: 0 PID: 1509 Comm: khungtaskd Not tainted 5.11.0-rc7-984100-g291009f656e8-dirty #1
+Hardware name: QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+Call Trace:
+ dump_stack+0x102/0x172
+ nmi_trigger_cpumask_backtrace+0x275/0x2f0
+ watchdog+0xa22/0xa70
+ kthread+0x190/0x1c0
+ ret_from_fork+0x1f/0x30

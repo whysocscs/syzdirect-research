@@ -1,0 +1,78 @@
+BUG: unable to handle page fault for address: ffffc90002c51000
+#PF: supervisor write access in kernel mode
+#PF: error_code(0x0002) - not-present page
+PGD 9800067 P4D 9800067 PUD 9954067 PMD bfe4067 PTE 0
+Oops: 0002 [#1] PREEMPT SMP
+CPU: 0 PID: 1 Comm: systemd Not tainted 5.11.0-rc7-984100-g291009f656e8-dirty #1
+Hardware name: QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+RIP: 0010:sys_imageblit+0xab8/0xbd0
+Code: 68 90 4c 8b 6c 24 38 45 29 ef 41 0f be 06 44 89 f9 d3 f8 23 44 24 40 48 8b 4c 24 20 8b 04 81 44 8b 24 24 44 21 e0 33 44 24 04 <89> 43 f8 31 ff 44 89 fe e8 fb ac b3 fe 31 c0 45 85 ff b9 08 00 00
+RSP: 0018:ffffc9000063b938 EFLAGS: 00010206
+RAX: 0000000000030200 RBX: ffffc90002c51008 RCX: ffffffff86215fd0
+RDX: ffff88800a0a0000 RSI: 0000000000000000 RDI: 0000000000000000
+RBP: 0000000000000038 R08: ffffffff828ef46e R09: ffffffff828eeb9f
+R10: 0000000000000002 R11: ffff88800a0a0000 R12: 0000000000030200
+R13: 0000000000000001 R14: ffff88810218bca8 R15: 0000000000000007
+FS:  00007fc5ada5d900(0000) GS:ffff88807dc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: ffffc90002c51000 CR3: 000000000b373000 CR4: 0000000000750ef0
+PKRU: 55555554
+Call Trace:
+ drm_fbdev_fb_imageblit+0x96/0xf0
+ bit_putcs+0xb49/0xc10
+ fbcon_putcs+0x462/0x4a0
+ do_update_region+0x27a/0x340
+ redraw_screen+0x495/0x590
+ fbcon_blank+0x27e/0x3c0
+ do_unblank_screen+0x183/0x2f0
+ vt_kdsetmode+0xd8/0xf0
+ vt_ioctl+0x55b/0x1610
+ tty_ioctl+0x69a/0x990
+ __se_sys_ioctl+0xca/0x150
+ do_syscall_64+0x30/0x70
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+RIP: 0033:0x7fc5ae22d2d7
+Code: 00 00 00 48 8b 05 b9 cb 0d 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 89 cb 0d 00 f7 d8 64 89 01 48
+RSP: 002b:00007ffc500b9b58 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+RAX: ffffffffffffffda RBX: 0000000000000001 RCX: 00007fc5ae22d2d7
+RDX: 0000000000000000 RSI: 0000000000004b3a RDI: 0000000000000016
+RBP: 0000000000000016 R08: 00007ffc500b9b40 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000016
+R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000001
+Modules linked in:
+CR2: ffffc90002c51000
+---[ end trace 0f05d56123b0b650 ]---
+RIP: 0010:sys_imageblit+0xab8/0xbd0
+Code: 68 90 4c 8b 6c 24 38 45 29 ef 41 0f be 06 44 89 f9 d3 f8 23 44 24 40 48 8b 4c 24 20 8b 04 81 44 8b 24 24 44 21 e0 33 44 24 04 <89> 43 f8 31 ff 44 89 fe e8 fb ac b3 fe 31 c0 45 85 ff b9 08 00 00
+RSP: 0018:ffffc9000063b938 EFLAGS: 00010206
+RAX: 0000000000030200 RBX: ffffc90002c51008 RCX: ffffffff86215fd0
+RDX: ffff88800a0a0000 RSI: 0000000000000000 RDI: 0000000000000000
+RBP: 0000000000000038 R08: ffffffff828ef46e R09: ffffffff828eeb9f
+R10: 0000000000000002 R11: ffff88800a0a0000 R12: 0000000000030200
+R13: 0000000000000001 R14: ffff88810218bca8 R15: 0000000000000007
+FS:  00007fc5ada5d900(0000) GS:ffff88807dc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: ffffc90002c51000 CR3: 000000000b373000 CR4: 0000000000750ef0
+PKRU: 55555554
+----------------
+Code disassembly (best guess):
+   0:	68 90 4c 8b 6c       	push   $0x6c8b4c90
+   5:	24 38                	and    $0x38,%al
+   7:	45 29 ef             	sub    %r13d,%r15d
+   a:	41 0f be 06          	movsbl (%r14),%eax
+   e:	44 89 f9             	mov    %r15d,%ecx
+  11:	d3 f8                	sar    %cl,%eax
+  13:	23 44 24 40          	and    0x40(%rsp),%eax
+  17:	48 8b 4c 24 20       	mov    0x20(%rsp),%rcx
+  1c:	8b 04 81             	mov    (%rcx,%rax,4),%eax
+  1f:	44 8b 24 24          	mov    (%rsp),%r12d
+  23:	44 21 e0             	and    %r12d,%eax
+  26:	33 44 24 04          	xor    0x4(%rsp),%eax
+* 2a:	89 43 f8             	mov    %eax,-0x8(%rbx) <-- trapping instruction
+  2d:	31 ff                	xor    %edi,%edi
+  2f:	44 89 fe             	mov    %r15d,%esi
+  32:	e8 fb ac b3 fe       	call   0xfeb3ad32
+  37:	31 c0                	xor    %eax,%eax
+  39:	45 85 ff             	test   %r15d,%r15d
+  3c:	b9                   	.byte 0xb9
+  3d:	08 00                	or     %al,(%rax)

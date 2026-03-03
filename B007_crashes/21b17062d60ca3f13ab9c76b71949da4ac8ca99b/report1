@@ -1,0 +1,67 @@
+vhci_hcd: disconnect device
+vhci_hcd: stop threads
+vhci_hcd: release socket
+vhci_hcd: disconnect device
+BUG: kernel NULL pointer dereference, address: 0000000000000024
+#PF: supervisor write access in kernel mode
+#PF: error_code(0x0002) - not-present page
+PGD 2fa8a067 P4D 2fa8a067 PUD 0 
+Oops: 0002 [#1] PREEMPT SMP
+CPU: 0 PID: 241246 Comm: kworker/u2:18 Not tainted 5.11.0-rc7-984100-g291009f656e8-dirty #1
+Hardware name: QEMU Ubuntu 24.04 PC v2 (i440FX + PIIX, arch_caps fix, 1996), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+Workqueue: usbip_event event_handler
+RIP: 0010:kthread_stop+0x27/0x170
+Code: 1f 40 00 55 41 57 41 56 41 54 53 49 89 fc bf 72 42 00 00 e8 5b 5c 14 00 4c 89 e7 e8 53 01 00 00 4d 8d 74 24 28 bd 01 00 00 00 <3e> 41 0f c1 6c 24 28 31 ff 89 ee e8 b9 60 14 00 85 ed 0f 84 e2 00
+RSP: 0018:ffffc9000198fd70 EFLAGS: 00010293
+RAX: 0000000000000000 RBX: 0000000000000001 RCX: ffff8880305ed1c0
+RDX: ffff8880305ed1c0 RSI: 0000000000000000 RDI: 00000000ffffffff
+RBP: 0000000000000001 R08: ffffffff812e43e8 R09: ffffffff83670de2
+R10: ffffffff82752929 R11: ffff8880305ed1c0 R12: fffffffffffffffc
+R13: dead000000000122 R14: 0000000000000024 R15: ffff88800e48c420
+FS:  0000000000000000(0000) GS:ffff88807dc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000000024 CR3: 000000002d7c3000 CR4: 0000000000750ef0
+PKRU: 00000000
+Call Trace:
+ vhci_shutdown_connection+0xd9/0x580
+ event_handler+0x154/0x2f0
+ process_one_work+0x36c/0x5c0
+ worker_thread+0x407/0x7a0
+ kthread+0x190/0x1c0
+ ret_from_fork+0x1f/0x30
+Modules linked in:
+CR2: 0000000000000024
+---[ end trace 1628f85d90cfdc9b ]---
+RIP: 0010:kthread_stop+0x27/0x170
+Code: 1f 40 00 55 41 57 41 56 41 54 53 49 89 fc bf 72 42 00 00 e8 5b 5c 14 00 4c 89 e7 e8 53 01 00 00 4d 8d 74 24 28 bd 01 00 00 00 <3e> 41 0f c1 6c 24 28 31 ff 89 ee e8 b9 60 14 00 85 ed 0f 84 e2 00
+RSP: 0018:ffffc9000198fd70 EFLAGS: 00010293
+RAX: 0000000000000000 RBX: 0000000000000001 RCX: ffff8880305ed1c0
+RDX: ffff8880305ed1c0 RSI: 0000000000000000 RDI: 00000000ffffffff
+RBP: 0000000000000001 R08: ffffffff812e43e8 R09: ffffffff83670de2
+R10: ffffffff82752929 R11: ffff8880305ed1c0 R12: fffffffffffffffc
+R13: dead000000000122 R14: 0000000000000024 R15: ffff88800e48c420
+FS:  0000000000000000(0000) GS:ffff88807dc00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000000024 CR3: 000000002d7c3000 CR4: 0000000000750ef0
+PKRU: 00000000
+----------------
+Code disassembly (best guess), 1 bytes skipped:
+   0:	40 00 55 41          	rex add %dl,0x41(%rbp)
+   4:	57                   	push   %rdi
+   5:	41 56                	push   %r14
+   7:	41 54                	push   %r12
+   9:	53                   	push   %rbx
+   a:	49 89 fc             	mov    %rdi,%r12
+   d:	bf 72 42 00 00       	mov    $0x4272,%edi
+  12:	e8 5b 5c 14 00       	call   0x145c72
+  17:	4c 89 e7             	mov    %r12,%rdi
+  1a:	e8 53 01 00 00       	call   0x172
+  1f:	4d 8d 74 24 28       	lea    0x28(%r12),%r14
+  24:	bd 01 00 00 00       	mov    $0x1,%ebp
+* 29:	3e 41 0f c1 6c 24 28 	ds xadd %ebp,0x28(%r12) <-- trapping instruction
+  30:	31 ff                	xor    %edi,%edi
+  32:	89 ee                	mov    %ebp,%esi
+  34:	e8 b9 60 14 00       	call   0x1460f2
+  39:	85 ed                	test   %ebp,%ebp
+  3b:	0f                   	.byte 0xf
+  3c:	84 e2                	test   %ah,%dl

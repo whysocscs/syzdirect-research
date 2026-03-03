@@ -1,0 +1,99 @@
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.12)
+qemu-system-x86_64 ["-m" "4096" "-smp" "1" "-chardev" "socket,id=SOCKSYZ,server=on,wait=off,host=localhost,port=55705" "-mon" "chardev=SOCKSYZ,mode=control" "-display" "none" "-serial" "stdio" "-no-reboot" "-name" "VM-0" "-device" "virtio-rng-pci" "-enable-kvm" "-cpu" "host,migratable=off" "-device" "e1000,netdev=net0" "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:32256-:22" "-hda" "/home/ai/fuzz_bug7/images/bullseye.img" "-snapshot" "-kernel" "/home/ai/fuzz_bug7/instrumented_kernel/bzImage_xidx0" "-append" "root=/dev/sda console=ttyS0 "]
+
+[CPU Info]
+processor           : 0
+vendor_id           : GenuineIntel
+cpu family          : 6
+model               : 183
+model name          : Intel(R) Core(TM) i7-14700KF
+stepping            : 1
+microcode           : 0x12f
+cpu MHz             : 3417.600
+cache size          : 16384 KB
+physical id         : 0
+siblings            : 1
+core id             : 0
+cpu cores           : 1
+apicid              : 0
+initial apicid      : 0
+fpu                 : yes
+fpu_exception       : yes
+cpuid level         : 32
+wp                  : yes
+flags               : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves arat umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize flush_l1d arch_capabilities
+vmx flags           : vnmi preemption_timer posted_intr invvpid ept_x_only ept_ad ept_1gb flexpriority apicv tsc_offset vtpr mtf vapic ept vpid unrestricted_guest vapic_reg vid shadow_vmcs pml tsc_scaling usr_wait_pause
+bugs                : spectre_v1 spectre_v2 spec_store_bypass swapgs
+bogomips            : 6835.20
+clflush size        : 64
+cache_alignment     : 64
+address sizes       : 39 bits physical, 48 bits virtual
+power management    : 
+
+--------------------------------------------------------------------------------
+
+[KVM]
+/sys/module/kvm:
+	enable_vmware_backdoor: N
+	flush_on_reuse: N
+	force_emulation_prefix: N
+	halt_poll_ns: 200000
+	halt_poll_ns_grow: 2
+	halt_poll_ns_grow_start: 10000
+	halt_poll_ns_shrink: 0
+	ignore_msrs: N
+	kvmclock_periodic_sync: Y
+	lapic_timer_advance_ns: -1
+	min_timer_period_us: 200
+	nx_huge_pages: N
+	nx_huge_pages_recovery_ratio: 60
+	pi_inject_timer: 0
+	report_ignored_msrs: Y
+	tdp_mmu: N
+	tsc_tolerance_ppm: 250
+	vector_hashing: Y
+
+/sys/module/kvm_amd:
+	avic: 0
+	dump_invalid_vmcb: N
+	nested: 1
+	npt: 1
+	nrips: 1
+	pause_filter_count: 3000
+	pause_filter_count_grow: 2
+	pause_filter_count_max: 65535
+	pause_filter_count_shrink: 0
+	pause_filter_thresh: 128
+	sev: 0
+	sev_es: 0
+	vgif: 1
+	vls: 1
+
+/sys/module/kvm_intel:
+	allow_smaller_maxphyaddr: N
+	dump_invalid_vmcs: N
+	emulate_invalid_guest_state: Y
+	enable_apicv: Y
+	enable_shadow_vmcs: Y
+	ept: Y
+	eptad: Y
+	fasteoi: Y
+	flexpriority: Y
+	nested: Y
+	nested_early_check: N
+	ple_gap: 0
+	ple_window: 0
+	ple_window_grow: 0
+	ple_window_max: 0
+	ple_window_shrink: 0
+	pml: Y
+	preemption_timer: Y
+	pt_mode: 0
+	unrestricted_guest: Y
+	vmentry_l1d_flush: not required
+	vnmi: Y
+	vpid: Y
+
+
+--------------------------------------------------------------------------------
+
