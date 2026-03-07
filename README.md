@@ -1,78 +1,37 @@
-# SyzDirect Experiment Environment
+# SyzDirect + LLM Agent Research
 
-LLM/Agent-enhanced directed greybox fuzzing for Linux kernel.
+## 프로젝트 개요
+SyzDirect (CCS 2023) 기반 directed greybox fuzzing + LLM Agent 보완 연구
 
-## Quick Start
+**목표**: syscall 복잡도별 SyzDirect 실패 지점 측정 → LLM 에이전트로 R1/R2/R3 보완
 
-```bash
-# 1. Setup (full - includes kernel build, ~1-2 hours)
-./scripts/setup_environment.sh
+## 케이스 할당
+| Case | 담당 | 타겟 | 상태 |
+|------|------|------|------|
+| Case 2 | 호준 | drivers/block/nbd.c:2006 | 퍼징 완료 (dist=0) |
+| Case 4 | 현영 | drivers/block/nbd.c:1809 | TPA 완료 |
+| Case 6 | 상호 | drivers/misc/vmw_vmci/vmci_queuepair.c:542 | 퍼징 진행 중 |
+| Case 8 | 나현 | drivers/net/bonding/bond_main.c:434 | 미셋업 |
 
-# 2. Or skip kernel/image for development
-./scripts/setup_environment.sh --skip-kernel --skip-image
+## Case 6 파이프라인 완료 상태
+- [x] srcs/case_6 (Linux 6.1 + kcov 패치)
+- [x] bitcode/case_6 (vmci_queue_pair.llbc, nbd.llbc 교체)
+- [x] interfaces (case_4 재활용)
+- [x] tpa/case_6 → `qp_broker_alloc` / `ioctl$IOCTL_VMCI_QUEUEPAIR_ALLOC`
+- [x] kwithdist/case_6 bzImage_nokvm (KCOV_INSTRUMENT_ALL=n)
+- [ ] 퍼징 (KVM 환경 필요)
 
-# 3. Run experiments
-./scripts/run_experiment.sh baseline /work/targets/example_target.json 1
-./scripts/run_experiment.sh syzdirect /work/targets/example_target.json 1
-./scripts/run_experiment.sh agent-loop /work/targets/example_target.json 1
+## 주요 파일
+- `scripts/` : 빌드 및 실행 스크립트
+- `scripts/fuzz_case6.sh` : Case 6 퍼징 원클릭 실행
+- `scripts/watch_distance.sh` : 거리 감소 실시간 모니터링 + CSV 기록
+- `configs/case_6/` : syz-manager 설정
+- `results/tpa/case_6/` : TPA 결과 (distance 파일 포함)
+- `source/kcov_patches/` : kcov_mark_block 삽입된 vmci 소스
+- `source/syzdirect_patches/qemu.go` : SSH timeout 10분→30분 패치
 
-# 4. Analyze results
-python3 scripts/analyze_results.py --runs-dir /work/runs
-```
-
-## Directory Structure
-
-```
-/work/
-├── syzkaller/          # Google syzkaller (built)
-├── SyzDirect/          # This project
-│   ├── source/
-│   │   ├── analyzer/   # Static analysis
-│   │   ├── distance/   # Distance calculation
-│   │   ├── template/   # Template generation
-│   │   └── agent/      # LLM/Agent modules (R1/R2/R3)
-│   └── scripts/        # Setup & run scripts
-├── linux-src/          # Kernel source
-├── linux-build/        # Kernel build
-├── images/             # VM images
-├── targets/            # Target specifications
-└── runs/               # Experiment outputs
-```
-
-## Failure Classification
-
-| Class | Issue | Detection | Response Agent |
-|-------|-------|-----------|----------------|
-| R1 | Missing dependencies | Distance plateau | Related-syscall Agent |
-| R2 | Object/param issues | High EINVAL, near target | Object Synthesis Agent |
-| R3 | Context depth | High error rate | Related-syscall Agent |
-
-## Target Format
-
-```json
-{
-    "target_id": "bug_001",
-    "kernel_commit": "v6.1",
-    "file_path": "net/core/sock.c",
-    "function": "sock_setsockopt",
-    "line": 1234,
-    "target_type": "bug_repro"
-}
-```
-
-## Components
-
-- `syscall_analyzer.py` - Entry/related syscall identification
-- `distance_calculator.py` - BB-level distance computation
-- `template_generator.py` - Fuzzing template creation
-- `failure_triage.py` - R1/R2/R3 classification
-- `related_syscall_agent.py` - Context deepening (R3)
-- `object_synthesis_agent.py` - Object synthesis (R2)
-
-## Metrics
-
-- TTE (Time-to-Exposure)
-- Hitting-round
-- Success rate
-- Failure class improvement rate
-- Distance plateau break rate
+## 중요 교훈
+- `KCOV_INSTRUMENT_ALL=y` + `trace-pc,second` → TCG에서 int3 패닉 발생
+- nokvm 환경에서는 반드시 `KCOV_INSTRUMENT_ALL=n` 사용
+- SSH timeout을 30분으로 늘려야 TCG 부팅 대기 가능
+- vmci TPA: dist 파일 3개 (vmci_host, vmci_queue_pair, v4l2-compat) = 정상

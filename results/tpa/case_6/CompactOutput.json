@@ -1,0 +1,19 @@
+[
+    {
+        "case index": "0",
+        "target syscall infos": [
+            {
+                "target syscall": "ioctl$IOCTL_VMCI_QUEUEPAIR_ALLOC",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "IOCTL_VMCI_QUEUEPAIR_ALLOC",
+                            "value": "1960"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+]

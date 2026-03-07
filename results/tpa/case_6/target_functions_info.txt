@@ -1,0 +1,1 @@
+0 qp_broker_alloc /work/syzdirect_workdir/srcs/case_6/drivers/misc/vmw_vmci/vmci_queue_pair.c
