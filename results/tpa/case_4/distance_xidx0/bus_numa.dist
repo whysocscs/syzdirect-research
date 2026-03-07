@@ -1,0 +1,15 @@
+alloc_pci_root_info 0 14080
+update_res 0 14110
+update_res 2 14100
+update_res 3 14090
+update_res 4 14100
+update_res 5 14130
+update_res 6 14090
+update_res 7 14120
+update_res 8 14110
+update_res 9 14120
+update_res 10 14110
+update_res 12 14100
+update_res 13 14130
+update_res 14 14090
+update_res 15 14080

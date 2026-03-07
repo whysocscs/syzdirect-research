@@ -1,0 +1,5 @@
+nf_hooks_lwtunnel_sysctl_handler 0 14050
+nf_hooks_lwtunnel_sysctl_handler 4 14040
+nf_hooks_lwtunnel_sysctl_handler 6 14030
+nf_hooks_lwtunnel_sysctl_handler 10 14020
+nf_hooks_lwtunnel_sysctl_handler 12 14010

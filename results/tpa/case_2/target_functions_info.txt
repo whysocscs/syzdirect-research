@@ -1,0 +1,1 @@
+0 nbd_genl_connect /work/syzdirect_workdir/srcs/case_2/drivers/block/nbd.c

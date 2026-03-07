@@ -1,0 +1,7 @@
+nr_open 0 15080
+nr_close 0 21080
+nr_xmit 0 6080
+nr_set_mac_address 0 17606
+nr_set_mac_address 2 17595
+nr_set_mac_address 4 15080
+nr_set_mac_address 6 21080

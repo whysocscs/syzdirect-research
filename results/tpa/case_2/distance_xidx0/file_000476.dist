@@ -1,0 +1,7 @@
+curve25519_exit 0 13260
+curve25519_init 0 9260
+curve25519_compute_value 0 21274
+curve25519_compute_value 1 21270
+curve25519_compute_value 2 21260
+curve25519_compute_value 4 21270
+curve25519_compute_value 5 21260

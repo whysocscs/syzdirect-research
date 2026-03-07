@@ -1,0 +1,6 @@
+ip6t_npt_exit 0 22080
+ip6t_npt_init 0 22080
+ip6t_snpt_tg 0 9090
+ip6t_snpt_tg 1 9080
+ip6t_dnpt_tg 0 9090
+ip6t_dnpt_tg 1 9080

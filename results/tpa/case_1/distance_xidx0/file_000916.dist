@@ -1,0 +1,6 @@
+efs_get_block 0 11110
+efs_get_block 2 11100
+efs_get_block 4 11090
+efs_bmap 0 11110
+efs_bmap 2 11100
+efs_bmap 4 11090

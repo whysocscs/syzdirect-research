@@ -1,0 +1,4 @@
+ebt_vlan_fini 0 14090
+ebt_vlan_init 0 14100
+ebt_vlan_init 1 14100
+ebt_vlan_init 2 14090

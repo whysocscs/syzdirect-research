@@ -1,0 +1,6 @@
+nft_dup_ipv6_module_exit 0 23080
+nft_dup_ipv6_module_init 0 23080
+nft_dup_ipv6_eval 0 13100
+nft_dup_ipv6_eval 1 13090
+nft_dup_ipv6_eval 2 13090
+nft_dup_ipv6_eval 3 13080

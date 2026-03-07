@@ -1,0 +1,8 @@
+crypto_alloc_kpp 0 10090
+crypto_grab_kpp 0 11090
+crypto_has_kpp 0 11090
+crypto_register_kpp 0 10090
+crypto_unregister_kpp 0 13090
+kpp_register_instance 0 10100
+kpp_register_instance 2 10090
+crypto_kpp_exit_tfm 0 19090

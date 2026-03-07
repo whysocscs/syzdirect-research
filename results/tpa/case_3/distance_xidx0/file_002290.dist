@@ -1,0 +1,17 @@
+copy_from_user_nofault 0 15390
+copy_from_user_nofault 1 15380
+copy_from_user_nofault 2 15390
+copy_from_user_nofault 3 15380
+copy_from_user_nofault 4 15380
+copy_from_user_nofault 5 15370
+copy_from_user_nofault 7 15360
+copy_to_user_nofault 0 16762
+copy_to_user_nofault 1 16752
+copy_to_user_nofault 2 16762
+copy_to_user_nofault 3 16752
+copy_to_user_nofault 4 16752
+copy_to_user_nofault 5 16742
+copy_to_user_nofault 7 18360
+copy_to_user_nofault 9 15360
+strncpy_from_user_nofault 0 15370
+strncpy_from_user_nofault 2 15360

@@ -1,0 +1,9 @@
+user_return_notifier_register 0 24080
+user_return_notifier_unregister 0 24100
+user_return_notifier_unregister 1 24090
+user_return_notifier_unregister 2 24090
+user_return_notifier_unregister 3 24080
+fire_user_return_notifiers 0 24080
+fire_user_return_notifiers 2 25090
+fire_user_return_notifiers 3 25080
+fire_user_return_notifiers 4 25090

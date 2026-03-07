@@ -1,0 +1,7 @@
+usb6fire_comm_init 0 9090
+usb6fire_comm_init 2 9090
+usb6fire_comm_write8 0 9090
+usb6fire_comm_write16 0 9090
+usb6fire_comm_receiver_handler 0 14110
+usb6fire_comm_receiver_handler 2 14100
+usb6fire_comm_receiver_handler 4 14090

@@ -1,0 +1,10 @@
+mpls_gso_exit 0 12090
+mpls_gso_init 0 16090
+mpls_gso_segment 0 10600
+mpls_gso_segment 2 10590
+mpls_gso_segment 3 11110
+mpls_gso_segment 4 10590
+mpls_gso_segment 6 10090
+mpls_gso_segment 8 11110
+mpls_gso_segment 9 11100
+mpls_gso_segment 11 11090

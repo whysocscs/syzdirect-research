@@ -1,0 +1,8 @@
+ext4_init_security 0 9360
+ext4_initxattrs 0 8380
+ext4_initxattrs 1 8370
+ext4_initxattrs 3 8380
+ext4_initxattrs 4 8370
+ext4_initxattrs 6 8360
+ext4_xattr_security_get 0 10360
+ext4_xattr_security_set 0 9360

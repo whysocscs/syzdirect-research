@@ -1,0 +1,14 @@
+limit_mt_exit 0 22080
+limit_mt_init 0 22080
+limit_mt_check 0 16932
+limit_mt_check 1 21090
+limit_mt_check 2 16938
+limit_mt_check 3 16927
+limit_mt_check 4 16927
+limit_mt_check 5 16917
+limit_mt_check 6 16907
+limit_mt_check 7 16907
+limit_mt_check 8 16896
+limit_mt_check 9 21090
+limit_mt_check 10 21080
+limit_mt_check 13 14080

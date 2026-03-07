@@ -1,0 +1,17 @@
+nft_objref_module_exit 0 14260
+nft_objref_module_init 0 14260
+nft_objref_map_eval 0 11260
+nft_objref_map_eval 1 7270
+nft_objref_map_eval 2 7280
+nft_objref_map_eval 3 7270
+nft_objref_map_eval 5 7260
+nft_objref_map_init 0 12260
+nft_objref_map_init 2 12280
+nft_objref_map_init 4 12270
+nft_objref_map_init 6 12260
+nft_objref_map_deactivate 0 7260
+nft_objref_map_destroy 0 11260
+nft_objref_eval 0 7260
+nft_objref_init 0 10280
+nft_objref_init 2 10270
+nft_objref_init 4 10260

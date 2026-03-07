@@ -1,0 +1,8 @@
+camellia_init 0 9686
+camellia_init 1 9676
+camellia_init 2 9686
+camellia_init 3 9676
+camellia_init 5 8260
+camellia_init 7 9260
+camellia_init 9 12260
+camellia_fini 0 12260

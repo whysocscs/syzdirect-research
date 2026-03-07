@@ -1,0 +1,8 @@
+lz4_mod_fini 0 13010
+lz4_mod_init 0 9010
+lz4_mod_init 2 10010
+lz4_mod_init 4 13010
+lz4_init 0 12010
+lz4_exit 0 14010
+lz4_alloc_ctx 0 12010
+lz4_free_ctx 0 14010

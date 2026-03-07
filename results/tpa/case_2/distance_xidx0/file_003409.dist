@@ -1,0 +1,11 @@
+ovs_gre_tnl_exit 0 14260
+ovs_gre_tnl_init 0 14260
+gre_create 0 10260
+gre_create 1 9280
+gre_create 2 8260
+gre_create 3 8260
+gre_create 4 8260
+gre_create 5 8260
+gre_create 6 8260
+gre_create 7 9270
+gre_create 9 9260

@@ -1,0 +1,11 @@
+aa_secid_update 0 10260
+aa_secid_to_label 0 11260
+apparmor_secid_to_secctx 0 11260
+apparmor_secid_to_secctx 1 10290
+apparmor_secid_to_secctx 2 10290
+apparmor_secid_to_secctx 3 10280
+apparmor_secid_to_secctx 5 10270
+apparmor_secid_to_secctx 6 10260
+apparmor_secctx_to_secid 0 10260
+aa_alloc_secid 0 10260
+aa_free_secid 0 11260

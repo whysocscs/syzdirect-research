@@ -1,0 +1,4 @@
+tk_debug_sleep_time_init 0 12090
+tk_debug_account_sleep_time 0 21100
+tk_debug_account_sleep_time 2 21090
+tk_debug_sleep_time_open 0 9090

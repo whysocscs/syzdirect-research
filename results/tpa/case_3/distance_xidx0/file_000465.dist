@@ -1,0 +1,4 @@
+ghash_mod_exit 0 13360
+ghash_mod_init 0 9360
+ghash_exit_tfm 0 15370
+ghash_exit_tfm 2 15360

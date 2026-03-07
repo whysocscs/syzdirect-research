@@ -1,0 +1,10 @@
+xfs_stats_clearall 0 20090
+xfs_init_procfs 0 10090
+xfs_init_procfs 2 10090
+xfs_init_procfs 3 11100
+xfs_init_procfs 4 10090
+xfs_init_procfs 5 11100
+xfs_init_procfs 6 10090
+xfs_init_procfs 8 11100
+xfs_init_procfs 9 11090
+xfs_cleanup_procfs 0 11090

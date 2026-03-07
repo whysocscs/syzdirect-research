@@ -1,0 +1,7 @@
+lockdown_secfs_init 0 14010
+lockdown_lsm_init 0 13010
+lockdown_write 0 11010
+lockdown_is_locked_down 0 16040
+lockdown_is_locked_down 2 16030
+lockdown_is_locked_down 4 16020
+lockdown_is_locked_down 6 16010

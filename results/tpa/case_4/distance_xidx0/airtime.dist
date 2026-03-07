@@ -1,0 +1,4 @@
+ieee80211_calc_expected_tx_airtime 0 26080
+ieee80211_calc_expected_tx_airtime 2 26100
+ieee80211_calc_expected_tx_airtime 4 26090
+ieee80211_calc_expected_tx_airtime 6 26080

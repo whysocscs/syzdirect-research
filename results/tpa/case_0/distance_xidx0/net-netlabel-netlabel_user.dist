@@ -1,0 +1,9 @@
+netlbl_netlink_init 0 8010
+netlbl_netlink_init 2 8010
+netlbl_netlink_init 4 8010
+netlbl_netlink_init 6 8010
+netlbl_audit_start_common 0 8780
+netlbl_audit_start_common 2 7010
+netlbl_audit_start_common 4 10010
+netlbl_audit_start_common 6 10020
+netlbl_audit_start_common 8 10010

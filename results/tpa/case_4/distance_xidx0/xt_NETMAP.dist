@@ -1,0 +1,16 @@
+netmap_tg_init 0 22080
+netmap_tg4 0 15100
+netmap_tg4 1 15090
+netmap_tg4 2 15090
+netmap_tg4 3 15090
+netmap_tg4 4 15090
+netmap_tg4 5 15090
+netmap_tg4 6 15080
+netmap_tg4_check 0 15100
+netmap_tg4_check 3 15090
+netmap_tg4_check 6 15080
+netmap_tg_exit 0 22080
+netmap_tg6 0 15080
+netmap_tg6_checkentry 0 15090
+netmap_tg6_checkentry 2 15080
+netmap_tg_destroy 0 22080

@@ -1,0 +1,9 @@
+fscache_proc_init 0 10090
+fscache_proc_init 2 10090
+fscache_proc_init 3 11100
+fscache_proc_init 4 10090
+fscache_proc_init 5 11100
+fscache_proc_init 6 10090
+fscache_proc_init 8 11100
+fscache_proc_init 9 11090
+fscache_proc_cleanup 0 11090

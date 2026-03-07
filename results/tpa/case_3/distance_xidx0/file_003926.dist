@@ -1,0 +1,14 @@
+snd_hda_create_hwdep 0 10360
+hda_hwdep_open 0 12360
+hda_hwdep_ioctl 0 13657
+hda_hwdep_ioctl 2 14360
+hda_hwdep_ioctl 3 14360
+hda_hwdep_ioctl 5 11360
+hda_hwdep_ioctl 6 14360
+hda_hwdep_ioctl 8 14380
+hda_hwdep_ioctl 9 14370
+hda_hwdep_ioctl 10 14380
+hda_hwdep_ioctl 11 14370
+hda_hwdep_ioctl 12 14370
+hda_hwdep_ioctl 13 14360
+hda_hwdep_ioctl_compat 0 12360

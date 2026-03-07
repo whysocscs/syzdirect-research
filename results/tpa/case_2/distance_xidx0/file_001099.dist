@@ -1,0 +1,8 @@
+jfs_issue_discard 0 10260
+jfs_ioc_trim 0 10310
+jfs_ioc_trim 2 10300
+jfs_ioc_trim 4 10290
+jfs_ioc_trim 6 10280
+jfs_ioc_trim 7 10270
+jfs_ioc_trim 9 10260
+jfs_ioc_trim 10 10270

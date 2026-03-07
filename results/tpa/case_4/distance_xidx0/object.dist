@@ -1,0 +1,6 @@
+landlock_create_object 0 16566
+landlock_create_object 2 14080
+landlock_create_object 4 20080
+landlock_put_object 0 13658
+landlock_put_object 2 21080
+landlock_put_object 4 10080

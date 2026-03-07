@@ -1,0 +1,4 @@
+comp_mt_exit 0 22080
+comp_mt_init 0 22080
+comp_mt_check 0 21090
+comp_mt_check 2 21080

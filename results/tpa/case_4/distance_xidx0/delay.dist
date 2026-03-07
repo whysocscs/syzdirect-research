@@ -1,0 +1,13 @@
+__const_udelay 0 8080
+__udelay 0 9080
+delay_tsc 0 24080
+delay_tsc 1 24094
+delay_tsc 2 24094
+delay_tsc 3 24080
+delay_tsc 4 24080
+delay_tsc 5 24104
+delay_halt 0 7100
+delay_halt 1 7090
+delay_halt 2 7080
+__delay 0 8080
+__ndelay 0 9080

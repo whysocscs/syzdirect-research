@@ -1,0 +1,12 @@
+quirk_intel_purley_xeon_ras_cap 0 14370
+quirk_intel_purley_xeon_ras_cap 1 14370
+quirk_intel_purley_xeon_ras_cap 2 14360
+ich_force_enable_hpet 0 13044
+ich_force_enable_hpet 1 13034
+ich_force_enable_hpet 3 12360
+ich_force_enable_hpet 5 13374
+ich_force_enable_hpet 6 13360
+ich_force_enable_hpet 7 13370
+ich_force_enable_hpet 9 13360
+quirk_intel_brickland_xeon_ras_cap 0 14370
+quirk_intel_brickland_xeon_ras_cap 1 14360

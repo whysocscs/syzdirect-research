@@ -1,0 +1,10 @@
+cpumask_any_and_distribute 0 19010
+cpumask_any_and_distribute 1 19030
+cpumask_any_and_distribute 2 19030
+cpumask_any_and_distribute 3 19020
+cpumask_any_and_distribute 5 19010
+cpumask_any_distribute 0 19010
+cpumask_any_distribute 1 19030
+cpumask_any_distribute 2 19030
+cpumask_any_distribute 3 19020
+cpumask_any_distribute 5 19010

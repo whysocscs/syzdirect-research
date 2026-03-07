@@ -1,0 +1,13 @@
+query_asymmetric_key 0 11050
+query_asymmetric_key 2 11040
+query_asymmetric_key 4 11030
+query_asymmetric_key 6 11020
+query_asymmetric_key 8 11010
+encrypt_blob 0 12010
+decrypt_blob 0 12010
+create_signature 0 12010
+verify_signature 0 12050
+verify_signature 2 12040
+verify_signature 4 12030
+verify_signature 6 12020
+verify_signature 8 12010

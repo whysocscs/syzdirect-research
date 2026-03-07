@@ -1,0 +1,17 @@
+ebtable_broute_fini 0 9260
+broute_table_init 0 8260
+ebtable_broute_init 0 10260
+ebtable_broute_init 2 9260
+ebtable_broute_init 4 13260
+broute_net_pre_exit 0 10260
+broute_net_exit 0 9260
+ebt_broute 0 20260
+ebt_broute 1 5290
+ebt_broute 2 7996
+ebt_broute 3 5290
+ebt_broute 4 7995
+ebt_broute 5 5290
+ebt_broute 6 16260
+ebt_broute 7 5280
+ebt_broute 9 5270
+ebt_broute 11 5260

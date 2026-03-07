@@ -1,0 +1,11 @@
+hfs_part_find 0 10090
+hfs_part_find 2 10140
+hfs_part_find 17 10130
+hfs_part_find 18 10120
+hfs_part_find 20 10110
+hfs_part_find 21 10100
+hfs_part_find 22 10110
+hfs_part_find 23 10100
+hfs_part_find 25 10090
+hfs_part_find 27 10140
+hfs_part_find 29 10130

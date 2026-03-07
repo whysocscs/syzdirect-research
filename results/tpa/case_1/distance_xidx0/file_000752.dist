@@ -1,0 +1,9 @@
+btrfs_insert_orphan_item 0 9090
+btrfs_insert_orphan_item 2 12090
+btrfs_del_orphan_item 0 9090
+btrfs_del_orphan_item 2 11090
+btrfs_del_orphan_item 3 15100
+btrfs_del_orphan_item 4 12798
+btrfs_del_orphan_item 5 15100
+btrfs_del_orphan_item 6 11090
+btrfs_del_orphan_item 7 15090

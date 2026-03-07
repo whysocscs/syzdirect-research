@@ -1,0 +1,9 @@
+bpf_prog_iter_init 0 10090
+bpf_prog_seq_start 0 16090
+bpf_prog_seq_stop 0 11409
+bpf_prog_seq_stop 1 13100
+bpf_prog_seq_stop 3 13090
+bpf_prog_seq_stop 5 10090
+bpf_prog_seq_next 0 10090
+bpf_prog_seq_show 0 13100
+bpf_prog_seq_show 2 13090

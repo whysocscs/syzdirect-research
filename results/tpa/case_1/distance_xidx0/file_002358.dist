@@ -1,0 +1,7 @@
+ZSTD_customMalloc 0 10100
+ZSTD_customMalloc 2 10090
+ZSTD_customCalloc 0 10100
+ZSTD_customCalloc 2 10090
+ZSTD_customFree 0 11110
+ZSTD_customFree 2 11100
+ZSTD_customFree 4 11090

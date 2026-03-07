@@ -1,0 +1,14 @@
+pod_probe 0 9090
+pod_init 0 10700
+pod_init 2 10090
+pod_init 4 10090
+pod_init 6 12100
+pod_init 8 12090
+line6_pod_process_message 0 12110
+line6_pod_process_message 1 12100
+line6_pod_process_message 3 12090
+pod_startup 0 8338
+pod_startup 2 10090
+pod_startup 3 7090
+snd_pod_control_monitor_put 0 10100
+snd_pod_control_monitor_put 2 10090

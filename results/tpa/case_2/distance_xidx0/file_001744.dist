@@ -1,0 +1,8 @@
+zonefs_sysfs_register 0 12260
+zonefs_sysfs_register 1 10260
+zonefs_sysfs_unregister 0 9280
+zonefs_sysfs_unregister 2 9270
+zonefs_sysfs_unregister 4 9260
+zonefs_sysfs_init 0 10260
+zonefs_sysfs_exit 0 10260
+zonefs_sysfs_sb_release 0 11260

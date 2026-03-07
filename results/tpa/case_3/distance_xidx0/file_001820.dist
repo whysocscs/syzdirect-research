@@ -1,0 +1,17 @@
+__ia32_compat_sys_sigprocmask 0 14037
+__ia32_compat_sys_sigprocmask 1 14380
+__ia32_compat_sys_sigprocmask 2 14360
+__ia32_compat_sys_sigprocmask 4 13871
+__ia32_compat_sys_sigprocmask 6 13861
+__ia32_compat_sys_sigprocmask 7 13861
+__ia32_compat_sys_sigprocmask 8 13861
+__ia32_compat_sys_sigprocmask 9 13360
+__ia32_compat_sys_sigprocmask 10 14370
+__ia32_compat_sys_sigprocmask 12 14360
+put_compat_rusage 0 15360
+__ia32_compat_sys_sched_setaffinity 0 10370
+__ia32_compat_sys_sched_setaffinity 2 10360
+__ia32_compat_sys_sched_getaffinity 0 12360
+__se_compat_sys_sched_getaffinity 0 11370
+__se_compat_sys_sched_getaffinity 2 11360
+get_compat_sigset 0 15360

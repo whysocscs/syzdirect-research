@@ -1,0 +1,4 @@
+xskq_create 0 9090
+xskq_create 2 13090
+xskq_destroy 0 16100
+xskq_destroy 2 16090

@@ -1,0 +1,13 @@
+ip6table_raw_fini 0 22080
+ip6table_raw_init 0 17174
+ip6table_raw_init 1 17164
+ip6table_raw_init 2 17164
+ip6table_raw_init 3 15080
+ip6table_raw_init 5 13080
+ip6table_raw_init 6 22080
+ip6table_raw_init 7 22090
+ip6table_raw_init 9 22080
+ip6table_raw_net_pre_exit 0 23080
+ip6table_raw_net_exit 0 13080
+ip6table_raw_table_init 0 13080
+ip6table_raw_table_init 2 12080

@@ -1,0 +1,5 @@
+cfdbgl_create 0 10010
+cfdbgl_receive 0 6010
+cfdbgl_transmit 0 6481
+cfdbgl_transmit 1 7010
+cfdbgl_transmit 2 6010

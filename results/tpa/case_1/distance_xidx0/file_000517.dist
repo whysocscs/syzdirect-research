@@ -1,0 +1,17 @@
+pkcs7_sig_note_signature 0 10090
+pkcs7_note_signed_info 0 9607
+pkcs7_note_signed_info 1 9597
+pkcs7_note_signed_info 2 9607
+pkcs7_note_signed_info 3 9597
+pkcs7_note_signed_info 5 9587
+pkcs7_note_signed_info 6 10090
+pkcs7_note_signed_info 7 10090
+pkcs7_note_signed_info 8 9104
+pkcs7_note_signed_info 10 9090
+pkcs7_note_signed_info 12 9090
+pkcs7_parse_message 0 9090
+pkcs7_parse_message 2 9090
+pkcs7_parse_message 4 9090
+pkcs7_parse_message 6 9090
+pkcs7_extract_cert 0 10100
+pkcs7_extract_cert 3 10090

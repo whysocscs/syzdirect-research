@@ -1,0 +1,16 @@
+usx2y_hwdep_new 0 15080
+usx2y_hwdep_new 2 12080
+usx2y_create_alsa_devices 0 16094
+usx2y_create_alsa_devices 2 16080
+usx2y_create_alsa_devices 4 16080
+snd_usx2y_hwdep_dsp_load 0 15741
+snd_usx2y_hwdep_dsp_load 2 15731
+snd_usx2y_hwdep_dsp_load 4 15721
+snd_usx2y_hwdep_dsp_load 6 15711
+snd_usx2y_hwdep_dsp_load 8 15080
+snd_usx2y_hwdep_dsp_load 10 15080
+snd_usx2y_hwdep_dsp_load 12 17080
+snd_us428ctls_poll 0 22110
+snd_us428ctls_poll 2 22100
+snd_us428ctls_poll 4 22090
+snd_us428ctls_poll 6 22080

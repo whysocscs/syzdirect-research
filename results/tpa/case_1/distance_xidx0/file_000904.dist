@@ -1,0 +1,6 @@
+ecryptfs_d_revalidate 0 10110
+ecryptfs_d_revalidate 2 10100
+ecryptfs_d_revalidate 4 10090
+ecryptfs_d_release 0 11100
+ecryptfs_d_release 2 11090
+ecryptfs_dentry_free_rcu 0 14090

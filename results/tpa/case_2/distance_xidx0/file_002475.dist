@@ -1,0 +1,12 @@
+batadv_hash_new 0 9260
+batadv_hash_new 2 9260
+batadv_hash_new 4 9260
+batadv_hash_new 5 13279
+batadv_hash_new 7 13260
+batadv_hash_new 9 13270
+batadv_hash_new 10 13260
+batadv_hash_new 12 13270
+batadv_hash_set_lock_class 0 12280
+batadv_hash_set_lock_class 1 12270
+batadv_hash_set_lock_class 3 12260
+batadv_hash_set_lock_class 5 12270

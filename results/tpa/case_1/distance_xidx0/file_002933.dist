@@ -1,0 +1,13 @@
+ip_misc_proc_init 0 10090
+ip_proc_init_net 0 11090
+ip_proc_init_net 2 11090
+ip_proc_init_net 3 11100
+ip_proc_init_net 4 11090
+ip_proc_init_net 6 11090
+ip_proc_init_net 7 11090
+ip_proc_exit_net 0 11090
+sockstat_seq_show 0 16090
+netstat_seq_show 0 9110
+netstat_seq_show 1 9100
+netstat_seq_show 2 9110
+netstat_seq_show 3 9090

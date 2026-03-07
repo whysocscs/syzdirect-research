@@ -1,0 +1,2 @@
+wbinvd_on_cpu 0 7090
+wbinvd_on_all_cpus 0 7090

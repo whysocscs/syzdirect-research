@@ -1,0 +1,6 @@
+smc_sysctl_net_init 0 10580
+smc_sysctl_net_init 1 11100
+smc_sysctl_net_init 2 10090
+smc_sysctl_net_init 4 11100
+smc_sysctl_net_init 5 11090
+smc_sysctl_net_exit 0 13090

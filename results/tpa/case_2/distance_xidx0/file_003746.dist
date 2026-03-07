@@ -1,0 +1,15 @@
+x25_proc_init 0 10260
+x25_proc_init 2 10260
+x25_proc_init 3 11270
+x25_proc_init 4 10260
+x25_proc_init 5 11270
+x25_proc_init 6 10260
+x25_proc_init 8 11270
+x25_proc_init 9 11260
+x25_proc_exit 0 11260
+x25_seq_route_start 0 14260
+x25_seq_route_stop 0 15260
+x25_seq_socket_start 0 14260
+x25_seq_socket_stop 0 15260
+x25_seq_forward_start 0 14260
+x25_seq_forward_stop 0 15260

@@ -1,0 +1,11 @@
+tipc_diag_exit 0 14010
+tipc_diag_init 0 14010
+tipc_sock_diag_handler_dump 0 7030
+tipc_sock_diag_handler_dump 2 7020
+tipc_sock_diag_handler_dump 4 7010
+tipc_diag_dump 0 8010
+__tipc_add_sock_diag 0 12040
+__tipc_add_sock_diag 2 12030
+__tipc_add_sock_diag 4 12020
+__tipc_add_sock_diag 6 12010
+__tipc_diag_gen_cookie 0 20010

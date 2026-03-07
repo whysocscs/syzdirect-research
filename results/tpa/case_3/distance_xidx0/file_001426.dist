@@ -1,0 +1,14 @@
+proc_kmsg_init 0 10360
+kmsg_open 0 8360
+kmsg_read 0 8374
+kmsg_read 1 8370
+kmsg_read 2 8360
+kmsg_read 3 8370
+kmsg_read 5 8360
+kmsg_release 0 8360
+kmsg_poll 0 11087
+kmsg_poll 1 8370
+kmsg_poll 2 11085
+kmsg_poll 3 8370
+kmsg_poll 4 16360
+kmsg_poll 5 8360

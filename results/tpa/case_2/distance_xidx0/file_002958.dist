@@ -1,0 +1,10 @@
+ip6table_security_fini 0 9260
+ip6table_security_init 0 10260
+ip6table_security_init 2 10260
+ip6table_security_init 3 13260
+ip6table_security_init 4 9260
+ip6table_security_init 6 13260
+ip6table_security_net_pre_exit 0 10260
+ip6table_security_net_exit 0 9260
+ip6table_security_table_init 0 10260
+ip6table_security_table_init 2 9260

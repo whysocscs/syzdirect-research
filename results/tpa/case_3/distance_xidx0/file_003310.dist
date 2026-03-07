@@ -1,0 +1,6 @@
+quota_mt_exit 0 13360
+quota_mt_init 0 13360
+quota_mt 0 14360
+quota_mt_check 0 11021
+quota_mt_check 2 9360
+quota_mt_check 4 13360

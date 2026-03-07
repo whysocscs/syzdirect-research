@@ -1,0 +1,5 @@
+blk_mq_hw_queue_to_node 0 18290
+blk_mq_hw_queue_to_node 1 18280
+blk_mq_hw_queue_to_node 3 18270
+blk_mq_hw_queue_to_node 4 18260
+blk_mq_hw_queue_to_node 5 18290

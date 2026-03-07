@@ -1,0 +1,4 @@
+acpi_numa_x2apic_affinity_init 0 5120
+acpi_numa_x2apic_affinity_init 2 5110
+acpi_numa_x2apic_affinity_init 4 5100
+acpi_numa_x2apic_affinity_init 6 5090

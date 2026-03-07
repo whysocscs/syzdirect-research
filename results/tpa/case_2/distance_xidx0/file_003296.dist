@@ -1,0 +1,15 @@
+nfqueue_tg_exit 0 13260
+nfqueue_tg_init 0 13260
+nfqueue_tg_check 0 15294
+nfqueue_tg_check 1 15284
+nfqueue_tg_check 2 15304
+nfqueue_tg_check 3 15294
+nfqueue_tg_check 4 15284
+nfqueue_tg_check 5 15304
+nfqueue_tg_check 6 15274
+nfqueue_tg_check 7 15260
+nfqueue_tg_check 10 15270
+nfqueue_tg_check 11 15260
+nfqueue_tg_v3 0 18280
+nfqueue_tg_v3 2 18270
+nfqueue_tg_v3 3 18260

@@ -1,0 +1,13 @@
+mce_gen_pool_process 0 7110
+mce_gen_pool_process 2 7100
+mce_gen_pool_process 4 7090
+mce_gen_pool_process 5 7080
+mce_gen_pool_process 6 7090
+mce_gen_pool_add 0 21104
+mce_gen_pool_add 2 21094
+mce_gen_pool_add 4 21080
+mce_gen_pool_add 5 21080
+mce_gen_pool_init 0 11752
+mce_gen_pool_init 2 15080
+mce_gen_pool_init 4 11080
+mce_gen_pool_init 5 10080

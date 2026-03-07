@@ -1,0 +1,11 @@
+nft_reject_inet_module_exit 0 15090
+nft_reject_inet_module_init 0 15090
+nft_reject_inet_eval 0 11360
+nft_reject_inet_eval 2 11350
+nft_reject_inet_eval 4 12090
+nft_reject_inet_eval 5 10090
+nft_reject_inet_eval 6 12090
+nft_reject_inet_eval 7 11350
+nft_reject_inet_eval 9 12090
+nft_reject_inet_eval 10 10090
+nft_reject_inet_eval 11 12090

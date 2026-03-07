@@ -1,0 +1,16 @@
+jfs_fileattr_set 0 11400
+jfs_fileattr_set 2 11390
+jfs_fileattr_set 3 11380
+jfs_fileattr_set 4 11420
+jfs_fileattr_set 6 11410
+jfs_fileattr_set 8 11400
+jfs_fileattr_set 10 11390
+jfs_fileattr_set 12 11380
+jfs_fileattr_set 13 11370
+jfs_fileattr_set 15 11360
+jfs_ioctl 0 13403
+jfs_ioctl 2 12360
+jfs_ioctl 4 13766
+jfs_ioctl 8 15360
+jfs_ioctl 10 11360
+jfs_ioctl 12 15360

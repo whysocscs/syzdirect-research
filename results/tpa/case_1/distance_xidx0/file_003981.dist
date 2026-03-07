@@ -1,0 +1,7 @@
+snd_pcm_plugin_build_rate 0 10150
+snd_pcm_plugin_build_rate 2 10140
+snd_pcm_plugin_build_rate 4 10130
+snd_pcm_plugin_build_rate 6 10120
+snd_pcm_plugin_build_rate 8 10110
+snd_pcm_plugin_build_rate 10 10100
+snd_pcm_plugin_build_rate 12 10090

@@ -1,0 +1,5 @@
+blk_mq_hw_queue_to_node 0 20120
+blk_mq_hw_queue_to_node 1 20110
+blk_mq_hw_queue_to_node 3 20100
+blk_mq_hw_queue_to_node 4 20090
+blk_mq_hw_queue_to_node 5 20120

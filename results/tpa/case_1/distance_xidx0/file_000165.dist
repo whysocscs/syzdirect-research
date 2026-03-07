@@ -1,0 +1,4 @@
+arch_trigger_cpumask_backtrace 0 12090
+nmi_raise_cpu_backtrace 0 21090
+register_nmi_cpu_backtrace_handler 0 16090
+nmi_cpu_backtrace_handler 0 18090

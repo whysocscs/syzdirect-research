@@ -1,0 +1,13 @@
+call_fib4_notifier 0 8010
+call_fib4_notifiers 0 9030
+call_fib4_notifiers 1 9020
+call_fib4_notifiers 2 9020
+call_fib4_notifiers 3 9010
+fib4_notifier_init 0 12010
+fib4_notifier_exit 0 13010
+fib4_seq_read 0 14030
+fib4_seq_read 1 14020
+fib4_seq_read 2 14020
+fib4_seq_read 3 14010
+fib4_dump 0 10010
+fib4_dump 2 10010

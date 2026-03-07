@@ -1,0 +1,1 @@
+0 tcindex_alloc_perfect_hash /work/syzdirect_workdir/srcs/case_0/net/sched/cls_tcindex.c

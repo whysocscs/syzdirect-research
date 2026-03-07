@@ -1,0 +1,13 @@
+x25_disconnect 0 17080
+x25_disconnect 1 20597
+x25_disconnect 2 5080
+x25_disconnect 3 20587
+x25_disconnect 5 20080
+x25_disconnect 6 21100
+x25_disconnect 7 21090
+x25_disconnect 8 21090
+x25_disconnect 9 21090
+x25_disconnect 10 21080
+x25_check_rbuf 0 17100
+x25_check_rbuf 2 17090
+x25_check_rbuf 4 17080

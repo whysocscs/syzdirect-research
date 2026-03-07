@@ -1,0 +1,13 @@
+ip_vs_wlc_cleanup 0 11090
+ip_vs_wlc_init 0 14090
+ip_vs_wlc_schedule 0 18109
+ip_vs_wlc_schedule 1 18140
+ip_vs_wlc_schedule 2 18099
+ip_vs_wlc_schedule 3 18129
+ip_vs_wlc_schedule 4 18120
+ip_vs_wlc_schedule 5 18129
+ip_vs_wlc_schedule 6 18120
+ip_vs_wlc_schedule 10 18109
+ip_vs_wlc_schedule 11 18140
+ip_vs_wlc_schedule 12 18099
+ip_vs_wlc_schedule 13 18090

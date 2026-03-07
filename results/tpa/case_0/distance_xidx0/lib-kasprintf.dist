@@ -1,0 +1,10 @@
+kvasprintf 0 10010
+kvasprintf_const 0 11680
+kvasprintf_const 1 12010
+kvasprintf_const 2 11507
+kvasprintf_const 3 12030
+kvasprintf_const 4 12020
+kvasprintf_const 5 12020
+kvasprintf_const 6 12010
+kvasprintf_const 7 11010
+kasprintf 0 11010

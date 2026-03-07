@@ -1,0 +1,8 @@
+lzorle_mod_fini 0 12360
+lzorle_mod_init 0 8360
+lzorle_mod_init 2 9360
+lzorle_mod_init 4 12360
+lzorle_init 0 10360
+lzorle_exit 0 12360
+lzorle_alloc_ctx 0 10360
+lzorle_free_ctx 0 12360

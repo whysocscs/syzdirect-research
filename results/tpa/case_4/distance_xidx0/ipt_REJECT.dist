@@ -1,0 +1,11 @@
+reject_tg_exit 0 22080
+reject_tg_init 0 22080
+reject_tg 0 13090
+reject_tg 9 13080
+reject_tg_check 0 21099
+reject_tg_check 2 21080
+reject_tg_check 5 21100
+reject_tg_check 6 21090
+reject_tg_check 7 21100
+reject_tg_check 8 21090
+reject_tg_check 10 21080

@@ -1,0 +1,11 @@
+nf_nat_irc_fini 0 11090
+nf_nat_irc_init 0 14100
+nf_nat_irc_init 2 14090
+help 0 13090
+help 1 13090
+help 2 11603
+help 3 11603
+help 4 11593
+help 6 11583
+help 8 11090
+help 10 12090

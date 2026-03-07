@@ -1,0 +1,17 @@
+nft_meta_bridge_module_exit 0 23080
+nft_meta_bridge_module_init 0 23080
+nft_meta_bridge_get_eval 0 20199
+nft_meta_bridge_get_eval 11 27120
+nft_meta_bridge_get_eval 13 27110
+nft_meta_bridge_get_eval 15 27100
+nft_meta_bridge_get_eval 17 27090
+nft_meta_bridge_get_eval 19 27080
+nft_meta_bridge_get_eval 31 16080
+nft_meta_bridge_get_init 0 15579
+nft_meta_bridge_get_init 1 15100
+nft_meta_bridge_get_init 2 15100
+nft_meta_bridge_get_init 3 15090
+nft_meta_bridge_get_init 4 15090
+nft_meta_bridge_get_init 5 15090
+nft_meta_bridge_get_init 6 16080
+nft_meta_bridge_get_init 7 15080

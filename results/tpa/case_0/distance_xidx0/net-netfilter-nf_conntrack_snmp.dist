@@ -1,0 +1,12 @@
+nf_conntrack_snmp_fini 0 10010
+nf_conntrack_snmp_init 0 14010
+snmp_conntrack_help 0 10010
+snmp_conntrack_help 1 8040
+snmp_conntrack_help 2 10932
+snmp_conntrack_help 3 8040
+snmp_conntrack_help 4 10930
+snmp_conntrack_help 5 8040
+snmp_conntrack_help 6 17010
+snmp_conntrack_help 7 8030
+snmp_conntrack_help 9 8020
+snmp_conntrack_help 11 8010

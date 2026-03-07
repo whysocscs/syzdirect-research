@@ -1,0 +1,14 @@
+ieee80211_crypto_wep_decrypt 0 7063
+ieee80211_crypto_wep_decrypt 2 7053
+ieee80211_crypto_wep_decrypt 3 7020
+ieee80211_crypto_wep_decrypt 5 7010
+ieee80211_crypto_wep_decrypt 22 7054
+ieee80211_crypto_wep_decrypt 24 7044
+ieee80211_crypto_wep_decrypt 25 7050
+ieee80211_crypto_wep_decrypt 26 7044
+ieee80211_crypto_wep_decrypt 28 7010
+ieee80211_crypto_wep_decrypt 30 7050
+ieee80211_crypto_wep_decrypt 31 7040
+ieee80211_crypto_wep_decrypt 33 7030
+ieee80211_crypto_wep_decrypt 35 7020
+ieee80211_crypto_wep_decrypt 37 7010

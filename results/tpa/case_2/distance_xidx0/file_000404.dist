@@ -1,0 +1,6 @@
+crypto842_mod_init 0 8260
+crypto842_mod_init 2 9260
+crypto842_mod_init 4 12260
+crypto842_alloc_ctx 0 12260
+crypto842_mod_exit 0 12260
+crypto842_init 0 12260

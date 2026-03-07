@@ -1,0 +1,16 @@
+configfs_get_tree 0 8090
+configfs_fill_super 0 11090
+configfs_fill_super 1 10090
+configfs_pin_fs 0 9090
+configfs_release_fs 0 13090
+configfs_exit 0 12090
+configfs_init 0 10090
+configfs_init 2 10090
+configfs_init 3 12100
+configfs_init 4 16090
+configfs_init 6 14090
+configfs_init 7 12090
+configfs_free_inode 0 15110
+configfs_free_inode 1 15100
+configfs_free_inode 2 15100
+configfs_free_inode 3 15090

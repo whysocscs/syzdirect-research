@@ -1,0 +1,6 @@
+squashfs_xattr_lookup 0 11370
+squashfs_xattr_lookup 2 11360
+squashfs_read_xattr_id_table 0 10360
+squashfs_read_xattr_id_table 2 10380
+squashfs_read_xattr_id_table 4 10370
+squashfs_read_xattr_id_table 6 10360

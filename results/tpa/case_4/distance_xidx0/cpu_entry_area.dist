@@ -1,0 +1,17 @@
+percpu_setup_exception_stacks 0 17080
+percpu_setup_debug_store 0 16033
+percpu_setup_debug_store 2 17080
+percpu_setup_debug_store 3 15080
+percpu_setup_debug_store 4 15090
+cea_set_pte 0 15100
+cea_set_pte 1 15090
+cea_set_pte 2 15090
+cea_set_pte 3 15080
+setup_cpu_entry_areas 0 17100
+setup_cpu_entry_areas 1 17090
+setup_cpu_entry_areas 2 17080
+setup_cpu_entry_area 0 16080
+cea_map_percpu_pages 0 16100
+cea_map_percpu_pages 1 16090
+cea_map_percpu_pages 3 16080
+cea_map_percpu_pages 4 16090

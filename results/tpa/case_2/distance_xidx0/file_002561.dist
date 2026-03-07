@@ -1,0 +1,9 @@
+ebt_dnat_fini 0 13260
+ebt_dnat_init 0 13260
+ebt_dnat_tg 0 7260
+ebt_dnat_tg 2 18079
+ebt_dnat_tg 6 18069
+ebt_dnat_tg 9 20260
+ebt_dnat_tg 11 16280
+ebt_dnat_tg 13 16270
+ebt_dnat_tg 15 16260

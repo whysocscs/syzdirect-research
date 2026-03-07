@@ -1,0 +1,9 @@
+zstd_compress_cctx 0 10260
+zstd_compress_cctx 2 12260
+zstd_cctx_init 0 9260
+zstd_init_cstream 0 10280
+zstd_init_cstream 2 10270
+zstd_init_cstream 4 10260
+zstd_compress_stream 0 12260
+zstd_flush_stream 0 12260
+zstd_end_stream 0 12260

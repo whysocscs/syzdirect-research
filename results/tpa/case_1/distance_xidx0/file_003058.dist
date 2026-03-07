@@ -1,0 +1,16 @@
+snmp6_register_dev 0 10120
+snmp6_register_dev 2 10110
+snmp6_register_dev 4 10100
+snmp6_register_dev 6 10090
+snmp6_unregister_dev 0 12110
+snmp6_unregister_dev 2 12100
+snmp6_unregister_dev 4 12090
+ipv6_misc_proc_init 0 10090
+ipv6_misc_proc_exit 0 10090
+ipv6_proc_init_net 0 11090
+ipv6_proc_init_net 2 11090
+ipv6_proc_init_net 3 11100
+ipv6_proc_init_net 4 10090
+ipv6_proc_init_net 6 11090
+ipv6_proc_init_net 7 11090
+ipv6_proc_exit_net 0 11090

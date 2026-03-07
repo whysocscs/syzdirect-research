@@ -1,0 +1,11 @@
+nf_conntrack_irc_fini 0 9260
+nf_conntrack_irc_init 0 9776
+nf_conntrack_irc_init 2 9766
+nf_conntrack_irc_init 4 9260
+nf_conntrack_irc_init 6 10300
+nf_conntrack_irc_init 7 10290
+nf_conntrack_irc_init 8 10290
+nf_conntrack_irc_init 9 10280
+nf_conntrack_irc_init 10 10270
+nf_conntrack_irc_init 11 10280
+nf_conntrack_irc_init 12 10260

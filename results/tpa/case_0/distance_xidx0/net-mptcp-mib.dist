@@ -1,0 +1,3 @@
+mptcp_mib_alloc 0 13010
+mptcp_mib_alloc 2 12020
+mptcp_mib_alloc 4 12010

@@ -1,0 +1,14 @@
+nft_fib_netdev_module_exit 0 23080
+nft_fib_netdev_module_init 0 23080
+nft_fib_netdev_eval 0 13392
+nft_fib_netdev_eval 2 12788
+nft_fib_netdev_eval 3 15090
+nft_fib_netdev_eval 4 15090
+nft_fib_netdev_eval 6 15080
+nft_fib_netdev_eval 7 11080
+nft_fib_netdev_eval 8 14034
+nft_fib_netdev_eval 10 14024
+nft_fib_netdev_eval 11 13090
+nft_fib_netdev_eval 12 13090
+nft_fib_netdev_eval 14 13080
+nft_fib_netdev_eval 15 15080

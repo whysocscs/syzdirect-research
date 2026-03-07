@@ -1,0 +1,2 @@
+tipc_register_sysctl 0 11260
+tipc_unregister_sysctl 0 13260

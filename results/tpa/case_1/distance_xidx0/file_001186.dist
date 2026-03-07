@@ -1,0 +1,5 @@
+jfs_proc_clean 0 11090
+jfs_loglevel_proc_open 0 9090
+jfs_loglevel_proc_write 0 15090
+jfs_proc_init 0 10090
+jfs_proc_init 2 10090

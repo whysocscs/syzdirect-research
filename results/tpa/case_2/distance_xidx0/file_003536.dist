@@ -1,0 +1,5 @@
+exit_em_canid 0 15260
+init_em_canid 0 15260
+em_canid_change 0 9280
+em_canid_change 2 9270
+em_canid_change 4 9260

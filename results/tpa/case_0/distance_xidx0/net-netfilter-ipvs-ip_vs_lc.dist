@@ -1,0 +1,15 @@
+ip_vs_lc_cleanup 0 12010
+ip_vs_lc_init 0 14010
+ip_vs_lc_schedule 0 18029
+ip_vs_lc_schedule 1 18070
+ip_vs_lc_schedule 2 18020
+ip_vs_lc_schedule 3 18060
+ip_vs_lc_schedule 4 18049
+ip_vs_lc_schedule 5 18060
+ip_vs_lc_schedule 6 18049
+ip_vs_lc_schedule 7 18049
+ip_vs_lc_schedule 8 18040
+ip_vs_lc_schedule 9 18070
+ip_vs_lc_schedule 10 18029
+ip_vs_lc_schedule 12 18020
+ip_vs_lc_schedule 13 18010

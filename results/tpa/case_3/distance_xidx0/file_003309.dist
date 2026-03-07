@@ -1,0 +1,15 @@
+policy_mt_exit 0 13360
+policy_mt_check 0 15380
+policy_mt_check 1 15370
+policy_mt_check 2 15380
+policy_mt_check 3 15370
+policy_mt_check 4 15380
+policy_mt_check 5 15370
+policy_mt_check 6 15380
+policy_mt_check 8 15370
+policy_mt_check 9 15360
+policy_mt_init 0 13360
+policy_mt 0 20384
+policy_mt 26 20374
+policy_mt 28 20360
+policy_mt 30 20360

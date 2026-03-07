@@ -1,0 +1,10 @@
+cpu_khz_from_msr 0 20126
+cpu_khz_from_msr 1 20116
+cpu_khz_from_msr 2 20109
+cpu_khz_from_msr 3 20090
+cpu_khz_from_msr 4 20110
+cpu_khz_from_msr 5 20109
+cpu_khz_from_msr 6 20090
+cpu_khz_from_msr 7 20110
+cpu_khz_from_msr 8 20100
+cpu_khz_from_msr 9 20090

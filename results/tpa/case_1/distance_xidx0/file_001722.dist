@@ -1,0 +1,6 @@
+fsverity_ioctl_measure 0 15771
+fsverity_ioctl_measure 2 15090
+fsverity_ioctl_measure 4 16109
+fsverity_ioctl_measure 6 16090
+fsverity_ioctl_measure 8 16100
+fsverity_ioctl_measure 10 16090

@@ -1,0 +1,13 @@
+exit_fsm 0 15260
+init_fsm 0 15260
+fsm_init 0 9330
+fsm_init 2 9320
+fsm_init 3 9310
+fsm_init 5 9300
+fsm_init 7 9290
+fsm_init 8 9280
+fsm_init 9 9290
+fsm_init 10 9280
+fsm_init 12 9270
+fsm_init 13 9320
+fsm_init 14 9260

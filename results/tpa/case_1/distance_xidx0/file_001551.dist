@@ -1,0 +1,8 @@
+proc_tty_register_driver 0 10120
+proc_tty_register_driver 2 10110
+proc_tty_register_driver 4 10100
+proc_tty_register_driver 6 10090
+proc_tty_unregister_driver 0 11100
+proc_tty_unregister_driver 2 11090
+proc_tty_init 0 10090
+proc_tty_init 2 10090

@@ -1,0 +1,15 @@
+dtb_lapic_setup 0 17100
+dtb_lapic_setup 1 17110
+dtb_lapic_setup 3 17100
+dtb_lapic_setup 4 17090
+dtb_lapic_setup 5 17080
+dtb_ioapic_setup 0 10090
+dtb_ioapic_setup 1 10080
+x86_dtb_init 0 12090
+x86_dtb_init 1 12080
+dtb_apic_setup 0 11080
+dtb_add_ioapic 0 9090
+dtb_add_ioapic 2 9080
+dt_irqdomain_alloc 0 12100
+dt_irqdomain_alloc 2 12090
+dt_irqdomain_alloc 3 12080

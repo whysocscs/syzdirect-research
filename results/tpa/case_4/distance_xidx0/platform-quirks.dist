@@ -1,0 +1,6 @@
+x86_early_init_platform_quirks 0 5100
+x86_early_init_platform_quirks 1 5100
+x86_early_init_platform_quirks 2 5100
+x86_early_init_platform_quirks 3 5100
+x86_early_init_platform_quirks 4 5090
+x86_early_init_platform_quirks 5 5080

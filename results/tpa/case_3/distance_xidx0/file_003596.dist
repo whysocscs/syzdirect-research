@@ -1,0 +1,10 @@
+smc_stats_init 0 9360
+smc_stats_init 2 11360
+smc_stats_init 3 14360
+smc_stats_exit 0 11370
+smc_stats_exit 2 11360
+smc_nl_get_stats 0 9389
+smc_nl_get_stats 2 9380
+smc_nl_get_stats 4 9369
+smc_nl_get_stats 6 9360
+smc_nl_get_fback_stats 0 12360

@@ -1,0 +1,8 @@
+arch_jump_label_transform 0 10260
+jump_label_transform 0 12260
+jump_label_transform 1 18260
+jump_label_transform 2 9260
+arch_jump_label_transform_queue 0 9744
+arch_jump_label_transform_queue 1 10260
+arch_jump_label_transform_queue 2 9260
+arch_jump_label_transform_apply 0 9260

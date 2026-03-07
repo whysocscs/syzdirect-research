@@ -1,0 +1,13 @@
+fsverity_init_signature 0 10360
+fsverity_init_signature 2 12360
+fsverity_init_signature 4 13360
+fsverity_sysctl_init 0 11360
+fsverity_verify_signature 0 14008
+fsverity_verify_signature 1 16370
+fsverity_verify_signature 3 16360
+fsverity_verify_signature 4 9360
+fsverity_verify_signature 6 11360
+fsverity_verify_signature 7 16360
+fsverity_verify_signature 8 16360
+fsverity_verify_signature 9 16360
+fsverity_verify_signature 10 16360

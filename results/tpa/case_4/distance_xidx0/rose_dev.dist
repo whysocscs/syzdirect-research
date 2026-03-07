@@ -1,0 +1,8 @@
+rose_open 0 15080
+rose_close 0 21080
+rose_xmit 0 6090
+rose_xmit 2 6080
+rose_set_mac_address 0 17606
+rose_set_mac_address 2 17595
+rose_set_mac_address 4 15080
+rose_set_mac_address 6 21080

@@ -1,0 +1,16 @@
+rd_load_image 0 10544
+rd_load_image 2 10534
+rd_load_image 4 11010
+rd_load_image 6 10070
+rd_load_image 10 10060
+rd_load_image 11 10050
+rd_load_image 12 10050
+rd_load_image 13 10040
+rd_load_image 15 10030
+rd_load_image 16 10020
+rd_load_image 17 10040
+rd_load_image 19 10030
+rd_load_image 20 10020
+rd_load_image 23 10010
+identify_ramdisk_image 0 10010
+rd_load_disk 0 11010

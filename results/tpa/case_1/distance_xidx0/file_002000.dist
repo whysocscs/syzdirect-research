@@ -1,0 +1,12 @@
+ksysfs_init 0 10090
+ksysfs_init 2 11090
+ksysfs_init 3 11100
+ksysfs_init 4 11957
+ksysfs_init 6 11090
+ksysfs_init 8 14090
+ksysfs_init 9 11090
+kexec_crash_size_store 0 10100
+kexec_crash_size_store 2 10090
+profiling_store 0 10104
+profiling_store 2 10090
+profiling_store 4 10090

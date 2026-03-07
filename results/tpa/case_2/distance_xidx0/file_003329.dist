@@ -1,0 +1,15 @@
+limit_mt_exit 0 13260
+limit_mt_init 0 13260
+limit_mt_check 0 11578
+limit_mt_check 1 15270
+limit_mt_check 2 11581
+limit_mt_check 3 11571
+limit_mt_check 4 11571
+limit_mt_check 5 11560
+limit_mt_check 6 11549
+limit_mt_check 7 11549
+limit_mt_check 8 11539
+limit_mt_check 9 15270
+limit_mt_check 10 15260
+limit_mt_check 13 9260
+limit_mt_compat_to_user 0 15260

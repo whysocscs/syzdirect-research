@@ -1,0 +1,9 @@
+ebt_dnat_fini 0 22080
+ebt_dnat_init 0 22080
+ebt_dnat_tg 0 26124
+ebt_dnat_tg 2 26114
+ebt_dnat_tg 6 26104
+ebt_dnat_tg 9 26080
+ebt_dnat_tg 11 26100
+ebt_dnat_tg 13 26090
+ebt_dnat_tg 15 26080

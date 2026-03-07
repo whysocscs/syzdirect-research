@@ -1,0 +1,4 @@
+cramfs_uncompress_init 0 10090
+cramfs_uncompress_init 2 10080
+cramfs_uncompress_exit 0 9090
+cramfs_uncompress_exit 2 9080

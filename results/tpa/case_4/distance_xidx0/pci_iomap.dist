@@ -1,0 +1,15 @@
+pci_iomap_range 0 11110
+pci_iomap_range 2 11100
+pci_iomap_range 4 11090
+pci_iomap_range 6 11080
+pci_iomap_wc_range 0 11110
+pci_iomap_wc_range 2 11100
+pci_iomap_wc_range 4 11090
+pci_iomap_wc_range 6 11080
+pci_iomap 0 11110
+pci_iomap 2 11100
+pci_iomap 4 11090
+pci_iomap 6 11080
+pci_iomap_wc 0 11100
+pci_iomap_wc 2 11090
+pci_iomap_wc 4 11080

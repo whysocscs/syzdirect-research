@@ -1,0 +1,13 @@
+iptable_raw_fini 0 9260
+iptable_raw_init 0 11054
+iptable_raw_init 1 11044
+iptable_raw_init 2 11044
+iptable_raw_init 3 10260
+iptable_raw_init 5 10260
+iptable_raw_init 6 13260
+iptable_raw_init 7 9260
+iptable_raw_init 9 13260
+iptable_raw_net_pre_exit 0 10260
+iptable_raw_net_exit 0 9260
+iptable_raw_table_init 0 10260
+iptable_raw_table_init 2 9260

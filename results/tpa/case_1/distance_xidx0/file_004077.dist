@@ -1,0 +1,6 @@
+snd_usb_ctl_msg 0 11419
+snd_usb_ctl_msg 2 11409
+snd_usb_ctl_msg 3 13100
+snd_usb_ctl_msg 4 10090
+snd_usb_ctl_msg 6 13100
+snd_usb_ctl_msg 7 13090

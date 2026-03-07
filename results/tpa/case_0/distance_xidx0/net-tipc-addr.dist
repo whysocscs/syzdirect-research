@@ -1,0 +1,8 @@
+tipc_set_node_id 0 12010
+tipc_set_node_id 1 12020
+tipc_set_node_id 2 12020
+tipc_set_node_id 3 12010
+tipc_set_node_addr 0 12010
+tipc_set_node_addr 2 13030
+tipc_set_node_addr 4 13020
+tipc_set_node_addr 6 13010

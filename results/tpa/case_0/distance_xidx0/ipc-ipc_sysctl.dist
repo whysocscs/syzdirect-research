@@ -1,0 +1,13 @@
+setup_ipc_sysctls 0 11010
+ipc_sysctl_init 0 12010
+ipc_permissions 0 13034
+ipc_permissions 1 13024
+ipc_permissions 2 13034
+ipc_permissions 3 13024
+ipc_permissions 4 13034
+ipc_permissions 6 13024
+ipc_permissions 7 13010
+ipc_permissions 9 13010
+proc_ipc_dointvec_minmax_orphans 0 9030
+proc_ipc_dointvec_minmax_orphans 2 9020
+proc_ipc_dointvec_minmax_orphans 4 9010

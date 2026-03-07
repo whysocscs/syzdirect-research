@@ -1,0 +1,17 @@
+blake2s_compress 0 19290
+blake2s_compress 1 19280
+blake2s_compress 3 19270
+blake2s_compress 5 19260
+blake2s_compress 6 19290
+blake2s_compress 7 19290
+blake2s_compress 8 19280
+blake2s_compress 9 19270
+blake2s_mod_init 0 13299
+blake2s_mod_init 1 13320
+blake2s_mod_init 2 13260
+blake2s_mod_init 3 13310
+blake2s_mod_init 5 13300
+blake2s_mod_init 7 13290
+blake2s_mod_init 9 13280
+blake2s_mod_init 11 13270
+blake2s_mod_init 13 13260

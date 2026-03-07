@@ -1,0 +1,11 @@
+mpi_add_ui 0 10270
+mpi_add_ui 2 10260
+mpi_add 0 10290
+mpi_add 1 10280
+mpi_add 3 10270
+mpi_add 4 10280
+mpi_add 6 10270
+mpi_add 7 10260
+mpi_sub 0 10260
+mpi_addm 0 11260
+mpi_subm 0 10260

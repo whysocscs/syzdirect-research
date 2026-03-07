@@ -1,0 +1,13 @@
+ip_vs_twos_cleanup 0 11260
+ip_vs_twos_init 0 13260
+ip_vs_twos_schedule 0 17280
+ip_vs_twos_schedule 1 17320
+ip_vs_twos_schedule 2 17270
+ip_vs_twos_schedule 3 17310
+ip_vs_twos_schedule 4 17300
+ip_vs_twos_schedule 5 17300
+ip_vs_twos_schedule 6 17290
+ip_vs_twos_schedule 7 17320
+ip_vs_twos_schedule 8 17280
+ip_vs_twos_schedule 9 17270
+ip_vs_twos_schedule 10 17260

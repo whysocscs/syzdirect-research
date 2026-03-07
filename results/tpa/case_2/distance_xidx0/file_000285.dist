@@ -1,0 +1,7 @@
+pt_dump_debug_exit 0 10260
+ptdump_show 0 13260
+pt_dump_debug_init 0 9260
+ptdump_open 0 9260
+ptdump_curknl_open 0 9260
+ptdump_curknl_show 0 13270
+ptdump_curknl_show 2 13260

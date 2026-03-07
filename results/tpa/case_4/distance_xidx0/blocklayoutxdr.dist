@@ -1,0 +1,7 @@
+nfsd4_block_decode_layoutupdate 0 12110
+nfsd4_block_decode_layoutupdate 2 12100
+nfsd4_block_decode_layoutupdate 4 12090
+nfsd4_block_decode_layoutupdate 6 12080
+nfsd4_scsi_decode_layoutupdate 0 12100
+nfsd4_scsi_decode_layoutupdate 2 12090
+nfsd4_scsi_decode_layoutupdate 4 12080

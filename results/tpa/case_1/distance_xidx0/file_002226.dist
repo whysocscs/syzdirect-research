@@ -1,0 +1,2 @@
+pci_iounmap 0 13100
+pci_iounmap 1 13090

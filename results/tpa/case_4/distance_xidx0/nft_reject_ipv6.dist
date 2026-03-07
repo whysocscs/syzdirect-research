@@ -1,0 +1,5 @@
+nft_reject_ipv6_module_exit 0 23080
+nft_reject_ipv6_module_init 0 23080
+nft_reject_ipv6_eval 0 10999
+nft_reject_ipv6_eval 2 10080
+nft_reject_ipv6_eval 3 12080

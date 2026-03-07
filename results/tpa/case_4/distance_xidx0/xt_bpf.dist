@@ -1,0 +1,15 @@
+bpf_mt_exit 0 22080
+bpf_mt_destroy 0 18080
+bpf_mt_v1 0 25080
+bpf_mt_init 0 22080
+bpf_mt 0 24090
+bpf_mt 1 24080
+bpf_mt_check 0 16896
+bpf_mt_check 2 14080
+bpf_mt_check 4 21080
+bpf_mt_check_v1 0 17849
+bpf_mt_check_v1 2 16896
+bpf_mt_check_v1 4 14080
+bpf_mt_check_v1 6 21080
+bpf_mt_check_v1 10 20080
+bpf_mt_destroy_v1 0 18080

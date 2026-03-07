@@ -1,0 +1,2 @@
+ia32_binfmt_init 0 11090
+sysenter_setup 0 22090

@@ -1,0 +1,17 @@
+ffh_cstate_exit 0 11260
+acpi_processor_ffh_cstate_probe 0 13982
+acpi_processor_ffh_cstate_probe 2 13972
+acpi_processor_ffh_cstate_probe 4 13961
+acpi_processor_ffh_cstate_probe 6 13951
+acpi_processor_ffh_cstate_probe 7 11270
+acpi_processor_ffh_cstate_probe 8 13948
+acpi_processor_ffh_cstate_probe 9 11270
+acpi_processor_ffh_cstate_probe 10 18260
+acpi_processor_ffh_cstate_probe 11 11270
+acpi_processor_ffh_cstate_probe 20 11260
+acpi_processor_ffh_cstate_enter 0 18260
+ffh_cstate_init 0 11280
+ffh_cstate_init 1 11270
+ffh_cstate_init 2 11270
+ffh_cstate_init 3 11270
+ffh_cstate_init 5 11260

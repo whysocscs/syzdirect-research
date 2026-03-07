@@ -1,0 +1,5 @@
+blk_crypto_sysfs_register 0 11230
+blk_crypto_sysfs_register 2 10010
+blk_crypto_sysfs_register 4 13010
+blk_crypto_sysfs_register 5 11010
+blk_crypto_sysfs_unregister 0 11010

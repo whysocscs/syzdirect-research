@@ -1,0 +1,12 @@
+connsecmark_tg_init 0 22080
+connsecmark_tg_check 0 19203
+connsecmark_tg_check 1 18634
+connsecmark_tg_check 2 19201
+connsecmark_tg_check 3 18634
+connsecmark_tg_check 4 21080
+connsecmark_tg_check 7 18624
+connsecmark_tg_check 8 21080
+connsecmark_tg_check 11 15080
+connsecmark_tg_check 13 21080
+connsecmark_tg_destroy 0 22080
+connsecmark_tg_exit 0 22080

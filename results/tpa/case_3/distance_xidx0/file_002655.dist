@@ -1,0 +1,15 @@
+net_ratelimit 0 15360
+inet_pton_with_scope 0 12394
+inet_pton_with_scope 1 12394
+inet_pton_with_scope 3 12384
+inet_pton_with_scope 4 12384
+inet_pton_with_scope 5 12374
+inet_pton_with_scope 7 12360
+inet_pton_with_scope 8 12370
+inet_pton_with_scope 10 12360
+inet6_pton 0 11410
+inet6_pton 2 11400
+inet6_pton 4 11390
+inet6_pton 6 11380
+inet6_pton 8 11370
+inet6_pton 10 11360

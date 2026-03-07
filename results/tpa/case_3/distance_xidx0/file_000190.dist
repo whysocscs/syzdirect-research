@@ -1,0 +1,6 @@
+hpet_time_init 0 10360
+hpet_time_init 1 9369
+hpet_time_init 2 9360
+setup_default_timer_irq 0 8360
+x86_late_time_init 0 5360
+timer_interrupt 0 9360

@@ -1,0 +1,15 @@
+patch_cmi8888 0 9090
+patch_cmi8888 2 14090
+patch_cmi8888 3 14100
+patch_cmi8888 4 11090
+patch_cmi8888 5 14100
+patch_cmi8888 6 14090
+patch_cmi8888 8 11090
+patch_cmi8888 10 14100
+patch_cmi8888 11 14090
+patch_cmi9880 0 9090
+patch_cmi9880 2 14090
+patch_cmi9880 3 14100
+patch_cmi9880 4 11090
+patch_cmi9880 6 14100
+patch_cmi9880 7 14090

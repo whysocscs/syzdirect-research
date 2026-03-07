@@ -1,0 +1,7 @@
+ubifs_load_znode 0 12584
+ubifs_load_znode 1 12574
+ubifs_load_znode 2 12574
+ubifs_load_znode 3 12080
+ubifs_load_znode 5 13080
+read_znode 0 12080
+ubifs_tnc_read_node 0 21080

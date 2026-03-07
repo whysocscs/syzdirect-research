@@ -1,0 +1,16 @@
+get_stack_info_noinstr 0 18876
+get_stack_info_noinstr 1 18866
+get_stack_info_noinstr 2 18360
+get_stack_info_noinstr 3 19380
+get_stack_info_noinstr 4 19380
+get_stack_info_noinstr 6 19369
+get_stack_info_noinstr 8 19360
+get_stack_info 0 19891
+get_stack_info 1 19891
+get_stack_info 2 19881
+get_stack_info 3 19360
+get_stack_info 4 20400
+get_stack_info 5 20389
+get_stack_info 6 20380
+get_stack_info 7 20370
+get_stack_info 8 20360

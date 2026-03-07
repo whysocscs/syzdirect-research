@@ -1,0 +1,13 @@
+nft_fib_init 0 15160
+nft_fib_init 2 15150
+nft_fib_init 4 15140
+nft_fib_init 6 15130
+nft_fib_init 8 15120
+nft_fib_init 10 15110
+nft_fib_init 13 15100
+nft_fib_init 14 15090
+nft_fib_init 16 15100
+nft_fib_init 18 15090
+nft_fib_init 19 15100
+nft_fib_init 21 15090
+nft_fib_init 22 15080

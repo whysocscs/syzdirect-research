@@ -1,0 +1,8 @@
+io_statx_prep 0 9290
+io_statx_prep 2 9280
+io_statx_prep 4 9270
+io_statx_prep 6 9260
+io_statx 0 10270
+io_statx 2 10260
+io_statx_cleanup 0 14270
+io_statx_cleanup 2 14260

@@ -1,0 +1,8 @@
+alsa_seq_exit 0 9080
+alsa_seq_init 0 13117
+alsa_seq_init 2 16080
+alsa_seq_init 4 11983
+alsa_seq_init 5 23090
+alsa_seq_init 6 8080
+alsa_seq_init 8 23090
+alsa_seq_init 9 23080

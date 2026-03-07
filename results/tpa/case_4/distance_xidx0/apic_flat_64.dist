@@ -1,0 +1,7 @@
+flat_init_apic_ldr 0 24080
+flat_send_IPI_mask 0 27080
+flat_send_IPI_mask_allbutself 0 24080
+flat_send_IPI_mask_allbutself 1 27090
+flat_send_IPI_mask_allbutself 2 27080
+_flat_send_IPI_mask 0 26090
+_flat_send_IPI_mask 2 26080

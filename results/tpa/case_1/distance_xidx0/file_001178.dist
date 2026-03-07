@@ -1,0 +1,3 @@
+jffs2_flash_direct_writev 0 10100
+jffs2_flash_direct_writev 2 10090
+jffs2_flash_direct_write 0 10090

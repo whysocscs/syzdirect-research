@@ -1,0 +1,6 @@
+sctp_tsnmap_init 0 9270
+sctp_tsnmap_init 1 9260
+sctp_tsnmap_mark 0 9290
+sctp_tsnmap_mark 2 9280
+sctp_tsnmap_mark 4 9270
+sctp_tsnmap_mark 6 9260

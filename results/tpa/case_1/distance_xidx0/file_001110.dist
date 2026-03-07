@@ -1,0 +1,13 @@
+hfsplus_init_security 0 11090
+hfsplus_initxattrs 0 9090
+hfsplus_initxattrs 2 10130
+hfsplus_initxattrs 3 10120
+hfsplus_initxattrs 5 10110
+hfsplus_initxattrs 6 10140
+hfsplus_initxattrs 7 10100
+hfsplus_initxattrs 9 10090
+hfsplus_initxattrs 11 10140
+hfsplus_initxattrs 12 10130
+hfsplus_initxattrs 13 10120
+hfsplus_security_getxattr 0 10090
+hfsplus_security_setxattr 0 10090

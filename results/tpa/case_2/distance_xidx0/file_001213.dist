@@ -1,0 +1,2 @@
+nfs_unregister_sysctl 0 12260
+nfs_register_sysctl 0 11260

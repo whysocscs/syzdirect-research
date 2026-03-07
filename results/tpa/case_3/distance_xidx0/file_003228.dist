@@ -1,0 +1,15 @@
+nft_ng_module_exit 0 14360
+nft_ng_module_init 0 14360
+nft_ng_inc_init 0 11052
+nft_ng_inc_init 1 11042
+nft_ng_inc_init 2 11042
+nft_ng_inc_init 3 11031
+nft_ng_inc_init 5 11021
+nft_ng_inc_init 7 9360
+nft_ng_inc_init 9 13360
+nft_ng_random_init 0 13400
+nft_ng_random_init 1 13390
+nft_ng_random_init 2 13390
+nft_ng_random_init 3 13380
+nft_ng_random_init 5 13370
+nft_ng_random_init 7 13360

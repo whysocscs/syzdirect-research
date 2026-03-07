@@ -1,0 +1,7 @@
+call_fib6_notifier 0 8090
+call_fib6_notifiers 0 9090
+fib6_notifier_init 0 11090
+fib6_notifier_exit 0 12090
+fib6_seq_read 0 13090
+fib6_dump 0 10090
+fib6_dump 2 10090

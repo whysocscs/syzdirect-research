@@ -1,0 +1,10 @@
+jffs2_zlib_init 0 12360
+jffs2_zlib_init 2 15360
+jffs2_zlib_init 4 11360
+jffs2_zlib_exit 0 11360
+jffs2_zlib_compress 0 12370
+jffs2_zlib_compress 2 12360
+jffs2_zlib_decompress 0 12360
+alloc_workspaces 0 11360
+alloc_workspaces 2 11360
+alloc_workspaces 4 11360

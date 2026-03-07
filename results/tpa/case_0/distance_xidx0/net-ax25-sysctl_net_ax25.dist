@@ -1,0 +1,2 @@
+ax25_register_dev_sysctl 0 11010
+ax25_register_dev_sysctl 2 24010

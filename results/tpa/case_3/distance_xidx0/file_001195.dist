@@ -1,0 +1,6 @@
+nfsd4_ff_proc_getdeviceinfo 0 9360
+nfsd4_ff_proc_layoutget 0 9360
+nfsd4_ff_proc_layoutget 2 10374
+nfsd4_ff_proc_layoutget 3 10360
+nfsd4_ff_proc_layoutget 4 10370
+nfsd4_ff_proc_layoutget 5 10360

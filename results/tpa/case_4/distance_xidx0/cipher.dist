@@ -1,0 +1,10 @@
+crypto_cipher_setkey 0 12110
+crypto_cipher_setkey 2 12100
+crypto_cipher_setkey 4 12090
+crypto_cipher_setkey 5 12080
+crypto_cipher_encrypt_one 0 27090
+crypto_cipher_encrypt_one 1 27080
+crypto_cipher_encrypt_one 2 27080
+crypto_cipher_decrypt_one 0 27090
+crypto_cipher_decrypt_one 1 27080
+crypto_cipher_decrypt_one 2 27080

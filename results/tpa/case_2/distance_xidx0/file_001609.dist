@@ -1,0 +1,5 @@
+udf_tgetblk 0 12260
+udf_tread 0 11260
+udf_read_tagged 0 11270
+udf_read_tagged 2 11260
+udf_read_ptagged 0 12260

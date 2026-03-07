@@ -1,0 +1,16 @@
+ceph_buffer_new 0 9588
+ceph_buffer_new 1 9578
+ceph_buffer_new 2 9588
+ceph_buffer_new 3 9578
+ceph_buffer_new 4 9578
+ceph_buffer_new 5 9090
+ceph_buffer_new 7 10090
+ceph_buffer_release 0 12100
+ceph_buffer_release 1 12100
+ceph_buffer_release 2 12090
+ceph_decode_buffer 0 9598
+ceph_decode_buffer 2 9588
+ceph_decode_buffer 3 9588
+ceph_decode_buffer 4 9578
+ceph_decode_buffer 6 9090
+ceph_decode_buffer 8 10090

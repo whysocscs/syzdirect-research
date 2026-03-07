@@ -1,0 +1,17 @@
+ipip_fini 0 22080
+ipip_fini 1 22099
+ipip_fini 2 22099
+ipip_fini 3 22080
+ipip_fini 4 22090
+ipip_fini 5 22090
+ipip_fini 6 22080
+ipip_init_state 0 28094
+ipip_init_state 1 28080
+ipip_init_state 4 28090
+ipip_init_state 5 28080
+ipip_init 0 22080
+ipip_init 2 22080
+ipip_init 3 22080
+ipip_init 4 22080
+ipip_init 6 22080
+xfrm_tunnel_rcv 0 7080

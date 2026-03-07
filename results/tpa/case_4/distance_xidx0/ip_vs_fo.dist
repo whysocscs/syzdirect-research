@@ -1,0 +1,15 @@
+ip_vs_fo_cleanup 0 9080
+ip_vs_fo_init 0 22080
+ip_vs_fo_schedule 0 27100
+ip_vs_fo_schedule 1 27140
+ip_vs_fo_schedule 2 27090
+ip_vs_fo_schedule 3 27130
+ip_vs_fo_schedule 4 27120
+ip_vs_fo_schedule 5 27130
+ip_vs_fo_schedule 6 27120
+ip_vs_fo_schedule 7 27120
+ip_vs_fo_schedule 8 27110
+ip_vs_fo_schedule 9 27140
+ip_vs_fo_schedule 10 27100
+ip_vs_fo_schedule 12 27090
+ip_vs_fo_schedule 13 27080

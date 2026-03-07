@@ -1,0 +1,12 @@
+nf_ct_ext_add 0 10300
+nf_ct_ext_add 1 10290
+nf_ct_ext_add 2 10290
+nf_ct_ext_add 3 10280
+nf_ct_ext_add 4 10270
+nf_ct_ext_add 5 10280
+nf_ct_ext_add 7 10270
+nf_ct_ext_add 8 10260
+nf_ct_ext_bump_genid 0 10280
+nf_ct_ext_bump_genid 1 10270
+nf_ct_ext_bump_genid 2 10270
+nf_ct_ext_bump_genid 3 10260

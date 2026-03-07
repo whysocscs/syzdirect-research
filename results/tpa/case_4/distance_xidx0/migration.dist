@@ -1,0 +1,3 @@
+__irq_move_irq 0 21100
+__irq_move_irq 2 21090
+__irq_move_irq 3 21080

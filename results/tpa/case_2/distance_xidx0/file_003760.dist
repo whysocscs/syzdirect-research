@@ -1,0 +1,9 @@
+xfrm_hash_alloc 0 10792
+xfrm_hash_alloc 1 9260
+xfrm_hash_alloc 2 11748
+xfrm_hash_alloc 3 11260
+xfrm_hash_alloc 4 12260
+xfrm_hash_free 0 12603
+xfrm_hash_free 2 12593
+xfrm_hash_free 3 11260
+xfrm_hash_free 4 14260

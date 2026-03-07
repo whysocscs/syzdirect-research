@@ -1,0 +1,10 @@
+redirect_tg_exit 0 14010
+redirect_tg4_check 0 9030
+redirect_tg4_check 3 9020
+redirect_tg4_check 6 9010
+redirect_tg_init 0 14010
+redirect_tg6 0 14010
+redirect_tg6_checkentry 0 9020
+redirect_tg6_checkentry 2 9010
+redirect_tg_destroy 0 11010
+redirect_tg4 0 14010

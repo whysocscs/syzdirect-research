@@ -1,0 +1,16 @@
+cpumask_local_spread 0 20114
+cpumask_local_spread 7 20090
+cpumask_local_spread 8 20110
+cpumask_local_spread 9 20110
+cpumask_local_spread 10 20100
+cpumask_local_spread 12 20090
+cpumask_any_and_distribute 0 19090
+cpumask_any_and_distribute 1 19110
+cpumask_any_and_distribute 2 19110
+cpumask_any_and_distribute 3 19099
+cpumask_any_and_distribute 5 19090
+cpumask_any_distribute 0 19090
+cpumask_any_distribute 1 19110
+cpumask_any_distribute 2 19110
+cpumask_any_distribute 3 19099
+cpumask_any_distribute 5 19090

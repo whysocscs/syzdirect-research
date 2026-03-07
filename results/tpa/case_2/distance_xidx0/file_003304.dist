@@ -1,0 +1,4 @@
+trace_tg_exit 0 13260
+trace_tg_init 0 13260
+trace_tg_check 0 11260
+trace_tg_destroy 0 11260

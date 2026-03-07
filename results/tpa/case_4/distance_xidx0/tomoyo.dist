@@ -1,0 +1,15 @@
+tomoyo_socket_bind 0 15080
+tomoyo_bprm_check_security 0 20587
+tomoyo_bprm_check_security 1 20080
+tomoyo_bprm_check_security 2 21090
+tomoyo_bprm_check_security 3 21090
+tomoyo_bprm_check_security 4 21080
+tomoyo_path_chown 0 14099
+tomoyo_path_chown 1 14100
+tomoyo_path_chown 2 14080
+tomoyo_path_chown 4 14100
+tomoyo_path_chown 5 14090
+tomoyo_path_chown 7 14080
+tomoyo_socket_connect 0 15080
+tomoyo_socket_listen 0 9080
+tomoyo_socket_sendmsg 0 15080

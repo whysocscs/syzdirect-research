@@ -1,0 +1,12 @@
+masquerade_tg_exit 0 9010
+masquerade_tg6_checkentry 0 9020
+masquerade_tg6_checkentry 2 9010
+masquerade_tg_init 0 14010
+masquerade_tg_init 2 9010
+masquerade_tg_init 4 14010
+masquerade_tg6 0 13010
+masquerade_tg_destroy 0 11010
+masquerade_tg 0 13010
+masquerade_tg_check 0 9030
+masquerade_tg_check 3 9020
+masquerade_tg_check 6 9010

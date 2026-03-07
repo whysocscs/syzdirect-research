@@ -1,0 +1,2998 @@
+{
+	"__se_sys_modify_ldt": {
+		"1": [
+			"modify_ldt$read"
+		],
+		"none": [
+			"modify_ldt$write2",
+			"modify_ldt$read_default",
+			"modify_ldt$write",
+			"modify_ldt$read"
+		],
+		"12": [
+			"modify_ldt$write"
+		],
+		"13": [
+			"modify_ldt$read_default"
+		],
+		"19": [
+			"modify_ldt$write2"
+		]
+	},
+	"write_ldt": {
+		"1": [
+			"modify_ldt$write"
+		]
+	},
+	"do_arch_prctl_64": {
+		"1": [
+			"arch_prctl$ARCH_SET_GS"
+		],
+		"none": [
+			"arch_prctl$ARCH_SET_GS",
+			"arch_prctl$ARCH_GET_GS",
+			"arch_prctl$ARCH_GET_FS",
+			"arch_prctl$ARCH_MAP_VDSO_32",
+			"arch_prctl$ARCH_MAP_VDSO_64"
+		],
+		"23": [
+			"arch_prctl$ARCH_GET_FS"
+		],
+		"24": [
+			"arch_prctl$ARCH_GET_GS"
+		],
+		"25": [
+			"arch_prctl$ARCH_MAP_VDSO_32"
+		],
+		"28": [
+			"arch_prctl$ARCH_MAP_VDSO_64"
+		]
+	},
+	"do_arch_prctl_common": {
+		"none": [
+			"arch_prctl"
+		]
+	},
+	"sched_itmt_update_handler": {
+		"none": [
+			"write"
+		]
+	},
+	"__se_sys_ioprio_set": {
+		"none": [
+			"ioprio_set"
+		]
+	},
+	"__se_sys_ioprio_get": {
+		"none": [
+			"ioprio_get"
+		]
+	},
+	"alg_accept": {
+		"none": [
+			"accept4$alg",
+			"accept$alg"
+		]
+	},
+	"sock_no_getname": {
+		"none": [
+			"getpeername",
+			"getsockname"
+		]
+	},
+	"sock_no_recvmsg": {
+		"none": [
+			"recvfrom",
+			"recvmmsg"
+		]
+	},
+	"sock_no_sendmsg": {
+		"none": [
+			"sendmsg$inet",
+			"sendmmsg$inet",
+			"sendmsg$sock",
+			"sendmmsg$sock"
+		]
+	},
+	"alg_bind": {
+		"none": [
+			"bind$alg"
+		]
+	},
+	"alg_setsockopt": {
+		"none": [
+			"setsockopt"
+		]
+	},
+	"blkdev_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"blkdev_open": {
+		"none": [
+			"open"
+		]
+	},
+	"blk_mq_debugfs_open": {
+		"none": [
+			"open"
+		]
+	},
+	"blkcg_reset_stats": {
+		"none": [
+			"write"
+		]
+	},
+	"tg_set_conf_uint": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"ioc_cost_model_write": {
+		"none": [
+			"write"
+		]
+	},
+	"tg_set_limit": {
+		"none": [
+			"write"
+		]
+	},
+	"tg_set_conf_u64": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"iolatency_set_limit": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"ioc_qos_write": {
+		"none": [
+			"write"
+		]
+	},
+	"ioc_weight_write": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"bfq_io_set_weight_legacy": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"bfq_io_set_weight": {
+		"none": [
+			"write$cgroup_int"
+		]
+	},
+	"blkdev_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"blk_mq_debugfs_write": {
+		"none": [
+			"write"
+		]
+	},
+	"binder_ctl_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"public_dev_mount": {
+		"none": [
+			"mount"
+		]
+	},
+	"binderfs_fill_super": {
+		"none": [
+			"mount"
+		]
+	},
+	"binder_features_open": {
+		"none": [
+			"open"
+		]
+	},
+	"hpet_mmap": {
+		"none": [
+			"mmap"
+		]
+	},
+	"mmap_zero": {
+		"none": [
+			"mmap"
+		]
+	},
+	"aoeblk_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"nvram_misc_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"hpet_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"nbd_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"lo_ioctl": {
+		"1": [
+			"ioctl$LOOP_SET_BLOCK_SIZE"
+		],
+		"none": [
+			"ioctl$LOOP_SET_FD",
+			"ioctl$LOOP_SET_CAPACITY",
+			"ioctl$LOOP_CLR_FD",
+			"ioctl$LOOP_SET_STATUS64",
+			"ioctl$LOOP_SET_DIRECT_IO",
+			"ioctl$LOOP_SET_STATUS",
+			"ioctl$LOOP_GET_STATUS64",
+			"ioctl$LOOP_GET_STATUS",
+			"ioctl$LOOP_CONFIGURE",
+			"ioctl$LOOP_SET_BLOCK_SIZE",
+			"ioctl$LOOP_CHANGE_FD"
+		],
+		"115": [
+			"ioctl$LOOP_SET_BLOCK_SIZE"
+		],
+		"2": [
+			"ioctl$LOOP_SET_DIRECT_IO"
+		],
+		"109": [
+			"ioctl$LOOP_SET_DIRECT_IO"
+		],
+		"3": [
+			"ioctl$LOOP_SET_CAPACITY"
+		],
+		"101": [
+			"ioctl$LOOP_SET_CAPACITY"
+		],
+		"5": [
+			"ioctl$LOOP_SET_FD"
+		],
+		"6": [
+			"ioctl$LOOP_CONFIGURE"
+		],
+		"10": [
+			"ioctl$LOOP_CHANGE_FD"
+		],
+		"51": [
+			"ioctl$LOOP_CLR_FD"
+		],
+		"60": [
+			"ioctl$LOOP_SET_STATUS"
+		],
+		"69": [
+			"ioctl$LOOP_GET_STATUS"
+		],
+		"70": [
+			"ioctl$LOOP_GET_STATUS"
+		],
+		"77": [
+			"ioctl$LOOP_SET_STATUS64"
+		],
+		"86": [
+			"ioctl$LOOP_GET_STATUS64"
+		],
+		"87": [
+			"ioctl$LOOP_GET_STATUS64"
+		]
+	},
+	"vhci_read": {
+		"none": [
+			"read"
+		]
+	},
+	"read_zero": {
+		"none": [
+			"read"
+		]
+	},
+	"nvram_misc_read": {
+		"none": [
+			"read"
+		]
+	},
+	"hpet_read": {
+		"none": [
+			"read"
+		]
+	},
+	"aoechr_read": {
+		"none": [
+			"read"
+		]
+	},
+	"read_null": {
+		"none": [
+			"read"
+		]
+	},
+	"vhci_write": {
+		"none": [
+			"write"
+		]
+	},
+	"aoechr_write": {
+		"none": [
+			"write"
+		]
+	},
+	"nvram_misc_write": {
+		"none": [
+			"write"
+		]
+	},
+	"proc_do_rointvec": {
+		"none": [
+			"write"
+		]
+	},
+	"write_null": {
+		"none": [
+			"write"
+		]
+	},
+	"cdrom_sysctl_handler": {
+		"none": [
+			"write"
+		]
+	},
+	"write_full": {
+		"none": [
+			"write"
+		]
+	},
+	"vhci_open": {
+		"none": [
+			"open"
+		]
+	},
+	"nbd_open": {
+		"none": [
+			"open"
+		]
+	},
+	"aoeblk_open": {
+		"none": [
+			"open"
+		]
+	},
+	"blktrans_open": {
+		"none": [
+			"open"
+		]
+	},
+	"tap_open": {
+		"none": [
+			"open"
+		]
+	},
+	"nvram_misc_open": {
+		"none": [
+			"open"
+		]
+	},
+	"memory_open": {
+		"none": [
+			"open"
+		]
+	},
+	"hpet_open": {
+		"none": [
+			"open"
+		]
+	},
+	"aoechr_open": {
+		"none": [
+			"open"
+		]
+	},
+	"misc_open": {
+		"none": [
+			"open"
+		]
+	},
+	"dma_heap_open": {
+		"none": [
+			"open"
+		]
+	},
+	"dma_heap_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"sync_file_ioctl": {
+		"2": [
+			"ioctl$SYNC_IOC_MERGE"
+		],
+		"none": [
+			"ioctl$SYNC_IOC_FILE_INFO",
+			"ioctl$SYNC_IOC_MERGE"
+		],
+		"32": [
+			"ioctl$SYNC_IOC_FILE_INFO"
+		]
+	},
+	"drm_setmaster_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SET_MASTER"
+		]
+	},
+	"drm_dropmaster_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_DROP_MASTER"
+		]
+	},
+	"drm_invalid_op": {
+		"none": [
+			"ioctl$DRM_IOCTL_ADD_CTX",
+			"ioctl$DRM_IOCTL_MARK_BUFS",
+			"ioctl$DRM_IOCTL_FREE_BUFS",
+			"ioctl$DRM_IOCTL_SWITCH_CTX",
+			"ioctl$DRM_IOCTL_MAP_BUFS",
+			"ioctl$DRM_IOCTL_IRQ_BUSID",
+			"ioctl$DRM_IOCTL_CONTROL",
+			"ioctl$DRM_IOCTL_NEW_CTX",
+			"ioctl$DRM_IOCTL_GET_CTX",
+			"ioctl$DRM_IOCTL_ADD_MAP",
+			"ioctl$DRM_IOCTL_GET_MAP",
+			"ioctl$DRM_IOCTL_AGP_BIND",
+			"ioctl$DRM_IOCTL_AGP_RELEASE",
+			"ioctl$DRM_IOCTL_AGP_ENABLE",
+			"ioctl$DRM_IOCTL_AGP_ACQUIRE",
+			"ioctl$DRM_IOCTL_ADD_BUFS",
+			"ioctl$DRM_IOCTL_UNLOCK",
+			"ioctl$DRM_IOCTL_RM_CTX",
+			"ioctl$DRM_IOCTL_AGP_ALLOC",
+			"ioctl$DRM_IOCTL_SET_UNIQUE",
+			"ioctl$DRM_IOCTL_SG_ALLOC",
+			"ioctl$DRM_IOCTL_AGP_FREE",
+			"ioctl$DRM_IOCTL_AGP_UNBIND",
+			"ioctl$DRM_IOCTL_GET_SAREA_CTX",
+			"ioctl$DRM_IOCTL_RM_MAP",
+			"ioctl$DRM_IOCTL_AGP_INFO",
+			"ioctl$DRM_IOCTL_RES_CTX",
+			"ioctl$DRM_IOCTL_DMA",
+			"ioctl$DRM_IOCTL_SET_SAREA_CTX",
+			"ioctl$DRM_IOCTL_INFO_BUFS",
+			"ioctl$DRM_IOCTL_LOCK",
+			"ioctl$DRM_IOCTL_SG_FREE"
+		]
+	},
+	"drm_authmagic": {
+		"none": [
+			"ioctl$DRM_IOCTL_AUTH_MAGIC"
+		]
+	},
+	"drm_legacy_modeset_ctl_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODESET_CTL"
+		]
+	},
+	"drm_gem_close_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_GEM_CLOSE"
+		]
+	},
+	"drm_noop": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"drm_setclientcap": {
+		"none": [
+			"ioctl$DRM_IOCTL_SET_CLIENT_CAP"
+		]
+	},
+	"drm_getmagic": {
+		"none": [
+			"ioctl$DRM_IOCTL_GET_MAGIC"
+		]
+	},
+	"drm_getstats": {
+		"none": [
+			"ioctl$DRM_IOCTL_GET_STATS"
+		]
+	},
+	"drm_mode_rmfb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_RMFB"
+		]
+	},
+	"drm_mode_destroy_dumb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_DESTROY_DUMB"
+		]
+	},
+	"drm_mode_destroyblob_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_DESTROYPROPBLOB"
+		]
+	},
+	"drm_mode_revoke_lease_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_REVOKE_LEASE"
+		]
+	},
+	"drm_gem_flink_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_GEM_FLINK"
+		]
+	},
+	"drm_syncobj_create_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_CREATE"
+		]
+	},
+	"drm_syncobj_destroy_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_DESTROY"
+		]
+	},
+	"drm_prime_handle_to_fd_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_PRIME_HANDLE_TO_FD"
+		]
+	},
+	"drm_prime_fd_to_handle_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_PRIME_FD_TO_HANDLE"
+		]
+	},
+	"drm_getunique": {
+		"none": [
+			"ioctl$DRM_IOCTL_GET_UNIQUE"
+		]
+	},
+	"drm_setversion": {
+		"none": [
+			"ioctl$DRM_IOCTL_SET_VERSION"
+		]
+	},
+	"drm_gem_open_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_GEM_OPEN"
+		]
+	},
+	"drm_getcap": {
+		"none": [
+			"ioctl$DRM_IOCTL_GET_CAP"
+		]
+	},
+	"drm_connector_property_set_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_SETPROPERTY"
+		]
+	},
+	"drm_mode_getblob_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETPROPBLOB"
+		]
+	},
+	"drm_mode_mmap_dumb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_MAP_DUMB"
+		]
+	},
+	"drm_mode_getplane_res": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETPLANERESOURCES"
+		]
+	},
+	"drm_mode_createblob_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_CREATEPROPBLOB"
+		]
+	},
+	"drm_syncobj_handle_to_fd_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD_FD",
+			"ioctl$DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD_SYNC_FILE"
+		]
+	},
+	"drm_syncobj_fd_to_handle_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE_SYNC_FILE",
+			"ioctl$DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE_FD"
+		]
+	},
+	"drm_syncobj_reset_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_RESET"
+		]
+	},
+	"drm_syncobj_signal_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_SIGNAL"
+		]
+	},
+	"drm_mode_list_lessees_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_LIST_LESSEES"
+		]
+	},
+	"drm_mode_get_lease_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GET_LEASE"
+		]
+	},
+	"drm_mode_getencoder": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETENCODER"
+		]
+	},
+	"drm_wait_vblank_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_WAIT_VBLANK"
+		]
+	},
+	"drm_crtc_get_sequence_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"drm_crtc_queue_sequence_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"drm_mode_page_flip_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_PAGE_FLIP"
+		]
+	},
+	"drm_mode_dirtyfb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_DIRTYFB"
+		]
+	},
+	"drm_mode_obj_set_property_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_OBJ_SETPROPERTY"
+		]
+	},
+	"drm_mode_create_lease_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_CREATE_LEASE"
+		]
+	},
+	"drm_syncobj_query_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_QUERY"
+		]
+	},
+	"drm_syncobj_timeline_signal_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_TIMELINE_SIGNAL"
+		]
+	},
+	"drm_mode_cursor_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_CURSOR"
+		]
+	},
+	"drm_mode_getfb": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETFB"
+		]
+	},
+	"drm_mode_addfb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_ADDFB"
+		]
+	},
+	"drm_mode_gamma_get_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETGAMMA"
+		]
+	},
+	"drm_mode_gamma_set_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_SETGAMMA"
+		]
+	},
+	"drm_mode_create_dumb_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_CREATE_DUMB"
+		]
+	},
+	"drm_mode_getplane": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETPLANE"
+		]
+	},
+	"drm_mode_obj_get_properties_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_OBJ_GETPROPERTIES"
+		]
+	},
+	"drm_syncobj_wait_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_WAIT"
+		]
+	},
+	"drm_syncobj_transfer_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_TRANSFER"
+		]
+	},
+	"drm_mode_cursor2_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_CURSOR2"
+		]
+	},
+	"drm_getclient": {
+		"none": [
+			"ioctl$DRM_IOCTL_GET_CLIENT"
+		]
+	},
+	"drm_syncobj_timeline_wait_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT"
+		]
+	},
+	"drm_mode_setplane": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_SETPLANE"
+		]
+	},
+	"drm_mode_atomic_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_ATOMIC"
+		]
+	},
+	"drm_version": {
+		"none": [
+			"ioctl$DRM_IOCTL_VERSION"
+		]
+	},
+	"drm_mode_getresources": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETRESOURCES"
+		]
+	},
+	"drm_mode_getproperty_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETPROPERTY"
+		]
+	},
+	"drm_mode_getconnector": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETCONNECTOR"
+		]
+	},
+	"drm_mode_getcrtc": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_GETCRTC"
+		]
+	},
+	"drm_mode_setcrtc": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_SETCRTC"
+		]
+	},
+	"drm_mode_addfb2_ioctl": {
+		"none": [
+			"ioctl$DRM_IOCTL_MODE_ADDFB2"
+		]
+	},
+	"drm_mode_getfb2_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"hidraw_read": {
+		"none": [
+			"read$hidraw"
+		]
+	},
+	"uhid_char_read": {
+		"none": [
+			"read"
+		]
+	},
+	"hidraw_write": {
+		"none": [
+			"write$hidraw"
+		]
+	},
+	"uhid_char_write": {
+		"none": [
+			"write$UHID_DESTROY",
+			"write$UHID_INPUT",
+			"write$UHID_SET_REPORT_REPLY",
+			"write$UHID_CREATE",
+			"write$UHID_INPUT2",
+			"write$UHID_CREATE2",
+			"write$UHID_GET_REPORT_REPLY"
+		]
+	},
+	"hidraw_open": {
+		"none": [
+			"open"
+		]
+	},
+	"uhid_char_open": {
+		"none": [
+			"open"
+		]
+	},
+	"hidraw_ioctl": {
+		"5": [
+			"ioctl$HIDIOCGRDESCSIZE"
+		],
+		"none": [
+			"ioctl$HIDIOCGRDESCSIZE",
+			"ioctl$HIDIOCGRDESC",
+			"ioctl$HIDIOCGRAWINFO"
+		],
+		"6": [
+			"ioctl$HIDIOCGRDESC"
+		],
+		"13": [
+			"ioctl$HIDIOCGRAWINFO"
+		]
+	},
+	"uinput_read": {
+		"none": [
+			"read"
+		]
+	},
+	"userio_char_read": {
+		"none": [
+			"read"
+		]
+	},
+	"evdev_read": {
+		"none": [
+			"read"
+		]
+	},
+	"joydev_read": {
+		"none": [
+			"read"
+		]
+	},
+	"uinput_write": {
+		"1": [
+			"write$input_event",
+			"write$uinput_user_dev"
+		],
+		"none": [
+			"write$uinput_user_dev",
+			"write$input_event"
+		],
+		"16": [
+			"write$input_event",
+			"write$uinput_user_dev"
+		]
+	},
+	"userio_char_write": {
+		"none": [
+			"write"
+		]
+	},
+	"evdev_write": {
+		"1": [
+			"write$evdev"
+		],
+		"none": [
+			"write$evdev"
+		]
+	},
+	"capinc_tty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"uinput_open": {
+		"none": [
+			"open"
+		]
+	},
+	"capinc_tty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"userio_char_open": {
+		"none": [
+			"open"
+		]
+	},
+	"evdev_open": {
+		"none": [
+			"open"
+		]
+	},
+	"joydev_open": {
+		"none": [
+			"open"
+		]
+	},
+	"uinput_ioctl": {
+		"none": [
+			"ioctl$UI_DEV_SETUP",
+			"ioctl$UI_SET_EVBIT",
+			"ioctl$UI_BEGIN_FF_UPLOAD",
+			"ioctl$UI_SET_RELBIT",
+			"ioctl$UI_SET_FFBIT",
+			"ioctl$UI_DEV_CREATE",
+			"ioctl$UI_BEGIN_FF_ERASE",
+			"ioctl$UI_SET_MSCBIT",
+			"ioctl$UI_SET_SNDBIT",
+			"ioctl$UI_GET_VERSION",
+			"ioctl$UI_SET_LEDBIT",
+			"ioctl$UI_END_FF_UPLOAD",
+			"ioctl$UI_END_FF_ERASE",
+			"ioctl$UI_SET_KEYBIT",
+			"ioctl$UI_SET_SWBIT",
+			"ioctl$UI_SET_PROPBIT",
+			"ioctl$UI_SET_PHYS",
+			"ioctl$UI_DEV_DESTROY",
+			"ioctl$UI_SET_ABSBIT"
+		]
+	},
+	"uinput_ioctl_handler": {
+		"8": [
+			"ioctl$UI_GET_VERSION"
+		],
+		"9": [
+			"ioctl$UI_DEV_CREATE"
+		],
+		"10": [
+			"ioctl$UI_DEV_DESTROY"
+		],
+		"11": [
+			"ioctl$UI_DEV_SETUP"
+		],
+		"12": [
+			"ioctl$UI_SET_EVBIT"
+		],
+		"15": [
+			"ioctl$UI_SET_KEYBIT"
+		],
+		"18": [
+			"ioctl$UI_SET_RELBIT"
+		],
+		"21": [
+			"ioctl$UI_SET_ABSBIT"
+		],
+		"24": [
+			"ioctl$UI_SET_MSCBIT"
+		],
+		"27": [
+			"ioctl$UI_SET_LEDBIT"
+		],
+		"30": [
+			"ioctl$UI_SET_SNDBIT"
+		],
+		"33": [
+			"ioctl$UI_SET_FFBIT"
+		],
+		"36": [
+			"ioctl$UI_SET_SWBIT"
+		],
+		"39": [
+			"ioctl$UI_SET_PROPBIT"
+		],
+		"42": [
+			"ioctl$UI_SET_PHYS"
+		],
+		"47": [
+			"ioctl$UI_BEGIN_FF_UPLOAD"
+		],
+		"61": [
+			"ioctl$UI_BEGIN_FF_ERASE"
+		],
+		"70": [
+			"ioctl$UI_END_FF_UPLOAD"
+		],
+		"81": [
+			"ioctl$UI_END_FF_ERASE"
+		]
+	},
+	"evdev_ioctl": {
+		"none": [
+			"ioctl$EVIOCGKEYCODE",
+			"ioctl$EVIOCGRAB",
+			"ioctl$EVIOCGEFFECTS",
+			"ioctl$EVIOCGVERSION",
+			"ioctl$EVIOCREVOKE",
+			"ioctl$EVIOCGKEYCODE_V2",
+			"ioctl$EVIOCSKEYCODE_V2",
+			"ioctl$EVIOCGREP",
+			"ioctl$EVIOCGID",
+			"ioctl$EVIOCSMASK",
+			"ioctl$EVIOCGMASK",
+			"ioctl$EVIOCSCLOCKID",
+			"ioctl$EVIOCSKEYCODE",
+			"ioctl$EVIOCSREP",
+			"ioctl$EVIOCRMFF"
+		]
+	},
+	"evdev_ioctl_handler": {
+		"7": [
+			"ioctl$EVIOCGVERSION"
+		],
+		"8": [
+			"ioctl$EVIOCGID"
+		],
+		"9": [
+			"ioctl$EVIOCGREP"
+		],
+		"14": [
+			"ioctl$EVIOCSREP"
+		],
+		"21": [
+			"ioctl$EVIOCRMFF"
+		],
+		"22": [
+			"ioctl$EVIOCGEFFECTS"
+		],
+		"26": [
+			"ioctl$EVIOCGRAB"
+		],
+		"43": [
+			"ioctl$EVIOCREVOKE"
+		],
+		"56": [
+			"ioctl$EVIOCGMASK"
+		],
+		"94": [
+			"ioctl$EVIOCSMASK"
+		],
+		"114": [
+			"ioctl$EVIOCSCLOCKID"
+		],
+		"129": [
+			"ioctl$EVIOCGKEYCODE"
+		],
+		"135": [
+			"ioctl$EVIOCSKEYCODE"
+		],
+		"141": [
+			"ioctl$EVIOCGKEYCODE_V2"
+		],
+		"147": [
+			"ioctl$EVIOCSKEYCODE_V2"
+		]
+	},
+	"joydev_ioctl": {
+		"none": [
+			"ioctl$FIBMAP",
+			"ioctl$int_out",
+			"ioctl$FIGETBSZ"
+		]
+	},
+	"joydev_ioctl_common": {
+		"1": [
+			"ioctl$FIBMAP"
+		],
+		"2": [
+			"ioctl$int_out",
+			"ioctl$FIGETBSZ"
+		]
+	},
+	"mISDN_read": {
+		"none": [
+			"read"
+		]
+	},
+	"dm_open": {
+		"none": [
+			"open"
+		]
+	},
+	"mISDN_open": {
+		"none": [
+			"open"
+		]
+	},
+	"dm_ctl_ioctl": {
+		"none": [
+			"ioctl$FIBMAP",
+			"ioctl$int_out",
+			"ioctl$FIGETBSZ"
+		],
+		"67": [
+			"ioctl$FIBMAP"
+		],
+		"68": [
+			"ioctl$int_out",
+			"ioctl$FIGETBSZ"
+		]
+	},
+	"mISDN_ioctl": {
+		"5": [
+			"ioctl$IMADDTIMER"
+		],
+		"none": [
+			"ioctl$IMADDTIMER",
+			"ioctl$IMDELTIMER"
+		],
+		"24": [
+			"ioctl$IMDELTIMER"
+		]
+	},
+	"md_open": {
+		"none": [
+			"open"
+		]
+	},
+	"md_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"mtdchar_read": {
+		"none": [
+			"read"
+		]
+	},
+	"mtdchar_mmap": {
+		"none": [
+			"mmap"
+		]
+	},
+	"mtdchar_write": {
+		"none": [
+			"write"
+		]
+	},
+	"vmci_host_open": {
+		"none": [
+			"open"
+		]
+	},
+	"mtdchar_open": {
+		"none": [
+			"open"
+		]
+	},
+	"vmci_host_unlocked_ioctl": {
+		"2": [
+			"ioctl$IOCTL_VMCI_INIT_CONTEXT"
+		],
+		"none": [
+			"ioctl$IOCTL_VMCI_VERSION",
+			"ioctl$IOCTL_VMCI_CTX_GET_CPT_STATE",
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_DETACH",
+			"ioctl$IOCTL_VMCI_DATAGRAM_RECEIVE",
+			"ioctl$IOCTL_VMCI_GET_CONTEXT_ID",
+			"ioctl$IOCTL_VMCI_NOTIFICATIONS_RECEIVE",
+			"ioctl$IOCTL_VMCI_CTX_ADD_NOTIFICATION",
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_SETPF",
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_ALLOC",
+			"ioctl$IOCTL_VMCI_CTX_REMOVE_NOTIFICATION",
+			"ioctl$IOCTL_VMCI_DATAGRAM_SEND",
+			"ioctl$IOCTL_VMCI_INIT_CONTEXT",
+			"ioctl$IOCTL_VMCI_NOTIFY_RESOURCE",
+			"ioctl$IOCTL_VMCI_SET_NOTIFY",
+			"ioctl$IOCTL_VMCI_VERSION2",
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_SETVA",
+			"ioctl$IOCTL_VMCI_CTX_SET_CPT_STATE"
+		],
+		"30": [
+			"ioctl$IOCTL_VMCI_DATAGRAM_SEND"
+		],
+		"45": [
+			"ioctl$IOCTL_VMCI_DATAGRAM_RECEIVE"
+		],
+		"59": [
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_ALLOC"
+		],
+		"73": [
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_SETVA"
+		],
+		"84": [
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_SETPF"
+		],
+		"99": [
+			"ioctl$IOCTL_VMCI_QUEUEPAIR_DETACH"
+		],
+		"108": [
+			"ioctl$IOCTL_VMCI_CTX_ADD_NOTIFICATION"
+		],
+		"117": [
+			"ioctl$IOCTL_VMCI_CTX_REMOVE_NOTIFICATION"
+		],
+		"126": [
+			"ioctl$IOCTL_VMCI_CTX_GET_CPT_STATE"
+		],
+		"145": [
+			"ioctl$IOCTL_VMCI_CTX_SET_CPT_STATE"
+		],
+		"156": [
+			"ioctl$IOCTL_VMCI_GET_CONTEXT_ID"
+		],
+		"157": [
+			"ioctl$IOCTL_VMCI_SET_NOTIFY"
+		],
+		"170": [
+			"ioctl$IOCTL_VMCI_NOTIFY_RESOURCE"
+		],
+		"188": [
+			"ioctl$IOCTL_VMCI_NOTIFICATIONS_RECEIVE"
+		],
+		"228": [
+			"ioctl$IOCTL_VMCI_VERSION"
+		],
+		"229": [
+			"ioctl$IOCTL_VMCI_VERSION2"
+		]
+	},
+	"mtdchar_unlocked_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"tun_chr_write_iter": {
+		"none": [
+			"write$tun"
+		]
+	},
+	"tap_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"vrf_shared_table_handler": {
+		"none": [
+			"write"
+		]
+	},
+	"tun_chr_open": {
+		"none": [
+			"open"
+		]
+	},
+	"tun_chr_ioctl": {
+		"none": [
+			"ioctl$TUNSETNOCSUM",
+			"ioctl$TUNSETSTEERINGEBPF",
+			"ioctl$TUNGETFEATURES",
+			"ioctl$SIOCSIFHWADDR",
+			"ioctl$TUNSETQUEUE",
+			"ioctl$TUNGETIFF",
+			"ioctl$TUNGETSNDBUF",
+			"ioctl$TUNGETVNETHDRSZ",
+			"ioctl$TUNSETVNETLE",
+			"ioctl$TUNATTACHFILTER",
+			"ioctl$TUNGETFILTER",
+			"ioctl$TUNSETCARRIER",
+			"ioctl$TUNSETPERSIST",
+			"ioctl$TUNSETFILTEREBPF",
+			"ioctl$TUNSETTXFILTER",
+			"ioctl$TUNSETIFF",
+			"ioctl$TUNSETVNETHDRSZ",
+			"ioctl$SIOCGIFHWADDR",
+			"ioctl$TUNSETSNDBUF",
+			"ioctl$TUNSETVNETBE",
+			"ioctl$TUNSETIFINDEX"
+		]
+	},
+	"__tun_chr_ioctl": {
+		"1": [
+			"ioctl$TUNSETIFF"
+		],
+		"43": [
+			"ioctl$TUNSETIFF"
+		],
+		"2": [
+			"ioctl$TUNSETQUEUE"
+		],
+		"13": [
+			"ioctl$TUNSETQUEUE"
+		],
+		"12": [
+			"ioctl$TUNGETFEATURES"
+		],
+		"50": [
+			"ioctl$TUNSETIFINDEX"
+		],
+		"62": [
+			"ioctl$TUNGETIFF"
+		],
+		"71": [
+			"ioctl$TUNSETNOCSUM"
+		],
+		"74": [
+			"ioctl$TUNSETPERSIST"
+		],
+		"78": [
+			"ioctl$TUNSETPERSIST",
+			"ioctl$TUNSETIFF",
+			"ioctl$TUNSETQUEUE"
+		],
+		"108": [
+			"ioctl$TUNSETTXFILTER"
+		],
+		"111": [
+			"ioctl$SIOCGIFHWADDR"
+		],
+		"114": [
+			"ioctl$SIOCSIFHWADDR"
+		],
+		"115": [
+			"ioctl$TUNGETSNDBUF"
+		],
+		"116": [
+			"ioctl$TUNSETSNDBUF"
+		],
+		"121": [
+			"ioctl$TUNGETVNETHDRSZ"
+		],
+		"122": [
+			"ioctl$TUNSETVNETHDRSZ"
+		],
+		"128": [
+			"ioctl$TUNSETVNETLE"
+		],
+		"134": [
+			"ioctl$TUNSETVNETBE"
+		],
+		"135": [
+			"ioctl$TUNATTACHFILTER"
+		],
+		"143": [
+			"ioctl$TUNGETFILTER"
+		],
+		"146": [
+			"ioctl$TUNSETSTEERINGEBPF"
+		],
+		"147": [
+			"ioctl$TUNSETFILTEREBPF"
+		],
+		"148": [
+			"ioctl$TUNSETCARRIER"
+		]
+	},
+	"set_offload": {
+		"1": [
+			"ioctl$TUNSETIFF",
+			"ioctl$TUNSETQUEUE"
+		],
+		"3": [
+			"ioctl$TUNSETIFF",
+			"ioctl$TUNSETQUEUE"
+		],
+		"8": [
+			"ioctl$TUNSETIFF",
+			"ioctl$TUNSETQUEUE"
+		]
+	},
+	"tap_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"wwan_port_fops_read": {
+		"none": [
+			"read"
+		]
+	},
+	"wwan_port_fops_write": {
+		"none": [
+			"write"
+		]
+	},
+	"wwan_port_fops_open": {
+		"none": [
+			"open"
+		]
+	},
+	"wwan_port_fops_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"ptp_read": {
+		"none": [
+			"read$ptp"
+		]
+	},
+	"ptp_open": {
+		"none": [
+			"open"
+		]
+	},
+	"ptp_ioctl": {
+		"1": [
+			"ioctl$PTP_PIN_SETFUNC2"
+		],
+		"none": [
+			"ioctl$PTP_ENABLE_PPS",
+			"ioctl$PTP_PIN_GETFUNC2",
+			"ioctl$PTP_SYS_OFFSET",
+			"ioctl$PTP_SYS_OFFSET_PRECISE",
+			"ioctl$PTP_PIN_SETFUNC2",
+			"ioctl$PTP_PEROUT_REQUEST2",
+			"ioctl$PTP_EXTTS_REQUEST2",
+			"ioctl$PTP_EXTTS_REQUEST",
+			"ioctl$PTP_PIN_GETFUNC",
+			"ioctl$PTP_SYS_OFFSET_EXTENDED",
+			"ioctl$PTP_PEROUT_REQUEST",
+			"ioctl$PTP_CLOCK_GETCAPS",
+			"ioctl$PTP_PIN_SETFUNC"
+		],
+		"162": [
+			"ioctl$PTP_PIN_SETFUNC2"
+		],
+		"166": [
+			"ioctl$PTP_PIN_SETFUNC",
+			"ioctl$PTP_PIN_SETFUNC2"
+		],
+		"2": [
+			"ioctl$PTP_PIN_SETFUNC"
+		],
+		"161": [
+			"ioctl$PTP_PIN_SETFUNC"
+		],
+		"3": [
+			"ioctl$PTP_PIN_GETFUNC2"
+		],
+		"137": [
+			"ioctl$PTP_PIN_GETFUNC2"
+		],
+		"141": [
+			"ioctl$PTP_PIN_GETFUNC",
+			"ioctl$PTP_PIN_GETFUNC2"
+		],
+		"4": [
+			"ioctl$PTP_PIN_GETFUNC"
+		],
+		"136": [
+			"ioctl$PTP_PIN_GETFUNC"
+		],
+		"6": [
+			"ioctl$PTP_SYS_OFFSET"
+		],
+		"8": [
+			"ioctl$PTP_SYS_OFFSET_EXTENDED"
+		],
+		"10": [
+			"ioctl$PTP_SYS_OFFSET_PRECISE"
+		],
+		"12": [
+			"ioctl$PTP_ENABLE_PPS"
+		],
+		"13": [
+			"ioctl$PTP_PEROUT_REQUEST2"
+		],
+		"42": [
+			"ioctl$PTP_PEROUT_REQUEST2"
+		],
+		"14": [
+			"ioctl$PTP_PEROUT_REQUEST"
+		],
+		"70": [
+			"ioctl$PTP_PEROUT_REQUEST"
+		],
+		"15": [
+			"ioctl$PTP_EXTTS_REQUEST2"
+		],
+		"25": [
+			"ioctl$PTP_EXTTS_REQUEST2"
+		],
+		"16": [
+			"ioctl$PTP_EXTTS_REQUEST"
+		],
+		"32": [
+			"ioctl$PTP_EXTTS_REQUEST"
+		],
+		"18": [
+			"ioctl$PTP_CLOCK_GETCAPS"
+		]
+	},
+	"sd_open": {
+		"none": [
+			"open"
+		]
+	},
+	"sr_block_open": {
+		"none": [
+			"open"
+		]
+	},
+	"sd_ioctl": {
+		"none": [
+			"ioctl$FIBMAP",
+			"ioctl$int_out",
+			"ioctl$FIGETBSZ"
+		]
+	},
+	"scsi_ioctl": {
+		"22": [
+			"ioctl$CDROMEJECT"
+		],
+		"129": [
+			"ioctl$CDROMEJECT"
+		],
+		"4": [
+			"ioctl$CDROMEJECT"
+		],
+		"5": [
+			"ioctl$CDROMEJECT"
+		],
+		"8": [
+			"ioctl$CDROMEJECT"
+		],
+		"9": [
+			"ioctl$CDROMEJECT"
+		],
+		"10": [
+			"ioctl$CDROMEJECT"
+		],
+		"15": [
+			"ioctl$CDROMEJECT"
+		],
+		"16": [
+			"ioctl$CDROMEJECT"
+		],
+		"73": [
+			"ioctl$CDROM_SEND_PACKET",
+			"ioctl$CDROMEJECT"
+		],
+		"98": [
+			"ioctl$CDROMCLOSETRAY",
+			"ioctl$CDROMEJECT"
+		],
+		"99": [
+			"ioctl$CDROMEJECT"
+		],
+		"100": [
+			"ioctl$CDROMEJECT"
+		],
+		"101": [
+			"ioctl$CDROMEJECT"
+		],
+		"102": [
+			"ioctl$CDROMEJECT"
+		],
+		"117": [
+			"ioctl$CDROMEJECT"
+		],
+		"123": [
+			"ioctl$CDROMEJECT"
+		],
+		"130": [
+			"ioctl$CDROMEJECT"
+		],
+		"131": [
+			"ioctl$CDROMEJECT"
+		],
+		"132": [
+			"ioctl$CDROMEJECT"
+		],
+		"138": [
+			"ioctl$CDROMEJECT"
+		]
+	},
+	"sr_block_ioctl": {
+		"none": [
+			"ioctl$CDROMCLOSETRAY",
+			"ioctl$CDROM_SEND_PACKET",
+			"ioctl$CDROMEJECT"
+		],
+		"8": [
+			"ioctl$CDROMEJECT"
+		]
+	},
+	"pty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"con_write": {
+		"none": [
+			"write$binfmt_elf64"
+		]
+	},
+	"do_con_write": {
+		"74": [
+			"write$binfmt_elf64"
+		],
+		"130": [
+			"write$binfmt_elf64"
+		],
+		"283": [
+			"write$binfmt_elf64"
+		],
+		"291": [
+			"write$binfmt_elf64"
+		]
+	},
+	"tty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"redirected_tty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"hvc_write": {
+		"none": [
+			"write"
+		]
+	},
+	"gsmtty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"ttynull_write": {
+		"none": [
+			"write"
+		]
+	},
+	"ntty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"acm_tty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"pty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"con_open": {
+		"none": [
+			"open"
+		]
+	},
+	"tty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"hvc_open": {
+		"none": [
+			"open"
+		]
+	},
+	"gsmtty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"ttynull_open": {
+		"none": [
+			"open"
+		]
+	},
+	"ntty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"acm_tty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"pty_unix98_ioctl": {
+		"2": [
+			"ioctl$TIOCSPTLCK"
+		],
+		"none": [
+			"ioctl$TIOCPKT",
+			"ioctl$TIOCGPKT",
+			"ioctl$TIOCSPTLCK",
+			"ioctl$TIOCSIG",
+			"ioctl$TIOCGPTLCK"
+		],
+		"7": [
+			"ioctl$TIOCGPTLCK"
+		],
+		"8": [
+			"ioctl$TIOCPKT"
+		],
+		"17": [
+			"ioctl$TIOCGPKT"
+		],
+		"19": [
+			"ioctl$TIOCSIG"
+		],
+		"20": [
+			"ioctl$TIOCSIG"
+		],
+		"21": [
+			"ioctl$TIOCSIG"
+		],
+		"22": [
+			"ioctl$TIOCSIG"
+		]
+	},
+	"pty_bsd_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"ntty_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"vt_ioctl": {
+		"none": [
+			"ioctl$TIOCL_UNBLANKSCREEN",
+			"ioctl$VT_DISALLOCATE",
+			"ioctl$KDGKBENT",
+			"ioctl$KDMKTONE",
+			"ioctl$TIOCL_BLANKSCREEN",
+			"ioctl$KDGKBMODE",
+			"ioctl$PIO_SCRNMAP",
+			"ioctl$TIOCL_SETVESABLANK",
+			"ioctl$TIOCL_GETKMSGREDIRECT",
+			"ioctl$GIO_CMAP",
+			"ioctl$KDADDIO",
+			"ioctl$KDDISABIO",
+			"ioctl$KDGKBTYPE",
+			"ioctl$KDSKBSENT",
+			"ioctl$PIO_UNIMAP",
+			"ioctl$GIO_SCRNMAP",
+			"ioctl$PIO_CMAP",
+			"ioctl$KDSKBENT",
+			"ioctl$KDSETLED",
+			"ioctl$KIOCSOUND",
+			"ioctl$VT_RESIZEX",
+			"ioctl$KDSKBLED",
+			"ioctl$VT_OPENQRY",
+			"ioctl$VT_SETMODE",
+			"ioctl$KDENABIO",
+			"ioctl$VT_WAITACTIVE",
+			"ioctl$TIOCL_GETMOUSEREPORTING",
+			"ioctl$TIOCL_SELLOADLUT",
+			"ioctl$VT_ACTIVATE",
+			"ioctl$KDGKBLED",
+			"ioctl$TIOCL_GETSHIFTSTATE",
+			"ioctl$GIO_UNISCRNMAP",
+			"ioctl$KDGKBSENT",
+			"ioctl$PIO_UNISCRNMAP",
+			"ioctl$PIO_UNIMAPCLR",
+			"ioctl$GIO_UNIMAP",
+			"ioctl$KDGKBDIACR",
+			"ioctl$VT_RESIZE",
+			"ioctl$VT_GETMODE",
+			"ioctl$TIOCL_SCROLLCONSOLE",
+			"ioctl$KDSETMODE",
+			"ioctl$VT_GETSTATE",
+			"ioctl$KDDELIO",
+			"ioctl$KDSETKEYCODE",
+			"ioctl$KDGETMODE",
+			"ioctl$TIOCL_PASTESEL",
+			"ioctl$TIOCL_SETSEL",
+			"ioctl$VT_RELDISP",
+			"ioctl$KDGKBMETA",
+			"ioctl$KDGETKEYCODE",
+			"ioctl$KDGETLED",
+			"ioctl$KDSKBMODE",
+			"ioctl$KDSKBMETA",
+			"ioctl$KDSIGACCEPT"
+		],
+		"23": [
+			"ioctl$KDGKBDIACR"
+		],
+		"29": [
+			"ioctl$KDGETKEYCODE"
+		],
+		"28": [
+			"ioctl$KDSETKEYCODE"
+		],
+		"27": [
+			"ioctl$KDGKBENT"
+		],
+		"26": [
+			"ioctl$KDSKBENT"
+		],
+		"25": [
+			"ioctl$KDGKBSENT"
+		],
+		"24": [
+			"ioctl$KDSKBSENT"
+		],
+		"19": [
+			"ioctl$KDGKBLED"
+		],
+		"18": [
+			"ioctl$KDSKBLED"
+		],
+		"17": [
+			"ioctl$KDGETLED"
+		],
+		"16": [
+			"ioctl$KDSETLED"
+		],
+		"7": [
+			"ioctl$GIO_UNIMAP"
+		],
+		"105": [
+			"ioctl$GIO_UNIMAP"
+		],
+		"137": [
+			"ioctl$GIO_UNIMAP"
+		],
+		"8": [
+			"ioctl$PIO_UNIMAP"
+		],
+		"106": [
+			"ioctl$PIO_UNIMAP"
+		],
+		"134": [
+			"ioctl$PIO_UNIMAP"
+		],
+		"9": [
+			"ioctl$PIO_UNIMAPCLR"
+		],
+		"107": [
+			"ioctl$PIO_UNIMAPCLR"
+		],
+		"10": [
+			"ioctl$GIO_UNISCRNMAP"
+		],
+		"108": [
+			"ioctl$GIO_UNISCRNMAP"
+		],
+		"11": [
+			"ioctl$PIO_UNISCRNMAP"
+		],
+		"109": [
+			"ioctl$PIO_UNISCRNMAP"
+		],
+		"12": [
+			"ioctl$GIO_SCRNMAP"
+		],
+		"110": [
+			"ioctl$GIO_SCRNMAP"
+		],
+		"13": [
+			"ioctl$PIO_SCRNMAP"
+		],
+		"111": [
+			"ioctl$PIO_SCRNMAP"
+		],
+		"14": [
+			"ioctl$GIO_CMAP"
+		],
+		"112": [
+			"ioctl$GIO_CMAP"
+		],
+		"15": [
+			"ioctl$PIO_CMAP"
+		],
+		"113": [
+			"ioctl$PIO_CMAP"
+		],
+		"32": [
+			"ioctl$KDDISABIO"
+		],
+		"33": [
+			"ioctl$KDENABIO"
+		],
+		"34": [
+			"ioctl$KDDELIO"
+		],
+		"35": [
+			"ioctl$KDADDIO"
+		],
+		"37": [
+			"ioctl$KIOCSOUND"
+		],
+		"40": [
+			"ioctl$KIOCSOUND"
+		],
+		"43": [
+			"ioctl$KDMKTONE"
+		],
+		"49": [
+			"ioctl$KDGKBTYPE"
+		],
+		"64": [
+			"ioctl$KDSETMODE"
+		],
+		"67": [
+			"ioctl$KDGETMODE"
+		],
+		"68": [
+			"ioctl$KDSKBMODE"
+		],
+		"73": [
+			"ioctl$KDGKBMODE"
+		],
+		"74": [
+			"ioctl$KDSKBMETA"
+		],
+		"75": [
+			"ioctl$KDGKBMETA"
+		],
+		"81": [
+			"ioctl$KDSIGACCEPT"
+		],
+		"147": [
+			"ioctl$TIOCL_GETSHIFTSTATE",
+			"ioctl$TIOCL_UNBLANKSCREEN",
+			"ioctl$TIOCL_BLANKSCREEN",
+			"ioctl$TIOCL_SETVESABLANK",
+			"ioctl$TIOCL_GETKMSGREDIRECT",
+			"ioctl$TIOCL_SCROLLCONSOLE",
+			"ioctl$TIOCL_PASTESEL",
+			"ioctl$TIOCL_SETSEL",
+			"ioctl$TIOCL_GETMOUSEREPORTING",
+			"ioctl$TIOCL_SELLOADLUT"
+		],
+		"148": [
+			"ioctl$VT_SETMODE"
+		],
+		"156": [
+			"ioctl$VT_GETMODE"
+		],
+		"159": [
+			"ioctl$VT_GETSTATE"
+		],
+		"173": [
+			"ioctl$VT_OPENQRY"
+		],
+		"187": [
+			"ioctl$VT_ACTIVATE"
+		],
+		"197": [
+			"ioctl$VT_WAITACTIVE"
+		],
+		"202": [
+			"ioctl$VT_RELDISP"
+		],
+		"205": [
+			"ioctl$VT_DISALLOCATE"
+		],
+		"208": [
+			"ioctl$VT_DISALLOCATE"
+		],
+		"210": [
+			"ioctl$VT_RESIZE"
+		],
+		"223": [
+			"ioctl$VT_RESIZEX"
+		]
+	},
+	"vt_do_diacrit": {
+		"2": [
+			"ioctl$KDGKBDIACR"
+		],
+		"16": [
+			"ioctl$KDGKBDIACR"
+		],
+		"24": [
+			"ioctl$KDGKBDIACR"
+		],
+		"39": [
+			"ioctl$KDGKBDIACR"
+		]
+	},
+	"vt_do_kdskbmode": {
+		"1": [
+			"ioctl$KDSKBMODE"
+		],
+		"3": [
+			"ioctl$KDSKBMODE"
+		],
+		"4": [
+			"ioctl$KDSKBMODE"
+		],
+		"15": [
+			"ioctl$KDSKBMODE"
+		],
+		"26": [
+			"ioctl$KDSKBMODE"
+		]
+	},
+	"vt_do_kdskbmeta": {
+		"2": [
+			"ioctl$KDSKBMETA"
+		],
+		"3": [
+			"ioctl$KDSKBMETA"
+		]
+	},
+	"vt_do_kbkeycode_ioctl": {
+		"4": [
+			"ioctl$KDGETKEYCODE",
+			"ioctl$KDSETKEYCODE"
+		],
+		"7": [
+			"ioctl$KDGETKEYCODE",
+			"ioctl$KDSETKEYCODE"
+		]
+	},
+	"vt_do_kdsk_ioctl": {
+		"4": [
+			"ioctl$KDSKBENT",
+			"ioctl$KDGKBENT"
+		],
+		"8": [
+			"ioctl$KDSKBENT",
+			"ioctl$KDGKBENT"
+		]
+	},
+	"vt_do_kdgkb_ioctl": {
+		"4": [
+			"ioctl$KDSKBSENT",
+			"ioctl$KDGKBSENT"
+		],
+		"9": [
+			"ioctl$KDSKBSENT",
+			"ioctl$KDGKBSENT"
+		]
+	},
+	"vt_do_kdskled": {
+		"2": [
+			"ioctl$KDSKBLED",
+			"ioctl$KDGETLED",
+			"ioctl$KDSETLED",
+			"ioctl$KDGKBLED"
+		],
+		"3": [
+			"ioctl$KDSKBLED",
+			"ioctl$KDGETLED",
+			"ioctl$KDSETLED",
+			"ioctl$KDGKBLED"
+		],
+		"11": [
+			"ioctl$KDSKBLED",
+			"ioctl$KDGETLED",
+			"ioctl$KDSETLED",
+			"ioctl$KDGKBLED"
+		],
+		"12": [
+			"ioctl$KDSKBLED",
+			"ioctl$KDGETLED",
+			"ioctl$KDSETLED",
+			"ioctl$KDGKBLED"
+		],
+		"7": [
+			"ioctl$KDSKBLED",
+			"ioctl$KDGETLED",
+			"ioctl$KDSETLED",
+			"ioctl$KDGKBLED"
+		]
+	},
+	"vt_reldisp": {
+		"5": [
+			"ioctl$VT_RELDISP"
+		]
+	},
+	"vt_kdsetmode": {
+		"8": [
+			"ioctl$KDSETMODE"
+		]
+	},
+	"tty_ioctl": {
+		"none": [
+			"ioctl$TIOCMIWAIT",
+			"ioctl$TCXONC"
+		],
+		"23": [
+			"ioctl$TCSBRK"
+		],
+		"69": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"72": [
+			"ioctl$TCSBRK"
+		],
+		"10": [
+			"ioctl$TCFLSH"
+		],
+		"40": [
+			"ioctl$TCFLSH"
+		],
+		"24": [
+			"ioctl$TIOCCBRK"
+		],
+		"25": [
+			"ioctl$TIOCSBRK"
+		],
+		"66": [
+			"ioctl$TIOCSBRK"
+		],
+		"26": [
+			"ioctl$TIOCSETD"
+		],
+		"61": [
+			"ioctl$TIOCSETD"
+		],
+		"22": [
+			"ioctl$TCSBRKP"
+		],
+		"75": [
+			"ioctl$TCSBRKP"
+		],
+		"91": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"74": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"90": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"8": [
+			"ioctl$TIOCGSERIAL"
+		],
+		"43": [
+			"ioctl$TIOCGSERIAL"
+		],
+		"9": [
+			"ioctl$TIOCSSERIAL"
+		],
+		"41": [
+			"ioctl$TIOCSSERIAL"
+		],
+		"11": [
+			"ioctl$TIOCMBIS"
+		],
+		"39": [
+			"ioctl$TIOCMBIS"
+		],
+		"83": [
+			"ioctl$TIOCMBIS"
+		],
+		"12": [
+			"ioctl$TIOCMBIC"
+		],
+		"36": [
+			"ioctl$TIOCMBIC"
+		],
+		"84": [
+			"ioctl$TIOCMBIC"
+		],
+		"13": [
+			"ioctl$TIOCMSET"
+		],
+		"37": [
+			"ioctl$TIOCMSET"
+		],
+		"85": [
+			"ioctl$TIOCMSET"
+		],
+		"14": [
+			"ioctl$TIOCMGET"
+		],
+		"38": [
+			"ioctl$TIOCMGET"
+		],
+		"15": [
+			"ioctl$TIOCGETD"
+		],
+		"42": [
+			"ioctl$TIOCGETD"
+		],
+		"16": [
+			"ioctl$TIOCNXCL"
+		],
+		"44": [
+			"ioctl$TIOCNXCL"
+		],
+		"17": [
+			"ioctl$TIOCEXCL"
+		],
+		"45": [
+			"ioctl$TIOCEXCL"
+		],
+		"18": [
+			"ioctl$TIOCCONS"
+		],
+		"46": [
+			"ioctl$TIOCCONS"
+		],
+		"19": [
+			"ioctl$TIOCSWINSZ"
+		],
+		"47": [
+			"ioctl$TIOCSWINSZ"
+		],
+		"20": [
+			"ioctl$TIOCGWINSZ"
+		],
+		"48": [
+			"ioctl$TIOCGWINSZ"
+		],
+		"21": [
+			"ioctl$TIOCSTI"
+		],
+		"49": [
+			"ioctl$TIOCSTI"
+		],
+		"65": [
+			"ioctl$TIOCGDEV"
+		],
+		"96": [
+			"ioctl$TIOCGPTPEER"
+		]
+	},
+	"uart_ioctl": {
+		"2": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"30": [
+			"ioctl$TIOCMIWAIT"
+		],
+		"33": [
+			"ioctl$TIOCGRS485",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"44": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSERGETLSR",
+			"ioctl$TIOCSBRK"
+		],
+		"45": [
+			"ioctl$TIOCGRS485",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"46": [
+			"ioctl$TIOCSRS485",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"47": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSISO7816",
+			"ioctl$TIOCSBRK"
+		],
+		"48": [
+			"ioctl$TIOCGISO7816",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"n_tty_ioctl": {
+		"1": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCOUTQ",
+			"ioctl$TIOCSBRK"
+		],
+		"2": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$FIONREAD",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"tty_jobctrl_ioctl": {
+		"2": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK",
+			"ioctl$TIOCNOTTY"
+		],
+		"5": [
+			"ioctl$TIOCSCTTY",
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"32": [
+			"ioctl$TIOCGPGRP",
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"46": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSPGRP",
+			"ioctl$TIOCSBRK"
+		],
+		"72": [
+			"ioctl$TIOCGSID",
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"15": [
+			"ioctl$TIOCSCTTY",
+			"ioctl$TIOCCBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRK",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"gsmld_ioctl": {
+		"1": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"4": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"49": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"gsmtty_ioctl": {
+		"4": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"7": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"none": [
+			"ioctl"
+		]
+	},
+	"acm_tty_ioctl": {
+		"2": [
+			"ioctl$TIOCMIWAIT"
+		],
+		"none": [
+			"ioctl"
+		]
+	},
+	"tty_mode_ioctl": {
+		"6": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"7": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"8": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"9": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"10": [
+			"ioctl$TCSETSF",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"11": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TCSETSW",
+			"ioctl$TIOCSBRK"
+		],
+		"12": [
+			"ioctl$TCSETS",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"13": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TCGETS",
+			"ioctl$TIOCSBRK"
+		],
+		"14": [
+			"ioctl$TCGETS2",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"15": [
+			"ioctl$TCSETSF2",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"16": [
+			"ioctl$TCSETSW2",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"17": [
+			"ioctl$TCSETS2",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"18": [
+			"ioctl$TCGETA",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"19": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TCSETAF",
+			"ioctl$TIOCSBRK"
+		],
+		"20": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TCSETAW",
+			"ioctl$TIOCSBRK"
+		],
+		"21": [
+			"ioctl$TCSETA",
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"22": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCGLCKTRMIOS",
+			"ioctl$TIOCSBRK"
+		],
+		"23": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSLCKTRMIOS",
+			"ioctl$TIOCSBRK"
+		],
+		"28": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCGSOFTCAR",
+			"ioctl$TIOCSBRK"
+		],
+		"29": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSSOFTCAR",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"n_tty_ioctl_helper": {
+		"1": [
+			"ioctl$TCXONC"
+		],
+		"19": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"5": [
+			"ioctl$TCXONC"
+		],
+		"9": [
+			"ioctl$TCXONC"
+		],
+		"13": [
+			"ioctl$TCXONC"
+		],
+		"16": [
+			"ioctl$TCXONC"
+		],
+		"22": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"24": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		],
+		"29": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"n_hdlc_tty_ioctl": {
+		"4": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$FIONREAD",
+			"ioctl$TIOCSBRK"
+		],
+		"8": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCOUTQ",
+			"ioctl$TIOCSBRK"
+		],
+		"12": [
+			"ioctl$TIOCCBRK",
+			"ioctl$TCFLSH",
+			"ioctl$TCSBRK",
+			"ioctl$TIOCSETD",
+			"ioctl$TCSBRKP",
+			"ioctl$TIOCSBRK"
+		]
+	},
+	"wait_serial_change": {
+		"11": [
+			"ioctl$TIOCMIWAIT"
+		]
+	},
+	"ffs_sb_fill": {
+		"none": [
+			"mount"
+		]
+	},
+	"gadgetfs_fill_super": {
+		"none": [
+			"mount"
+		]
+	},
+	"raw_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"ffs_epfile_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"gs_write": {
+		"none": [
+			"write"
+		]
+	},
+	"ffs_epfile_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"usb_open": {
+		"none": [
+			"open"
+		]
+	},
+	"gs_open": {
+		"none": [
+			"open"
+		]
+	},
+	"raw_open": {
+		"none": [
+			"open"
+		]
+	},
+	"ffs_epfile_open": {
+		"none": [
+			"open"
+		]
+	},
+	"dbc_tty_write": {
+		"none": [
+			"write"
+		]
+	},
+	"dbc_tty_open": {
+		"none": [
+			"open"
+		]
+	},
+	"serial_write": {
+		"none": [
+			"write"
+		]
+	},
+	"serial_open": {
+		"none": [
+			"open"
+		]
+	},
+	"serial_ioctl": {
+		"none": [
+			"ioctl"
+		]
+	},
+	"v9fs_mount": {
+		"none": [
+			"mount"
+		]
+	},
+	"affs_fill_super": {
+		"none": [
+			"mount"
+		]
+	},
+	"adfs_fill_super": {
+		"none": [
+			"mount"
+		]
+	},
+	"fb_read": {
+		"none": [
+			"read$fb"
+		]
+	},
+	"v9fs_vfs_writepage": {
+		"none": [
+			"read"
+		]
+	},
+	"adfs_writepage": {
+		"none": [
+			"read"
+		]
+	},
+	"fb_mmap": {
+		"none": [
+			"mmap"
+		]
+	},
+	"v9fs_file_mmap": {
+		"none": [
+			"mmap"
+		]
+	},
+	"v9fs_mmap_file_mmap": {
+		"none": [
+			"mmap"
+		]
+	},
+	"v9fs_xattr_set_acl": {
+		"none": [
+			"setxattr"
+		]
+	},
+	"vhost_vsock_chr_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"fb_write": {
+		"none": [
+			"write$fb"
+		]
+	},
+	"v9fs_mmap_file_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"v9fs_file_write_iter": {
+		"none": [
+			"write"
+		]
+	},
+	"vhost_vsock_dev_open": {
+		"none": [
+			"open"
+		]
+	},
+	"fb_open": {
+		"none": [
+			"open"
+		]
+	},
+	"v9fs_file_open": {
+		"none": [
+			"open"
+		]
+	},
+	"affs_file_open": {
+		"none": [
+			"open"
+		]
+	},
+	"v9fs_xattr_get_acl": {
+		"none": [
+			"getxattr"
+		]
+	},
+	"vhost_vsock_dev_ioctl": {
+		"37": [
+			"ioctl$VHOST_VSOCK_SET_RUNNING"
+		],
+		"none": [
+			"ioctl$VHOST_VSOCK_SET_GUEST_CID",
+			"ioctl$VHOST_VSOCK_SET_RUNNING"
+		],
+		"1": [
+			"ioctl$VHOST_VSOCK_SET_GUEST_CID"
+		],
+		"63": [
+			"ioctl$VHOST_GET_FEATURES"
+		],
+		"64": [
+			"ioctl$VHOST_SET_FEATURES"
+		]
+	},
+	"vhost_vring_ioctl": {
+		"8": [
+			"ioctl$VHOST_SET_VRING_NUM"
+		],
+		"16": [
+			"ioctl$VHOST_SET_VRING_ADDR"
+		],
+		"37": [
+			"ioctl$VHOST_SET_VRING_BASE"
+		],
+		"44": [
+			"ioctl$VHOST_GET_VRING_BASE"
+		],
+		"45": [
+			"ioctl$VHOST_SET_VRING_KICK"
+		],
+		"53": [
+			"ioctl$VHOST_SET_VRING_CALL"
+		],
+		"61": [
+			"ioctl$VHOST_SET_VRING_ERR"
+		],
+		"69": [
+			"ioctl$VHOST_SET_VRING_ENDIAN"
+		],
+		"70": [
+			"ioctl$VHOST_GET_VRING_ENDIAN"
+		],
+		"71": [
+			"ioctl$VHOST_SET_VRING_BUSYLOOP_TIMEOUT"
+		]
+	},
+	"vhost_dev_ioctl": {
+		"6": [
+			"ioctl$VHOST_SET_MEM_TABLE"
+		],
+		"40": [
+			"ioctl$VHOST_SET_LOG_BASE"
+		],
+		"65": [
+			"ioctl$VHOST_SET_LOG_FD"
+		]
+	},
+	"fb_ioctl": {
+		"none": [
+			"ioctl$FBIOGET_FSCREENINFO",
+			"ioctl$FBIOPUT_CON2FBMAP",
+			"ioctl$FBIOGET_VSCREENINFO",
+			"ioctl$FBIOGET_CON2FBMAP",
+			"ioctl$FBIOPUTCMAP",
+			"ioctl$FBIOPUT_VSCREENINFO",
+			"ioctl$FBIOBLANK",
+			"ioctl$FBIOGETCMAP",
+			"ioctl$FBIOPAN_DISPLAY"
+		]
+	},
+	"vga16fb_blank": {
+		"1": [
+			"ioctl$FBIOBLANK"
+		],
+		"2": [
+			"ioctl$FBIOBLANK"
+		],
+		"80": [
+			"ioctl$FBIOBLANK"
+		],
+		"83": [
+			"ioctl$FBIOBLANK"
+		]
+	},
+	"fbcon_fb_blanked": {
+		"17": [
+			"ioctl$FBIOBLANK"
+		]
+	},
+	"do_fb_ioctl": {
+		"2": [
+			"ioctl$FBIOGET_VSCREENINFO"
+		],
+		"3": [
+			"ioctl$FBIOPUT_VSCREENINFO"
+		],
+		"10": [
+			"ioctl$FBIOGET_FSCREENINFO"
+		],
+		"14": [
+			"ioctl$FBIOPUTCMAP"
+		],
+		"17": [
+			"ioctl$FBIOGETCMAP"
+		],
+		"20": [
+			"ioctl$FBIOPAN_DISPLAY"
+		],
+		"27": [
+			"ioctl$FBIOGET_CON2FBMAP"
+		],
+		"28": [
+			"ioctl$FBIOPUT_CON2FBMAP"
+		],
+		"29": [
+			"ioctl$FBIOBLANK"
+		]
+	}
+}

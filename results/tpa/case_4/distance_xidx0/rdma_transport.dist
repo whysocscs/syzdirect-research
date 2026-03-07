@@ -1,0 +1,14 @@
+rds_rdma_cm_event_handler 0 22080
+rds_rdma_init 0 9080
+rds_rdma_init 2 10090
+rds_rdma_init 4 10080
+rds_rdma_cm_event_handler_cmn 0 21090
+rds_rdma_cm_event_handler_cmn 2 21080
+rds6_rdma_cm_event_handler 0 22080
+rds_rdma_exit 0 10120
+rds_rdma_exit 1 10110
+rds_rdma_exit 2 10110
+rds_rdma_exit 3 10100
+rds_rdma_exit 4 10090
+rds_rdma_exit 5 10090
+rds_rdma_exit 6 10080

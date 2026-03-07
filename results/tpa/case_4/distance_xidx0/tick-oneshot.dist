@@ -1,0 +1,17 @@
+tick_resume_oneshot 0 18080
+tick_setup_oneshot 0 18080
+tick_switch_to_oneshot 0 24080
+tick_switch_to_oneshot 1 21090
+tick_switch_to_oneshot 6 21080
+tick_oneshot_mode_active 0 25397
+tick_oneshot_mode_active 1 25054
+tick_oneshot_mode_active 2 26080
+tick_oneshot_mode_active 3 24080
+tick_oneshot_mode_active 5 26080
+tick_init_highres 0 22080
+tick_program_event 0 24080
+tick_program_event 1 23080
+tick_program_event 2 20292
+tick_program_event 3 18090
+tick_program_event 4 23080
+tick_program_event 5 18080

@@ -1,0 +1,7 @@
+arc4_exit 0 13260
+arc4_init 0 9260
+crypto_arc4_crypt 0 11260
+crypto_arc4_crypt 1 12270
+crypto_arc4_crypt 3 12260
+crypto_arc4_crypt 4 12270
+crypto_arc4_init 0 15260

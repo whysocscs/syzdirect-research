@@ -1,0 +1,7 @@
+do_early_exception 0 12100
+do_early_exception 1 12100
+do_early_exception 2 12090
+x86_64_start_kernel 0 7090
+x86_64_start_reservations 0 6100
+x86_64_start_reservations 1 6100
+x86_64_start_reservations 2 6090

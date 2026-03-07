@@ -1,0 +1,14 @@
+regset_get 0 11641
+regset_get 2 11630
+regset_get 3 16100
+regset_get 4 9090
+regset_get 6 16100
+regset_get 7 16090
+regset_get_alloc 0 11630
+regset_get_alloc 2 9090
+regset_get_alloc 4 16090
+copy_regset_to_user 0 12822
+copy_regset_to_user 2 9090
+copy_regset_to_user 4 16090
+copy_regset_to_user 6 16100
+copy_regset_to_user 8 16090

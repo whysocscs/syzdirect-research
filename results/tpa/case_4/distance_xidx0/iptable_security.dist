@@ -1,0 +1,10 @@
+iptable_security_fini 0 22080
+iptable_security_init 0 15080
+iptable_security_init 2 13080
+iptable_security_init 3 22080
+iptable_security_init 4 22090
+iptable_security_init 6 22080
+iptable_security_net_pre_exit 0 23080
+iptable_security_net_exit 0 13080
+iptable_security_table_init 0 13080
+iptable_security_table_init 2 12080

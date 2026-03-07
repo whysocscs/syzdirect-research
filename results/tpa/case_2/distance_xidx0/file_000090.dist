@@ -1,0 +1,16 @@
+msr_event_add 0 18290
+msr_event_add 2 18280
+msr_event_add 3 18270
+msr_event_add 4 18260
+msr_event_del 0 19260
+msr_event_start 0 18280
+msr_event_start 1 18270
+msr_event_start 2 18260
+msr_event_stop 0 19260
+msr_event_update 0 18290
+msr_event_update 1 18280
+msr_event_update 2 18270
+msr_event_update 3 18260
+msr_event_update 4 18310
+msr_event_update 5 18300
+msr_event_update 6 18290

@@ -1,0 +1,11 @@
+arch_register_cpu 0 11420
+arch_register_cpu 1 11410
+arch_register_cpu 2 11400
+arch_register_cpu 3 11390
+arch_register_cpu 4 11380
+arch_register_cpu 5 11370
+arch_register_cpu 6 11360
+arch_register_cpu 7 11390
+topology_init 0 12380
+topology_init 1 12370
+topology_init 2 12360

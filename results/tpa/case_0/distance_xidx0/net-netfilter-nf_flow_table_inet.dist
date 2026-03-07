@@ -1,0 +1,15 @@
+nf_flow_inet_module_exit 0 15010
+nf_flow_inet_module_init 0 15010
+nf_flow_rule_route_inet 0 9020
+nf_flow_rule_route_inet 2 9010
+nf_flow_rule_route_inet 3 9010
+nf_flow_offload_inet_hook 0 6040
+nf_flow_offload_inet_hook 1 6034
+nf_flow_offload_inet_hook 2 6034
+nf_flow_offload_inet_hook 3 6034
+nf_flow_offload_inet_hook 4 6034
+nf_flow_offload_inet_hook 5 6020
+nf_flow_offload_inet_hook 6 6024
+nf_flow_offload_inet_hook 7 6020
+nf_flow_offload_inet_hook 9 6010
+nf_flow_offload_inet_hook 10 6010

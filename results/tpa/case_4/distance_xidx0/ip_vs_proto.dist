@@ -1,0 +1,10 @@
+ip_vs_protocol_net_init 0 14090
+ip_vs_protocol_net_init 1 14080
+ip_vs_protocol_net_init 3 14120
+ip_vs_protocol_net_init 4 14110
+ip_vs_protocol_net_init 5 14120
+ip_vs_protocol_net_init 6 14110
+ip_vs_protocol_net_init 7 14120
+ip_vs_protocol_net_init 8 14110
+ip_vs_protocol_net_init 10 14100
+ip_vs_protocol_net_init 11 14090

@@ -1,0 +1,1 @@
+0 nbd_dev_add /work/syzdirect_workdir/srcs/case_4/drivers/block/nbd.c

@@ -1,0 +1,2 @@
+hook_cred_free 0 17090
+hook_cred_free 2 17080

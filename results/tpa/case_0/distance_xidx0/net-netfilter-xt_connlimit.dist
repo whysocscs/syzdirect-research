@@ -1,0 +1,12 @@
+connlimit_mt_exit 0 14010
+connlimit_mt_init 0 14010
+connlimit_mt 0 10050
+connlimit_mt 1 10040
+connlimit_mt 2 10050
+connlimit_mt 4 10040
+connlimit_mt 5 10030
+connlimit_mt 6 10020
+connlimit_mt 7 10020
+connlimit_mt 8 10010
+connlimit_mt_check 0 10010
+connlimit_mt_destroy 0 12010

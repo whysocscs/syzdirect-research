@@ -1,0 +1,5 @@
+nf_nat_tftp_fini 0 9080
+nf_nat_tftp_init 0 22090
+nf_nat_tftp_init 2 22080
+help 0 10080
+help 2 10080

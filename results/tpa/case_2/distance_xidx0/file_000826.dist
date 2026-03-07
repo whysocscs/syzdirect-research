@@ -1,0 +1,12 @@
+ecryptfs_destroy_inode 0 14270
+ecryptfs_destroy_inode 2 14260
+ecryptfs_free_inode 0 13260
+ecryptfs_evict_inode 0 10260
+ecryptfs_statfs 0 10751
+ecryptfs_statfs 2 10260
+ecryptfs_statfs 4 11260
+ecryptfs_show_options 0 12260
+ecryptfs_alloc_inode 0 8260
+ecryptfs_alloc_inode 2 10260
+ecryptfs_alloc_inode 3 13260
+ecryptfs_alloc_inode 4 14260

@@ -1,0 +1,14 @@
+init_hypervisor_platform 0 5180
+init_hypervisor_platform 2 5170
+init_hypervisor_platform 3 5160
+init_hypervisor_platform 4 5150
+init_hypervisor_platform 5 5150
+init_hypervisor_platform 6 5140
+init_hypervisor_platform 7 5170
+init_hypervisor_platform 8 5130
+init_hypervisor_platform 9 5120
+init_hypervisor_platform 10 5110
+init_hypervisor_platform 11 5110
+init_hypervisor_platform 12 5100
+init_hypervisor_platform 13 5130
+init_hypervisor_platform 14 5090

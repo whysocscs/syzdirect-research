@@ -1,0 +1,3 @@
+nf_nat_irc_fini 0 11360
+nf_nat_irc_init 0 13370
+nf_nat_irc_init 2 13360

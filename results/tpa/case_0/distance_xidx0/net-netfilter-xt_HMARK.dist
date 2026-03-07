@@ -1,0 +1,9 @@
+hmark_tg_exit 0 14010
+hmark_tg_check 0 16040
+hmark_tg_check 2 16030
+hmark_tg_check 3 16020
+hmark_tg_check 4 16040
+hmark_tg_check 6 16030
+hmark_tg_check 7 16020
+hmark_tg_check 9 16010
+hmark_tg_init 0 14010

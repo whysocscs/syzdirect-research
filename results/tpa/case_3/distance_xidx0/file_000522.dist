@@ -1,0 +1,14 @@
+v9fs_cache_session_get_cookie 0 10301
+v9fs_cache_session_get_cookie 1 10291
+v9fs_cache_session_get_cookie 2 10291
+v9fs_cache_session_get_cookie 3 11360
+v9fs_cache_session_get_cookie 4 9380
+v9fs_cache_session_get_cookie 6 9369
+v9fs_cache_session_get_cookie 7 9389
+v9fs_cache_session_get_cookie 8 9389
+v9fs_cache_session_get_cookie 9 9380
+v9fs_cache_session_get_cookie 10 9360
+v9fs_cache_inode_get_cookie 0 9389
+v9fs_cache_inode_get_cookie 2 9380
+v9fs_cache_inode_get_cookie 4 9369
+v9fs_cache_inode_get_cookie 6 9360

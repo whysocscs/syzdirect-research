@@ -1,0 +1,6 @@
+squashfs_get_id 0 11370
+squashfs_get_id 2 11360
+squashfs_read_id_index_table 0 10380
+squashfs_read_id_index_table 1 10380
+squashfs_read_id_index_table 2 10370
+squashfs_read_id_index_table 4 10360

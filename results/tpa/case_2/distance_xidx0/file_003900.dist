@@ -1,0 +1,5 @@
+snd_pcm_timer_init 0 10260
+snd_pcm_timer_init 2 12260
+snd_pcm_timer_init 3 12260
+snd_pcm_timer_done 0 12270
+snd_pcm_timer_done 2 12260

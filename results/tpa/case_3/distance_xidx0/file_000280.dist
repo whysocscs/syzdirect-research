@@ -1,0 +1,15 @@
+alloc_pci_root_info 0 9360
+update_res 0 9389
+update_res 2 9380
+update_res 3 9369
+update_res 4 9380
+update_res 5 9410
+update_res 6 9369
+update_res 7 9400
+update_res 8 9389
+update_res 9 9400
+update_res 10 9389
+update_res 12 9380
+update_res 13 9410
+update_res 14 9369
+update_res 15 9360

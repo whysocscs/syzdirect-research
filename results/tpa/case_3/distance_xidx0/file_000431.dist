@@ -1,0 +1,8 @@
+chacha_generic_mod_fini 0 13360
+crypto_xchacha_crypt 0 12360
+chacha_generic_mod_init 0 9360
+crypto_chacha_crypt 0 12360
+chacha_stream_xor 0 11360
+chacha_stream_xor 1 12370
+chacha_stream_xor 3 12360
+chacha_stream_xor 4 12370

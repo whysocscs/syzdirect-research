@@ -1,0 +1,5 @@
+nft_reject_ipv4_module_exit 0 15010
+nft_reject_ipv4_module_init 0 15010
+nft_reject_ipv4_eval 0 8255
+nft_reject_ipv4_eval 2 10010
+nft_reject_ipv4_eval 3 7010

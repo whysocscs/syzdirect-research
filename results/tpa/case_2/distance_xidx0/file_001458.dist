@@ -1,0 +1,2 @@
+proc_meminfo_init 0 10260
+meminfo_proc_show 0 15260

@@ -1,0 +1,17 @@
+nr_loopback_init 0 20080
+nr_loopback_queue 0 17100
+nr_loopback_queue 2 17090
+nr_loopback_queue 4 17080
+nr_loopback_clear 0 17080
+nr_loopback_timer 0 9938
+nr_loopback_timer 2 21080
+nr_loopback_timer 3 17110
+nr_loopback_timer 4 5080
+nr_loopback_timer 5 17130
+nr_loopback_timer 6 17130
+nr_loopback_timer 7 17120
+nr_loopback_timer 8 17110
+nr_loopback_timer 9 17110
+nr_loopback_timer 10 17100
+nr_loopback_timer 12 17090
+nr_loopback_timer 14 17080

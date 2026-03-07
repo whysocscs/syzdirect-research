@@ -1,0 +1,159 @@
+[
+    {
+        "case index": "0",
+        "target syscall infos": [
+            {
+                "target syscall": "bind$xdp",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "getsockopt$inet_buf",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$sock_bt_bnep_BNEPCONNADD",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "BNEPCONNADD",
+                            "value": "1074021064"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCADDRT",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCDARP",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "SIOCGARP",
+                            "value": "35156"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCDELRT",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCGARP",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "SIOCGARP",
+                            "value": "35156"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCSIFADDR",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "SIOCSIFFLAGS",
+                            "value": "35092"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "ioctl$sock_inet_SIOCSIFNETMASK",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "SIOCSIFFLAGS",
+                            "value": "35092"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "setsockopt",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "SO_BINDTODEVICE",
+                            "value": "25"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "setsockopt$inet6_IPV6_XFRM_POLICY",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "MCAST_UNBLOCK_SOURCE",
+                            "value": "46"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "setsockopt$inet6_buf",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "MCAST_UNBLOCK_SOURCE",
+                            "value": "46"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "setsockopt$inet6_int",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "IPV6_RECVERR_RFC4884",
+                            "value": "31"
+                        }
+                    ],
+                    "string": "taprio"
+                }
+            },
+            {
+                "target syscall": "setsockopt$inet_int",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "setsockopt$inet_mtu",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "write",
+                "rank": 0,
+                "constraints": {}
+            }
+        ]
+    }
+]

@@ -1,0 +1,16 @@
+cpumask_local_spread 0 18384
+cpumask_local_spread 7 18360
+cpumask_local_spread 8 18380
+cpumask_local_spread 9 18380
+cpumask_local_spread 10 18369
+cpumask_local_spread 12 18360
+cpumask_any_and_distribute 0 18360
+cpumask_any_and_distribute 1 18380
+cpumask_any_and_distribute 2 18380
+cpumask_any_and_distribute 3 18369
+cpumask_any_and_distribute 5 18360
+cpumask_any_distribute 0 18360
+cpumask_any_distribute 1 18380
+cpumask_any_distribute 2 18380
+cpumask_any_distribute 3 18369
+cpumask_any_distribute 5 18360

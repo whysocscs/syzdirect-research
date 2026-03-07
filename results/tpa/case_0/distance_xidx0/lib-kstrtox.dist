@@ -1,0 +1,11 @@
+kstrtoul_from_user 0 16010
+kstrtobool_from_user 0 16010
+kstrtoull_from_user 0 16010
+kstrtoll_from_user 0 16010
+kstrtol_from_user 0 16010
+kstrtouint_from_user 0 16010
+kstrtoint_from_user 0 16010
+kstrtou16_from_user 0 16010
+kstrtos16_from_user 0 16010
+kstrtou8_from_user 0 16010
+kstrtos8_from_user 0 16010

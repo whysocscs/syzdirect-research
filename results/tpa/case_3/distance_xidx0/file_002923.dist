@@ -1,0 +1,10 @@
+srh_mt6_exit 0 13360
+srh_mt6_init 0 13360
+srh_mt6_check 0 15374
+srh_mt6_check 1 15360
+srh_mt6_check 4 15370
+srh_mt6_check 6 15360
+srh1_mt6_check 0 15374
+srh1_mt6_check 1 15360
+srh1_mt6_check 4 15370
+srh1_mt6_check 6 15360

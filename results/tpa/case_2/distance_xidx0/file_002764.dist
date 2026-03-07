@@ -1,0 +1,11 @@
+ieee802154_nl_create 0 7707
+ieee802154_nl_create 2 14260
+ieee802154_nl_create 4 5260
+ieee802154_nl_mcast 0 4270
+ieee802154_nl_mcast 2 4260
+ieee802154_nl_new_reply 0 5280
+ieee802154_nl_new_reply 2 5270
+ieee802154_nl_new_reply 4 5260
+ieee802154_nl_reply 0 4260
+ieee802154_nl_init 0 6260
+ieee802154_nl_exit 0 6260

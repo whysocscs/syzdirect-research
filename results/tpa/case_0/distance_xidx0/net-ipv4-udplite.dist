@@ -1,0 +1,7 @@
+udplite_sk_init 0 15010
+udplite4_register 0 11010
+udplite4_register 2 11324
+udplite4_register 3 10010
+udplite4_register 6 13010
+udplite_rcv 0 7010
+udplite_err 0 6010

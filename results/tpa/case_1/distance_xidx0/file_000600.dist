@@ -1,0 +1,16 @@
+crypto_ofb_module_exit 0 13090
+crypto_ofb_module_init 0 13090
+crypto_ofb_create 0 10090
+crypto_ofb_create 2 11090
+crypto_ofb_create 4 14090
+crypto_ofb_crypt 0 11090
+crypto_ofb_crypt 1 14138
+crypto_ofb_crypt 2 12110
+crypto_ofb_crypt 3 14128
+crypto_ofb_crypt 4 21090
+crypto_ofb_crypt 5 14128
+crypto_ofb_crypt 6 12090
+crypto_ofb_crypt 7 14138
+crypto_ofb_crypt 8 12110
+crypto_ofb_crypt 9 12100
+crypto_ofb_crypt 11 12090

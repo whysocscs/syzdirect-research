@@ -1,0 +1,14 @@
+nft_bitmap_destroy 0 11280
+nft_bitmap_destroy 1 11270
+nft_bitmap_destroy 3 11260
+nft_bitmap_destroy 4 11270
+nft_bitmap_walk 0 10300
+nft_bitmap_walk 2 10290
+nft_bitmap_walk 3 10280
+nft_bitmap_walk 4 10310
+nft_bitmap_walk 5 10270
+nft_bitmap_walk 6 10310
+nft_bitmap_walk 7 10260
+nft_bitmap_walk 9 10310
+nft_bitmap_walk 10 10300
+nft_bitmap_walk 11 10290

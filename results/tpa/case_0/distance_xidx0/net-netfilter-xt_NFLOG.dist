@@ -1,0 +1,9 @@
+nflog_tg_init 0 14010
+nflog_tg 0 9010
+nflog_tg_check 0 8890
+nflog_tg_check 2 8879
+nflog_tg_check 4 12010
+nflog_tg_check 6 7020
+nflog_tg_check 8 7010
+nflog_tg_destroy 0 12010
+nflog_tg_exit 0 14010

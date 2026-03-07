@@ -1,0 +1,8 @@
+make_bad_inode 0 15858
+make_bad_inode 1 16370
+make_bad_inode 2 15360
+make_bad_inode 3 16360
+iget_failed 0 12391
+iget_failed 1 10370
+iget_failed 2 15360
+iget_failed 3 10360

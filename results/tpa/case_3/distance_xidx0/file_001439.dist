@@ -1,0 +1,9 @@
+proc_setup_thread_self 0 10360
+proc_setup_thread_self 1 11370
+proc_setup_thread_self 2 8360
+proc_setup_thread_self 3 11360
+proc_setup_thread_self 4 11360
+proc_setup_thread_self 5 11360
+proc_thread_self_init 0 11360
+proc_thread_self_get_link 0 11360
+proc_thread_self_get_link 2 9360

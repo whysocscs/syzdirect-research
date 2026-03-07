@@ -1,0 +1,15 @@
+nfs3_create_server 0 8260
+nfs3_create_server 2 10270
+nfs3_create_server 4 10260
+nfs3_clone_server 0 8260
+nfs3_clone_server 2 10280
+nfs3_clone_server 4 10270
+nfs3_clone_server 6 10260
+nfs3_set_ds_client 0 11310
+nfs3_set_ds_client 2 11300
+nfs3_set_ds_client 3 11290
+nfs3_set_ds_client 4 11290
+nfs3_set_ds_client 5 11280
+nfs3_set_ds_client 6 11270
+nfs3_set_ds_client 7 11270
+nfs3_set_ds_client 8 11260

@@ -1,0 +1,23 @@
+[
+    {
+        "case index": "0",
+        "target syscall infos": [
+            {
+                "target syscall": "sendmsg",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "NBD_ATTR_SIZE_BYTES",
+                            "value": "2"
+                        },
+                        {
+                            "name": "NBD_ATTR_SOCKETS",
+                            "value": "7"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+]

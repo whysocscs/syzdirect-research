@@ -1,0 +1,11 @@
+amd_set_max_freq_ratio 0 24100
+amd_set_max_freq_ratio 3 24090
+amd_set_max_freq_ratio 6 24080
+cpc_write_ffh 0 6080
+cpc_write_ffh 2 6080
+init_freq_invariance_cppc 0 22931
+init_freq_invariance_cppc 1 22931
+init_freq_invariance_cppc 2 22920
+init_freq_invariance_cppc 4 21080
+init_freq_invariance_cppc 6 25080
+cpc_read_ffh 0 6080

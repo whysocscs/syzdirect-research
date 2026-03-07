@@ -1,0 +1,14 @@
+ife_encode 0 7290
+ife_encode 1 7280
+ife_encode 2 7280
+ife_encode 3 7270
+ife_encode 5 7260
+ife_decode 0 6294
+ife_decode 1 6300
+ife_decode 2 6294
+ife_decode 4 6260
+ife_decode 6 6300
+ife_decode 7 6290
+ife_decode 9 6280
+ife_decode 11 6270
+ife_decode 13 6260

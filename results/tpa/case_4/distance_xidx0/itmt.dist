@@ -1,0 +1,11 @@
+sched_set_itmt_support 0 21080
+sched_set_itmt_support 1 14080
+sched_set_itmt_support 2 5080
+sched_itmt_update_handler 0 21080
+sched_itmt_update_handler 1 5090
+sched_itmt_update_handler 2 5080
+sched_clear_itmt_support 0 21080
+sched_clear_itmt_support 1 7173
+sched_clear_itmt_support 2 12080
+sched_clear_itmt_support 3 5090
+sched_clear_itmt_support 4 5080

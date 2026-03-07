@@ -1,0 +1,12 @@
+time_mt_exit 0 22080
+time_mt_check 0 21104
+time_mt_check 1 21090
+time_mt_check 2 21100
+time_mt_check 3 21090
+time_mt_check 4 21080
+time_mt_check 7 21090
+time_mt_check 8 21080
+time_mt_init 0 22100
+time_mt_init 1 22090
+time_mt_init 2 22090
+time_mt_init 3 22080

@@ -1,0 +1,3 @@
+twofish_exit 0 20080
+twofish_init 0 11090
+twofish_init 2 11080

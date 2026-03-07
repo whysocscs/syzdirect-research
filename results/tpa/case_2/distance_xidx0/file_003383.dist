@@ -1,0 +1,17 @@
+nfc_llc_init 0 11260
+nfc_llc_init 2 11260
+nfc_llc_register 0 9260
+nfc_llc_register 2 10260
+nfc_llc_allocate 0 9778
+nfc_llc_allocate 1 9768
+nfc_llc_allocate 3 9758
+nfc_llc_allocate 4 9778
+nfc_llc_allocate 5 9768
+nfc_llc_allocate 7 9748
+nfc_llc_allocate 9 9260
+nfc_llc_allocate 11 10260
+nfc_llc_free 0 7260
+nfc_llc_start 0 10260
+nfc_llc_stop 0 13260
+nfc_llc_rcv_from_drv 0 8260
+nfc_llc_xmit_from_hci 0 13260

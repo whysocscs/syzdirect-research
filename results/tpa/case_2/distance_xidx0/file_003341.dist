@@ -1,0 +1,15 @@
+xt_rateest_mt_init 0 13260
+xt_rateest_mt_fini 0 13260
+xt_rateest_mt 0 11260
+xt_rateest_mt 1 11280
+xt_rateest_mt 2 11280
+xt_rateest_mt 3 11270
+xt_rateest_mt 5 11260
+xt_rateest_mt_checkentry 0 12296
+xt_rateest_mt_checkentry 2 12286
+xt_rateest_mt_checkentry 4 12260
+xt_rateest_mt_checkentry 6 12274
+xt_rateest_mt_checkentry 8 12260
+xt_rateest_mt_checkentry 11 12260
+xt_rateest_mt_destroy 0 12260
+xt_rateest_mt_destroy 2 12260

@@ -1,0 +1,2 @@
+init_jiffies_clocksource 0 9360
+register_refined_jiffies 0 9360

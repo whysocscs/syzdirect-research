@@ -1,0 +1,11 @@
+seq_buf_bprintf 0 23110
+seq_buf_bprintf 1 23100
+seq_buf_bprintf 2 23100
+seq_buf_bprintf 3 23090
+seq_buf_bprintf 5 23080
+seq_buf_path 0 21120
+seq_buf_path 1 21110
+seq_buf_path 2 21110
+seq_buf_path 3 21100
+seq_buf_path 7 21090
+seq_buf_path 9 21080

@@ -1,0 +1,4 @@
+qca_tag_rcv 0 6380
+qca_tag_rcv 2 6370
+qca_tag_rcv 4 6360
+qca_tag_connect 0 9360

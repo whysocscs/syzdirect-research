@@ -1,0 +1,10 @@
+proc_devices_init 0 10260
+devinfo_show 0 14220
+devinfo_show 1 13280
+devinfo_show 2 13270
+devinfo_show 3 13270
+devinfo_show 4 13260
+devinfo_show 5 15280
+devinfo_show 6 15270
+devinfo_show 7 15270
+devinfo_show 8 15260

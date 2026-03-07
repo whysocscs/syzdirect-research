@@ -1,0 +1,4 @@
+strncpy_from_user 0 15090
+strncpy_from_user 2 17110
+strncpy_from_user 4 17100
+strncpy_from_user 6 17090

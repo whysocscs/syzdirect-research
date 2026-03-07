@@ -1,0 +1,6 @@
+lzo_init 0 9090
+lzo_init 2 11090
+lzo_init 4 11090
+lzo_init 6 11090
+lzo_free 0 11100
+lzo_free 2 11090

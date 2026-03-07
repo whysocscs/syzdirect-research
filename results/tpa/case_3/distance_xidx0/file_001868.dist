@@ -1,0 +1,11 @@
+irq_move_masked_irq 0 10420
+irq_move_masked_irq 2 10410
+irq_move_masked_irq 4 10400
+irq_move_masked_irq 6 10390
+irq_move_masked_irq 8 10380
+irq_move_masked_irq 10 10370
+irq_move_masked_irq 12 10360
+__irq_move_irq 0 11380
+__irq_move_irq 2 11370
+__irq_move_irq 3 11360
+__irq_move_irq 4 11360

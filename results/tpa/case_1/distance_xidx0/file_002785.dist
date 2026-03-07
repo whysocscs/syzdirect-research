@@ -1,0 +1,4 @@
+dccp_diag_fini 0 14090
+dccp_diag_init 0 14090
+dccp_diag_dump 0 12090
+dccp_diag_dump_one 0 10090

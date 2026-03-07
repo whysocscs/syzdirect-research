@@ -1,0 +1,12 @@
+sbf_init 0 16109
+sbf_init 1 16090
+sbf_init 2 16110
+sbf_init 3 16100
+sbf_init 4 16100
+sbf_init 5 16090
+sbf_read 0 15100
+sbf_read 1 15090
+sbf_write 0 15120
+sbf_write 1 15110
+sbf_write 2 15100
+sbf_write 3 15090

@@ -1,0 +1,2 @@
+inet6_del_protocol 0 12010
+inet6_del_offload 0 12010

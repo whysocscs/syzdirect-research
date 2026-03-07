@@ -1,0 +1,5 @@
+curve25519_compute_value 0 23104
+curve25519_compute_value 1 23100
+curve25519_compute_value 2 23090
+curve25519_compute_value 4 23100
+curve25519_compute_value 5 23090

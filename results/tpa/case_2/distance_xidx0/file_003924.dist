@@ -1,0 +1,14 @@
+snd_seq_system_broadcast 0 8270
+snd_seq_system_broadcast 2 8260
+snd_seq_system_notify 0 8260
+snd_seq_system_client_init 0 9260
+snd_seq_system_client_init 2 10260
+snd_seq_system_client_init 4 9260
+snd_seq_system_client_init 5 10280
+snd_seq_system_client_init 6 9260
+snd_seq_system_client_init 7 10280
+snd_seq_system_client_init 9 10270
+snd_seq_system_client_init 11 10260
+event_input_timer 0 9260
+snd_seq_system_client_done 0 10270
+snd_seq_system_client_done 2 10260

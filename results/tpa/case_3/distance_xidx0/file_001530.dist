@@ -1,0 +1,16 @@
+sysfs_init 0 10360
+sysfs_init 2 15360
+sysfs_init 4 12360
+sysfs_init_fs_context 0 12670
+sysfs_init_fs_context 1 12179
+sysfs_init_fs_context 2 14360
+sysfs_init_fs_context 4 12179
+sysfs_init_fs_context 5 9360
+sysfs_init_fs_context 7 15360
+sysfs_init_fs_context 9 13380
+sysfs_init_fs_context 11 13370
+sysfs_init_fs_context 15 13360
+sysfs_kill_sb 0 6360
+sysfs_fs_context_free 0 6370
+sysfs_fs_context_free 2 6360
+sysfs_get_tree 0 9360

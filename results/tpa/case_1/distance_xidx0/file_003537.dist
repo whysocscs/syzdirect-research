@@ -1,0 +1,12 @@
+rds_stats_exit 0 16090
+rds_stats_info 0 14110
+rds_stats_info 1 14100
+rds_stats_info 2 14120
+rds_stats_info 3 14110
+rds_stats_info 4 14140
+rds_stats_info 5 14130
+rds_stats_info 6 14140
+rds_stats_info 7 14120
+rds_stats_info 8 14100
+rds_stats_info 9 14090
+rds_stats_init 0 16090

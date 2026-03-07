@@ -1,0 +1,6 @@
+reiserfs_security_write 0 7270
+reiserfs_security_write 2 7260
+security_get 0 8270
+security_get 2 8260
+security_set 0 8270
+security_set 2 8260

@@ -1,0 +1,9 @@
+snd_usb_caiaq_midi_handle_input 0 12370
+snd_usb_caiaq_midi_handle_input 2 12360
+snd_usb_caiaq_midi_init 0 10360
+snd_usb_caiaq_midi_output_done 0 13380
+snd_usb_caiaq_midi_output_done 2 13370
+snd_usb_caiaq_midi_output_done 4 13360
+snd_usb_caiaq_midi_output_trigger 0 13380
+snd_usb_caiaq_midi_output_trigger 1 13370
+snd_usb_caiaq_midi_output_trigger 3 13360

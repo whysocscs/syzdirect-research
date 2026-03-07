@@ -1,0 +1,4 @@
+crypto_init_proc 0 10260
+crypto_exit_proc 0 11260
+c_start 0 12260
+c_stop 0 13260

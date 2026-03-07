@@ -1,0 +1,4 @@
+reiserfs_write_lock 0 13100
+reiserfs_write_lock 2 13090
+reiserfs_write_lock_nested 0 13100
+reiserfs_write_lock_nested 2 13090

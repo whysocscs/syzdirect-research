@@ -1,0 +1,13 @@
+jfs_umount_rw 0 9100
+jfs_umount_rw 2 9090
+jfs_umount 0 10517
+jfs_umount 1 10507
+jfs_umount 2 10507
+jfs_umount 3 10497
+jfs_umount 4 10347
+jfs_umount 5 11090
+jfs_umount 6 10090
+jfs_umount 7 10580
+jfs_umount 8 10090
+jfs_umount 9 10090
+jfs_umount 11 11090

@@ -1,0 +1,16 @@
+nsh_cleanup_module 0 21080
+nsh_init_module 0 21080
+nsh_gso_segment 0 21150
+nsh_gso_segment 1 21140
+nsh_gso_segment 2 21160
+nsh_gso_segment 4 21150
+nsh_gso_segment 6 21140
+nsh_gso_segment 7 21130
+nsh_gso_segment 9 21120
+nsh_gso_segment 10 21110
+nsh_gso_segment 11 21130
+nsh_gso_segment 13 21120
+nsh_gso_segment 15 21110
+nsh_gso_segment 16 21100
+nsh_gso_segment 18 21090
+nsh_gso_segment 20 21080

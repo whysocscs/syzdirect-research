@@ -1,0 +1,11 @@
+tfrc_calc_x 0 16310
+tfrc_calc_x 2 16300
+tfrc_calc_x 4 16290
+tfrc_calc_x 6 16280
+tfrc_calc_x 7 16270
+tfrc_calc_x 8 16260
+tfrc_calc_x_reverse_lookup 0 16284
+tfrc_calc_x_reverse_lookup 2 16274
+tfrc_calc_x_reverse_lookup 3 16260
+tfrc_calc_x_reverse_lookup 6 16270
+tfrc_calc_x_reverse_lookup 7 16260

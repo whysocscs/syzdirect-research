@@ -1,0 +1,11 @@
+ip_vs_create_timeout_table 0 10260
+ip_vs_protocol_net_init 0 10568
+ip_vs_protocol_net_init 1 9260
+ip_vs_protocol_net_init 3 10580
+ip_vs_protocol_net_init 4 10588
+ip_vs_protocol_net_init 5 12260
+ip_vs_protocol_net_init 6 10588
+ip_vs_protocol_net_init 7 10599
+ip_vs_protocol_net_init 8 10588
+ip_vs_protocol_net_init 10 10578
+ip_vs_protocol_net_init 11 10568

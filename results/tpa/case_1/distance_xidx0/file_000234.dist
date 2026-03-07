@@ -1,0 +1,6 @@
+idt_map_in_cea 0 15090
+idt_setup_apic_and_irq_gates 0 9110
+idt_setup_apic_and_irq_gates 1 9100
+idt_setup_apic_and_irq_gates 2 9110
+idt_setup_apic_and_irq_gates 3 9100
+idt_setup_apic_and_irq_gates 4 9090

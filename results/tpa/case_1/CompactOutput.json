@@ -1,0 +1,51 @@
+[
+    {
+        "case index": "0",
+        "target syscall infos": [
+            {
+                "target syscall": "delete_module",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "KERNEL_CLIENT",
+                            "value": "2"
+                        }
+                    ]
+                }
+            },
+            {
+                "target syscall": "ioctl$SNDRV_SEQ_IOCTL_CREATE_QUEUE",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$SNDRV_SEQ_IOCTL_SET_QUEUE_INFO",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "ioctl$SNDRV_SEQ_IOCTL_SET_QUEUE_TIMER",
+                "rank": 0,
+                "constraints": {}
+            },
+            {
+                "target syscall": "kexec_load",
+                "rank": 0,
+                "constraints": {
+                    "int": [
+                        {
+                            "name": "KERNEL_CLIENT",
+                            "value": "2"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+]

@@ -1,0 +1,2 @@
+ghc_icmpv6_init 0 16090
+ghc_icmpv6_exit 0 12090

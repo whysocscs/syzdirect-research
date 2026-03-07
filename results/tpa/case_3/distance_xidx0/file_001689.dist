@@ -1,0 +1,13 @@
+xfs_printk_level 0 17400
+xfs_printk_level 1 17390
+xfs_printk_level 2 17390
+xfs_printk_level 3 17390
+xfs_printk_level 4 17380
+xfs_printk_level 5 17380
+xfs_printk_level 6 17369
+xfs_printk_level 8 17360
+xfs_buf_alert_ratelimited 0 15360
+_xfs_alert_tag 0 18369
+_xfs_alert_tag 1 18360
+asswarn 0 18360
+assfail 0 18360

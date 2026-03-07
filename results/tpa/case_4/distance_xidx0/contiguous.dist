@@ -1,0 +1,6 @@
+dma_free_contiguous 0 15110
+dma_free_contiguous 1 15100
+dma_free_contiguous 2 15090
+dma_free_contiguous 4 15100
+dma_free_contiguous 5 15090
+dma_free_contiguous 7 15080

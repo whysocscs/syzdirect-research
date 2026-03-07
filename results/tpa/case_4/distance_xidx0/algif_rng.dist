@@ -1,0 +1,12 @@
+rng_exit 0 21080
+rng_init 0 15080
+rng_bind 0 14080
+rng_bind 2 10080
+rng_release 0 11090
+rng_release 2 11080
+rng_setkey 0 12080
+rng_accept_parent 0 13080
+rng_sock_destruct 0 9080
+rng_recvmsg 0 14578
+rng_recvmsg 2 15080
+rng_recvmsg 4 14080

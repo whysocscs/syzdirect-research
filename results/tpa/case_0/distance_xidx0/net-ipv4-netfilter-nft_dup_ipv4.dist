@@ -1,0 +1,6 @@
+nft_dup_ipv4_module_exit 0 15010
+nft_dup_ipv4_module_init 0 15010
+nft_dup_ipv4_eval 0 7030
+nft_dup_ipv4_eval 1 7020
+nft_dup_ipv4_eval 2 7020
+nft_dup_ipv4_eval 3 7010

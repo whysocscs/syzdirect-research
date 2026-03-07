@@ -1,0 +1,6 @@
+x25_seq_route_start 0 15010
+x25_seq_route_stop 0 16010
+x25_seq_socket_start 0 15010
+x25_seq_socket_stop 0 16010
+x25_seq_forward_start 0 15010
+x25_seq_forward_stop 0 16010

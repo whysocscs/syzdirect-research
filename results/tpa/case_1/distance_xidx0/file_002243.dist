@@ -1,0 +1,15 @@
+lockref_get_not_zero 0 15090
+lockref_get_not_zero 1 16100
+lockref_get_not_zero 2 16100
+lockref_get_not_zero 3 16090
+lockref_put_not_zero 0 15090
+lockref_put_not_zero 1 16100
+lockref_put_not_zero 2 16100
+lockref_put_not_zero 3 16090
+lockref_put_or_lock 0 15090
+lockref_put_or_lock 2 16090
+lockref_get 0 15090
+lockref_get_not_dead 0 15090
+lockref_get_not_dead 1 16100
+lockref_get_not_dead 2 16100
+lockref_get_not_dead 3 16090

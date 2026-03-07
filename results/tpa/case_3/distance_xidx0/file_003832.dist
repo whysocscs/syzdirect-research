@@ -1,0 +1,10 @@
+tomoyo_write_group 0 11360
+tomoyo_write_group 2 11346
+tomoyo_write_group 3 10360
+tomoyo_write_group 5 11360
+tomoyo_write_group 9 11854
+tomoyo_write_group 11 12360
+tomoyo_write_group 13 11360
+tomoyo_write_group 15 11380
+tomoyo_write_group 17 11370
+tomoyo_write_group 19 11360

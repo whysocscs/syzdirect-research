@@ -1,0 +1,10 @@
+nr_rx_ip 0 8270
+nr_rx_ip 2 8260
+nr_open 0 10260
+nr_close 0 15260
+nr_xmit 0 5260
+nr_xmit 1 5260
+nr_set_mac_address 0 12294
+nr_set_mac_address 2 12283
+nr_set_mac_address 4 10260
+nr_set_mac_address 6 15260

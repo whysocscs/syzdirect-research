@@ -1,0 +1,4 @@
+io_madvise 0 9100
+io_madvise 2 9090
+io_fadvise 0 7100
+io_fadvise 2 7090

@@ -1,0 +1,15 @@
+cpuid_exit 0 9090
+cpuid_init 0 10090
+cpuid_init 2 10391
+cpuid_init 3 12100
+cpuid_init 4 9090
+cpuid_init 6 12100
+cpuid_init 7 12090
+cpuid_devnode 0 11090
+cpuid_read 0 10376
+cpuid_read 1 15090
+cpuid_read 2 8951
+cpuid_read 3 7090
+cpuid_read 4 12090
+cpuid_read 6 8951
+cpuid_smp_cpuid 0 13090

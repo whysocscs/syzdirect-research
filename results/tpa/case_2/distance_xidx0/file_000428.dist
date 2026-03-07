@@ -1,0 +1,5 @@
+pkcs7_key_cleanup 0 12260
+pkcs7_key_init 0 12260
+pkcs7_preparse 0 11270
+pkcs7_preparse 2 11260
+pkcs7_view_content 0 10260

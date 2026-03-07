@@ -1,0 +1,10 @@
+dscp_tg_exit 0 14010
+dscp_tg_init 0 14010
+dscp_tg 0 8020
+dscp_tg 2 8010
+dscp_tg6 0 8020
+dscp_tg6 2 8010
+tos_tg 0 8020
+tos_tg 2 8010
+tos_tg6 0 8020
+tos_tg6 2 8010

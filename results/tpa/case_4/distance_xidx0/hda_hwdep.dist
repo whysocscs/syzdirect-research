@@ -1,0 +1,5 @@
+snd_hda_create_hwdep 0 15080
+hda_hwdep_ioctl 0 13100
+hda_hwdep_ioctl 3 13090
+hda_hwdep_ioctl 5 13080
+hda_hwdep_ioctl_compat 0 14080

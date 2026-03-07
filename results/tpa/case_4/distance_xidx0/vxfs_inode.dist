@@ -1,0 +1,16 @@
+vxfs_blkiget 0 15110
+vxfs_blkiget 2 15100
+vxfs_blkiget 4 15090
+vxfs_blkiget 5 15080
+dip2vip_cpy 0 14100
+dip2vip_cpy 1 14090
+dip2vip_cpy 2 14090
+dip2vip_cpy 3 14090
+dip2vip_cpy 4 14080
+vxfs_stiget 0 13428
+vxfs_stiget 2 12080
+vxfs_stiget 3 15080
+vxfs_iget 0 13438
+vxfs_iget 2 13428
+vxfs_iget 4 12080
+vxfs_iget 5 15080

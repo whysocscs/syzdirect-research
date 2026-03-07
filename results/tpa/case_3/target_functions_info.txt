@@ -1,0 +1,1 @@
+0 taprio_change /work/syzdirect_workdir/srcs/case_3/net/sched/sch_taprio.c

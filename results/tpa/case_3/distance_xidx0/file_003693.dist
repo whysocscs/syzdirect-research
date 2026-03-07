@@ -1,0 +1,5 @@
+wiphy_read_of_freq_limits 0 9400
+wiphy_read_of_freq_limits 2 9389
+wiphy_read_of_freq_limits 4 9380
+wiphy_read_of_freq_limits 6 9369
+wiphy_read_of_freq_limits 8 9360

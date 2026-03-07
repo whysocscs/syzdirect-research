@@ -1,0 +1,9 @@
+ila_fini 0 6360
+ila_exit_net 0 9360
+ila_init 0 8360
+ila_init 2 6360
+ila_init 3 9369
+ila_init 4 7587
+ila_init 6 6360
+ila_init 7 9360
+ila_init_net 0 12360

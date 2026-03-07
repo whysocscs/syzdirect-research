@@ -1,0 +1,10 @@
+tomoyo_env_perm 0 9389
+tomoyo_env_perm 2 9380
+tomoyo_env_perm 4 9369
+tomoyo_env_perm 5 9360
+tomoyo_env_perm 7 9369
+tomoyo_write_misc 0 10871
+tomoyo_write_misc 2 10861
+tomoyo_write_misc 4 10851
+tomoyo_write_misc 6 10360
+tomoyo_write_misc 8 11360

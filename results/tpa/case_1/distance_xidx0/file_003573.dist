@@ -1,0 +1,12 @@
+rxrpc_exit_net 0 11090
+rxrpc_init_net 0 11090
+rxrpc_init_net 1 10580
+rxrpc_init_net 2 10590
+rxrpc_init_net 3 10090
+rxrpc_init_net 4 11090
+rxrpc_service_conn_reap_timeout 0 12100
+rxrpc_service_conn_reap_timeout 2 12090
+rxrpc_client_conn_reap_timeout 0 12100
+rxrpc_client_conn_reap_timeout 2 12090
+rxrpc_peer_keepalive_timeout 0 12100
+rxrpc_peer_keepalive_timeout 2 12090

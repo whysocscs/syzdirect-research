@@ -1,0 +1,2 @@
+update_persistent_clock64 0 9090
+read_persistent_clock64 0 16090

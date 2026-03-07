@@ -1,0 +1,12 @@
+swsusp_arch_resume 0 14360
+swsusp_arch_resume 2 14360
+swsusp_arch_resume 4 14360
+swsusp_arch_resume 6 15864
+swsusp_arch_resume 7 15370
+swsusp_arch_resume 8 15870
+swsusp_arch_resume 9 15864
+swsusp_arch_resume 10 15370
+swsusp_arch_resume 11 15870
+swsusp_arch_resume 12 16360
+swsusp_arch_resume 15 15360
+alloc_pgt_page 0 14360

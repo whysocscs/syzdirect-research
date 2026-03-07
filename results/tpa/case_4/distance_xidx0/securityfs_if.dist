@@ -1,0 +1,12 @@
+tomoyo_write_self 0 20616
+tomoyo_write_self 2 20606
+tomoyo_write_self 4 20596
+tomoyo_write_self 6 20080
+tomoyo_write_self 7 21110
+tomoyo_write_self 8 21120
+tomoyo_write_self 9 21110
+tomoyo_write_self 10 21110
+tomoyo_write_self 11 21100
+tomoyo_write_self 12 21090
+tomoyo_write_self 13 21090
+tomoyo_write_self 14 21080

@@ -1,0 +1,5 @@
+exit_em_nbyte 0 16010
+init_em_nbyte 0 16010
+em_nbyte_change 0 11030
+em_nbyte_change 2 11020
+em_nbyte_change 4 11010

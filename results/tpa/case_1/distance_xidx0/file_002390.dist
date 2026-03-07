@@ -1,0 +1,7 @@
+__should_failslab 0 17120
+__should_failslab 1 17110
+__should_failslab 2 17100
+__should_failslab 3 17100
+__should_failslab 4 17090
+failslab_debugfs_init 0 12090
+failslab_debugfs_init 2 13090

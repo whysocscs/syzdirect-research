@@ -1,0 +1,17 @@
+tcpnv_unregister 0 12260
+tcpnv_register 0 15260
+tcpnv_init 0 15623
+tcpnv_init 1 11320
+tcpnv_init 2 19260
+tcpnv_init 3 11320
+tcpnv_init 4 19260
+tcpnv_init 5 11320
+tcpnv_init 6 11320
+tcpnv_init 7 11310
+tcpnv_init 8 11300
+tcpnv_init 10 11290
+tcpnv_init 11 11280
+tcpnv_init 12 11290
+tcpnv_init 13 11280
+tcpnv_init 15 11270
+tcpnv_init 17 11260

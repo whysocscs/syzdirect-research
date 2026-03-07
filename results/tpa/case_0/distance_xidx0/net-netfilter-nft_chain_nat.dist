@@ -1,0 +1,12 @@
+nft_chain_nat_exit 0 15010
+nft_chain_nat_init 0 15010
+nft_nat_do_chain 0 6030
+nft_nat_do_chain 1 6020
+nft_nat_do_chain 2 6020
+nft_nat_do_chain 3 6040
+nft_nat_do_chain 4 6030
+nft_nat_do_chain 5 6030
+nft_nat_do_chain 6 6020
+nft_nat_do_chain 7 6010
+nft_nat_inet_reg 0 12010
+nft_nat_inet_unreg 0 12010

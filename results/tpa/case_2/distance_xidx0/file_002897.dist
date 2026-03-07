@@ -1,0 +1,5 @@
+ipip_init_state 0 18274
+ipip_init_state 1 18260
+ipip_init_state 4 18270
+ipip_init_state 5 18260
+xfrm_tunnel_rcv 0 6260

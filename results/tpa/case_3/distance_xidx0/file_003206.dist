@@ -1,0 +1,8 @@
+nft_cmp_fast_init 0 11360
+nft_cmp16_fast_init 0 11360
+nft_cmp_select_ops 0 11400
+nft_cmp_select_ops 2 11390
+nft_cmp_select_ops 4 11380
+nft_cmp_select_ops 6 11370
+nft_cmp_select_ops 8 11360
+nft_cmp_init 0 11360

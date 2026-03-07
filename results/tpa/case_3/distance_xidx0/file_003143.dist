@@ -1,0 +1,8 @@
+nf_conntrack_ftp_fini 0 9360
+nf_conntrack_ftp_init 0 10400
+nf_conntrack_ftp_init 1 10390
+nf_conntrack_ftp_init 2 10390
+nf_conntrack_ftp_init 3 10380
+nf_conntrack_ftp_init 4 10370
+nf_conntrack_ftp_init 5 10380
+nf_conntrack_ftp_init 6 10360

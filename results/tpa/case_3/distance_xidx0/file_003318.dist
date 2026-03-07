@@ -1,0 +1,5 @@
+statistic_mt_exit 0 13360
+statistic_mt_init 0 13360
+statistic_mt_check 0 9380
+statistic_mt_check 2 9369
+statistic_mt_check 4 9360

@@ -1,0 +1,5 @@
+hci_init_sysfs 0 20090
+bt_host_release 0 14304
+bt_host_release 1 11090
+bt_host_release 2 20100
+bt_host_release 3 20090

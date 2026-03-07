@@ -1,0 +1,16 @@
+nfc_proto_register 0 13499
+nfc_proto_register 2 11010
+nfc_proto_register 4 15010
+nfc_proto_register 5 16010
+nfc_proto_register 6 13010
+nfc_proto_unregister 0 13010
+af_nfc_init 0 16010
+af_nfc_exit 0 13010
+nfc_sock_create 0 13705
+nfc_sock_create 2 13694
+nfc_sock_create 4 15010
+nfc_sock_create 5 16020
+nfc_sock_create 6 19010
+nfc_sock_create 7 16020
+nfc_sock_create 8 9010
+nfc_sock_create 9 16010

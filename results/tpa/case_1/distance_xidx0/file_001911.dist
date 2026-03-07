@@ -1,0 +1,10 @@
+bpf_map_iter_init 0 10090
+bpf_map_iter_init 2 10090
+bpf_map_seq_start 0 16090
+bpf_map_seq_stop 0 12584
+bpf_map_seq_stop 1 13100
+bpf_map_seq_stop 3 13090
+bpf_map_seq_stop 5 12090
+bpf_map_seq_next 0 12090
+bpf_map_seq_show 0 13100
+bpf_map_seq_show 2 13090

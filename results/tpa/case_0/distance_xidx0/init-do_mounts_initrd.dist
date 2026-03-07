@@ -1,0 +1,7 @@
+initrd_load 0 11502
+initrd_load 2 11010
+initrd_load 4 12010
+init_linuxrc 0 12010
+handle_initrd 0 11010
+handle_initrd 2 12010
+handle_initrd 4 13010

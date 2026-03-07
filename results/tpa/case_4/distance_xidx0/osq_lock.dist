@@ -1,0 +1,17 @@
+osq_wait_next 0 24080
+osq_unlock 0 24080
+osq_unlock 1 24080
+osq_unlock 2 25080
+osq_lock 0 24080
+osq_lock 1 24140
+osq_lock 2 24130
+osq_lock 3 24120
+osq_lock 4 24130
+osq_lock 6 24120
+osq_lock 7 24110
+osq_lock 8 24130
+osq_lock 9 24100
+osq_lock 10 24090
+osq_lock 11 24120
+osq_lock 12 24110
+osq_lock 13 24080

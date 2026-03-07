@@ -1,0 +1,8 @@
+cifs_gssapi_this_mech 0 15290
+cifs_gssapi_this_mech 2 15280
+cifs_gssapi_this_mech 4 15270
+cifs_gssapi_this_mech 5 15260
+cifs_neg_token_init_mech_type 0 15290
+cifs_neg_token_init_mech_type 5 15280
+cifs_neg_token_init_mech_type 7 15270
+cifs_neg_token_init_mech_type 8 15260

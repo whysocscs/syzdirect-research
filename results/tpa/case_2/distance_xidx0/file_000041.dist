@@ -1,0 +1,12 @@
+crc32_pclmul_mod_fini 0 13260
+crc32_pclmul_mod_init 0 9270
+crc32_pclmul_mod_init 2 9260
+crc32_pclmul_update 0 20260
+crc32_pclmul_finup 0 20260
+crc32_pclmul_digest 0 20260
+crc32_pclmul_le 0 19300
+crc32_pclmul_le 2 19290
+crc32_pclmul_le 5 19280
+crc32_pclmul_le 6 19270
+crc32_pclmul_le 7 19270
+crc32_pclmul_le 8 19260

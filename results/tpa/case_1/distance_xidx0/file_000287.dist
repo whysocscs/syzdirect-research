@@ -1,0 +1,2 @@
+trace_pagefault_unreg 0 14090
+trace_pagefault_reg 0 14090

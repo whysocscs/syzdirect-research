@@ -1,0 +1,3 @@
+hook_cred_free 0 12270
+hook_cred_free 2 12260
+landlock_add_cred_hooks 0 12260

@@ -1,0 +1,8 @@
+extract_hostname 0 9130
+extract_hostname 1 9120
+extract_hostname 3 9110
+extract_hostname 5 9120
+extract_hostname 6 9100
+extract_hostname 8 9090
+extract_sharename 0 10100
+extract_sharename 2 10090

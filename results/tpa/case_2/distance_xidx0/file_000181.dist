@@ -1,0 +1,11 @@
+sched_set_itmt_support 0 12260
+sched_set_itmt_support 1 11260
+sched_set_itmt_support 2 11260
+sched_clear_itmt_support 0 12260
+sched_clear_itmt_support 1 11754
+sched_clear_itmt_support 2 12260
+sched_clear_itmt_support 3 11270
+sched_clear_itmt_support 4 11260
+sched_itmt_update_handler 0 12260
+sched_itmt_update_handler 1 11270
+sched_itmt_update_handler 2 11260

@@ -1,0 +1,12 @@
+copy_oldmem_page 0 13090
+__copy_oldmem_page 0 12823
+__copy_oldmem_page 1 12813
+__copy_oldmem_page 2 12090
+__copy_oldmem_page 3 12090
+__copy_oldmem_page 4 13597
+__copy_oldmem_page 5 13586
+__copy_oldmem_page 6 13100
+__copy_oldmem_page 7 14090
+__copy_oldmem_page 8 13090
+copy_oldmem_page_encrypted 0 13090
+elfcorehdr_read 0 15090

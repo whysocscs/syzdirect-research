@@ -1,0 +1,11 @@
+dsa_tag_driver_module_init 0 14010
+brcm_tag_rcv_ll 0 7030
+brcm_tag_rcv_ll 2 7020
+brcm_tag_rcv_ll 4 7010
+dsa_tag_driver_module_exit 0 14010
+brcm_tag_xmit 0 8010
+brcm_tag_rcv 0 8010
+brcm_tag_xmit_ll 0 7020
+brcm_tag_xmit_ll 2 7010
+brcm_tag_xmit_prepend 0 8010
+brcm_tag_rcv_prepend 0 8010

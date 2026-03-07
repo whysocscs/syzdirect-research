@@ -1,0 +1,11 @@
+setup_per_cpu_areas 0 8242
+setup_per_cpu_areas 1 6080
+setup_per_cpu_areas 2 10011
+setup_per_cpu_areas 3 6080
+setup_per_cpu_areas 5 28100
+setup_per_cpu_areas 6 28090
+setup_per_cpu_areas 7 28080
+setup_per_cpu_areas 8 28110
+setup_per_cpu_areas 9 28100
+pcpu_cpu_distance 0 28080
+pcpu_cpu_to_node 0 28080

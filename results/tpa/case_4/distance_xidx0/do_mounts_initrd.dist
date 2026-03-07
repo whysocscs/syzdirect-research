@@ -1,0 +1,8 @@
+kernel_do_mounts_initrd_sysctls_init 0 13080
+handle_initrd 0 12080
+handle_initrd 2 14080
+handle_initrd 4 13080
+initrd_load 0 12011
+initrd_load 2 11080
+initrd_load 4 13080
+init_linuxrc 0 12080

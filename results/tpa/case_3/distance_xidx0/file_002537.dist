@@ -1,0 +1,6 @@
+ebt_mark_m_fini 0 13360
+ebt_mark_m_init 0 13360
+mark_mt_compat_to_user 0 14360
+mark_mt_compat_to_user 2 14360
+mark_mt_compat_to_user 4 14360
+mark_mt_compat_to_user 6 14360

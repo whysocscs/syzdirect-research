@@ -1,0 +1,4 @@
+snd_pcm_plugin_build_route 0 10120
+snd_pcm_plugin_build_route 2 10110
+snd_pcm_plugin_build_route 4 10100
+snd_pcm_plugin_build_route 6 10090

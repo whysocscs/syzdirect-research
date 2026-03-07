@@ -1,0 +1,14 @@
+snd_usb_find_power_domain 0 9360
+snd_usb_power_domain_set 0 11360
+snd_usb_power_domain_set 2 12584
+snd_usb_power_domain_set 3 13370
+snd_usb_power_domain_set 4 13360
+snd_usb_power_domain_set 5 11360
+snd_usb_power_domain_set 7 12870
+snd_usb_power_domain_set 8 13380
+snd_usb_power_domain_set 9 12869
+snd_usb_power_domain_set 11 12859
+snd_usb_power_domain_set 12 12859
+snd_usb_power_domain_set 13 12360
+snd_usb_power_domain_set 14 13370
+snd_usb_power_domain_set 15 13360

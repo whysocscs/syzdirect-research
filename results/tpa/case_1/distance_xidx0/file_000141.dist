@@ -1,0 +1,12 @@
+p6_pmu_disable_all 0 20104
+p6_pmu_disable_all 1 20090
+p6_pmu_disable_all 2 20100
+p6_pmu_disable_all 3 20090
+p6_pmu_enable_all 0 20104
+p6_pmu_enable_all 1 20090
+p6_pmu_enable_all 2 20100
+p6_pmu_enable_all 3 20090
+p6_pmu_enable_event 0 20100
+p6_pmu_enable_event 1 20090
+p6_pmu_disable_event 0 20100
+p6_pmu_disable_event 1 20090

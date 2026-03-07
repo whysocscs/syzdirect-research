@@ -1,0 +1,9 @@
+once_deferred 0 14020
+once_deferred 2 14010
+__do_once_done 0 11010
+once_disable_jump 0 10010
+once_disable_jump 2 12010
+__do_once_sleepable_start 0 13010
+__do_once_sleepable_done 0 11010
+__do_once_start 0 15010
+__do_once_start 2 16010

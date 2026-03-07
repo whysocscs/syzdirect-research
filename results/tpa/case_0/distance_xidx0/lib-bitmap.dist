@@ -1,0 +1,11 @@
+bitmap_parse_user 0 11010
+devm_bitmap_zalloc 0 10010
+bitmap_print_bitmask_to_buf 0 13010
+bitmap_print_to_buf 0 12010
+bitmap_print_list_to_buf 0 13010
+bitmap_parselist_user 0 11010
+bitmap_alloc 0 10010
+bitmap_zalloc 0 10010
+bitmap_alloc_node 0 10010
+bitmap_zalloc_node 0 10010
+devm_bitmap_alloc 0 10010

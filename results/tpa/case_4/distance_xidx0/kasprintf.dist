@@ -1,0 +1,5 @@
+kvasprintf_const 0 13100
+kvasprintf_const 2 13090
+kvasprintf_const 7 13080
+kasprintf 0 13080
+kvasprintf 0 12080

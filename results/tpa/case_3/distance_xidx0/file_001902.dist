@@ -1,0 +1,13 @@
+module_enable_x 0 9380
+module_enable_x 2 9369
+module_enable_x 4 9360
+module_enable_ro 0 11679
+module_enable_ro 2 15360
+module_enable_ro 3 10793
+module_enable_ro 4 10793
+module_enable_ro 5 15360
+module_enable_ro 6 9374
+module_enable_ro 7 9374
+module_enable_ro 8 9360
+module_enable_ro 10 9360
+module_enable_nx 0 9360

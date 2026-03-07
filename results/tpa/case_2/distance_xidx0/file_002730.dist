@@ -1,0 +1,13 @@
+ethnl_set_debug 0 12260
+ethnl_set_debug 2 7103
+ethnl_set_debug 4 7092
+ethnl_set_debug 6 8260
+ethnl_set_debug 7 8270
+ethnl_set_debug 8 7260
+ethnl_set_debug 9 7742
+ethnl_set_debug 10 5260
+ethnl_set_debug 11 7260
+ethnl_set_debug 12 8260
+debug_prepare_data 0 7743
+debug_prepare_data 2 8260
+debug_prepare_data 4 7260

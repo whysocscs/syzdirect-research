@@ -1,0 +1,2 @@
+irq_init_percpu_irqstack 0 11100
+irq_init_percpu_irqstack 1 11090

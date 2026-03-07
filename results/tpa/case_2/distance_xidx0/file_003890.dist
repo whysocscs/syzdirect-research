@@ -1,0 +1,9 @@
+snd_pcm_plugin_build_mulaw 0 10320
+snd_pcm_plugin_build_mulaw 2 10310
+snd_pcm_plugin_build_mulaw 4 10300
+snd_pcm_plugin_build_mulaw 6 10290
+snd_pcm_plugin_build_mulaw 7 10280
+snd_pcm_plugin_build_mulaw 8 10290
+snd_pcm_plugin_build_mulaw 9 10280
+snd_pcm_plugin_build_mulaw 11 10270
+snd_pcm_plugin_build_mulaw 13 10260

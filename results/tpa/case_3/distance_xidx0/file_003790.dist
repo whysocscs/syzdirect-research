@@ -1,0 +1,4 @@
+compat_keyctl_dh_compute 0 11635
+compat_keyctl_dh_compute 1 10360
+compat_keyctl_dh_compute 2 15360
+compat_keyctl_dh_compute 4 10360

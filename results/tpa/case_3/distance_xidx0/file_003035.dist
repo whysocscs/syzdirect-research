@@ -1,0 +1,4 @@
+minstrel_ht_add_sta_debugfs 0 10360
+minstrel_stats_read 0 16360
+minstrel_ht_stats_open 0 12360
+minstrel_ht_stats_csv_open 0 12360

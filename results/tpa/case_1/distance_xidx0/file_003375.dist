@@ -1,0 +1,10 @@
+dscp_tg_exit 0 14090
+dscp_tg_init 0 14090
+dscp_tg 0 11100
+dscp_tg 2 11090
+dscp_tg6 0 11100
+dscp_tg6 2 11090
+tos_tg 0 11100
+tos_tg 2 11090
+tos_tg6 0 11100
+tos_tg6 2 11090

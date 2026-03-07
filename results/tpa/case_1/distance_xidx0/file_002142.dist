@@ -1,0 +1,10 @@
+sw842_debugfs_remove 0 10090
+sw842_init 0 12100
+sw842_init 2 12090
+sw842_exit 0 10100
+sw842_exit 2 10090
+sw842_debugfs_create 0 12366
+sw842_debugfs_create 2 11090
+sw842_debugfs_create 3 13090
+sw842_debugfs_create 4 13104
+sw842_debugfs_create 5 13090

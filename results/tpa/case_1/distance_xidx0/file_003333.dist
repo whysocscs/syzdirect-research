@@ -1,0 +1,13 @@
+nft_fib_inet_module_exit 0 15090
+nft_fib_inet_module_init 0 15090
+nft_fib_inet_eval 0 12307
+nft_fib_inet_eval 2 11583
+nft_fib_inet_eval 3 12100
+nft_fib_inet_eval 4 12100
+nft_fib_inet_eval 6 12090
+nft_fib_inet_eval 7 11090
+nft_fib_inet_eval 8 13104
+nft_fib_inet_eval 9 13100
+nft_fib_inet_eval 10 13100
+nft_fib_inet_eval 12 13090
+nft_fib_inet_eval 13 13090

@@ -1,0 +1,6 @@
+camellia_aesni_fini 0 20080
+camellia_aesni_init 0 11120
+camellia_aesni_init 2 11110
+camellia_aesni_init 4 11100
+camellia_aesni_init 7 11090
+camellia_aesni_init 9 11080

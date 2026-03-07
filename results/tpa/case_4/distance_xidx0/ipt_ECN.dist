@@ -1,0 +1,10 @@
+ecn_tg_exit 0 22080
+ecn_tg_init 0 22080
+ecn_tg_check 0 21130
+ecn_tg_check 2 21120
+ecn_tg_check 4 21110
+ecn_tg_check 6 21100
+ecn_tg_check 7 21090
+ecn_tg_check 8 21100
+ecn_tg_check 9 21090
+ecn_tg_check 11 21080

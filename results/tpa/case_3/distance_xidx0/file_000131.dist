@@ -1,0 +1,14 @@
+init_espfix_bsp 0 12360
+init_espfix_ap 0 12557
+init_espfix_ap 1 12547
+init_espfix_ap 2 12360
+init_espfix_ap 3 18360
+init_espfix_ap 4 11360
+init_espfix_ap 5 11370
+init_espfix_ap 6 11360
+init_espfix_ap 7 11370
+init_espfix_ap 8 11360
+alloc_pages_node 0 10380
+alloc_pages_node 1 10380
+alloc_pages_node 2 10370
+alloc_pages_node 4 10360

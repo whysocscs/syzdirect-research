@@ -1,0 +1,9 @@
+xt_cluster_mt_fini 0 14010
+xt_cluster_mt_init 0 14010
+xt_cluster_mt_checkentry 0 13427
+xt_cluster_mt_checkentry 1 16010
+xt_cluster_mt_checkentry 4 12729
+xt_cluster_mt_checkentry 5 16010
+xt_cluster_mt_checkentry 8 9010
+xt_cluster_mt_checkentry 10 16010
+xt_cluster_mt_destroy 0 11010

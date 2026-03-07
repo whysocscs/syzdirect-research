@@ -1,0 +1,12 @@
+snd_kctl_jack_new 0 10090
+snd_kctl_jack_new 2 14139
+snd_kctl_jack_new 3 14129
+snd_kctl_jack_new 4 14129
+snd_kctl_jack_new 5 14119
+snd_kctl_jack_new 7 14109
+snd_kctl_jack_new 9 14090
+snd_kctl_jack_new 10 14100
+snd_kctl_jack_new 12 14090
+snd_kctl_jack_new 13 14100
+snd_kctl_jack_report 0 10100
+snd_kctl_jack_report 2 10090

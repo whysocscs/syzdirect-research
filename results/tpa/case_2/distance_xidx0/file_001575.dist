@@ -1,0 +1,15 @@
+ubifs_encrypt 0 13963
+ubifs_encrypt 1 11290
+ubifs_encrypt 2 18260
+ubifs_encrypt 3 11280
+ubifs_encrypt 4 11270
+ubifs_encrypt 5 11270
+ubifs_encrypt 6 11260
+ubifs_decrypt 0 13958
+ubifs_decrypt 2 13948
+ubifs_decrypt 3 11270
+ubifs_decrypt 4 18260
+ubifs_decrypt 5 11260
+ubifs_crypt_get_context 0 10260
+ubifs_crypt_set_context 0 10260
+ubifs_crypt_empty_dir 0 11260

@@ -1,0 +1,2 @@
+nfs4_register_sysctl 0 14080
+nfs4_unregister_sysctl 0 12080

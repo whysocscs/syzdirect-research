@@ -1,0 +1,6 @@
+nlm_fopen 0 8390
+nlm_fopen 2 8380
+nlm_fopen 3 8370
+nlm_fopen 4 8370
+nlm_fopen 5 8360
+nlm_fclose 0 11360
