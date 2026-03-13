@@ -1,7 +1,0 @@
-fsverity_msg 0 16090
-fsverity_init 0 10090
-fsverity_init 2 11090
-fsverity_init 3 13100
-fsverity_init 4 11090
-fsverity_init 7 13090
-fsverity_init 8 13090

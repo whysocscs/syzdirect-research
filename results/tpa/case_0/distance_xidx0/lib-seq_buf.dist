@@ -1,9 +1,0 @@
-seq_buf_bprintf 0 14040
-seq_buf_bprintf 1 14030
-seq_buf_bprintf 2 14030
-seq_buf_bprintf 3 14020
-seq_buf_bprintf 5 14010
-seq_buf_to_user 0 16040
-seq_buf_to_user 2 16030
-seq_buf_to_user 4 16020
-seq_buf_to_user 6 16010

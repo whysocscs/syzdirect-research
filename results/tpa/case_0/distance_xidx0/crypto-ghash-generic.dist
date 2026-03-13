@@ -1,9 +1,0 @@
-ghash_mod_exit 0 14010
-ghash_mod_init 0 10010
-ghash_setkey 0 13075
-ghash_setkey 2 13064
-ghash_setkey 3 11020
-ghash_setkey 4 16010
-ghash_setkey 5 11010
-ghash_exit_tfm 0 16020
-ghash_exit_tfm 2 16010

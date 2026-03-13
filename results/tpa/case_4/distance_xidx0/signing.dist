@@ -1,9 +1,0 @@
-mod_verify_sig 0 15100
-mod_verify_sig 2 15090
-mod_verify_sig 4 15080
-module_sig_check 0 15130
-module_sig_check 2 15120
-module_sig_check 4 15110
-module_sig_check 6 15100
-module_sig_check 8 15090
-module_sig_check 11 15080

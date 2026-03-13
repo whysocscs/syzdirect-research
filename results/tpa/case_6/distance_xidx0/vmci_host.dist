@@ -1,7 +1,0 @@
-vmci_host_unlocked_ioctl 0 1220
-vmci_host_unlocked_ioctl 59 1210
-vmci_host_unlocked_ioctl 61 1200
-vmci_host_unlocked_ioctl 62 1190
-vmci_host_unlocked_ioctl 64 1180
-vmci_host_unlocked_ioctl 65 1190
-vmci_host_unlocked_ioctl 67 1180

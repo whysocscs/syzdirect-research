@@ -1,1 +1,0 @@
-SYZFATAL: Manager.Check call failed: machine check failed: mismatching fuzzer/executor git revisions: vs ADDR+

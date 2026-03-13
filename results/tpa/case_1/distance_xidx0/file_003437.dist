@@ -1,8 +1,0 @@
-string_mt_init 0 14090
-string_mt_exit 0 14090
-string_mt_check 0 9130
-string_mt_check 2 9120
-string_mt_check 4 9110
-string_mt_check 6 9100
-string_mt_check 8 9090
-string_mt_destroy 0 21090

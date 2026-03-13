@@ -1,8 +1,0 @@
-vlan_gvrp_request_join 0 10100
-vlan_gvrp_request_join 2 10090
-vlan_gvrp_request_leave 0 16100
-vlan_gvrp_request_leave 2 16090
-vlan_gvrp_init_applicant 0 10090
-vlan_gvrp_uninit_applicant 0 10090
-vlan_gvrp_init 0 12090
-vlan_gvrp_uninit 0 13090

@@ -1,5 +1,0 @@
-curve25519_mod_exit 0 19090
-curve25519_mod_exit 1 19080
-curve25519_mod_init 0 10100
-curve25519_mod_init 2 10090
-curve25519_mod_init 4 10080

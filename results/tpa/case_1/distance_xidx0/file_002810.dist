@@ -1,6 +1,0 @@
-dsa_tag_driver_module_init 0 14090
-dsa_tag_driver_module_exit 0 14090
-qca_tag_rcv 0 10110
-qca_tag_rcv 2 10100
-qca_tag_rcv 4 10090
-qca_tag_connect 0 9090

@@ -1,9 +1,0 @@
-snd_virmidi_probe 0 11120
-snd_virmidi_probe 2 11110
-snd_virmidi_probe 3 11100
-snd_virmidi_probe 4 11110
-snd_virmidi_probe 6 11100
-snd_virmidi_probe 7 11090
-snd_virmidi_probe 8 11080
-snd_virmidi_probe 10 11100
-snd_virmidi_probe 12 11090

@@ -1,8 +1,0 @@
-lzo_mod_fini 0 13010
-lzo_mod_init 0 9010
-lzo_mod_init 2 10010
-lzo_mod_init 4 13010
-lzo_init 0 11010
-lzo_exit 0 15010
-lzo_alloc_ctx 0 11010
-lzo_free_ctx 0 15010

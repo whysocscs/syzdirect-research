@@ -1,3 +1,0 @@
-dccp_sysctl_init 0 11360
-dccp_sysctl_exit 0 13370
-dccp_sysctl_exit 2 13360

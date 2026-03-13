@@ -1,8 +1,0 @@
-vsmp_init 0 17270
-vsmp_init 2 17260
-vsmp_cap_cpus 0 16760
-vsmp_cap_cpus 1 17260
-vsmp_cap_cpus 3 16260
-set_vsmp_ctl 0 17260
-set_vsmp_ctl 1 16270
-set_vsmp_ctl 2 16260

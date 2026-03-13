@@ -1,9 +1,0 @@
-nf_nat_amanda_fini 0 11260
-nf_nat_amanda_init 0 13270
-nf_nat_amanda_init 2 13260
-help 0 9260
-help 1 9260
-help 2 8755
-help 4 8745
-help 6 8260
-help 8 9260

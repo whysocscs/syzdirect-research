@@ -1,8 +1,0 @@
-ebt_redirect_fini 0 14010
-ebt_redirect_init 0 14010
-ebt_redirect_tg 0 8010
-ebt_redirect_tg 2 18828
-ebt_redirect_tg 4 21010
-ebt_redirect_tg 6 17030
-ebt_redirect_tg 8 17020
-ebt_redirect_tg 10 17010

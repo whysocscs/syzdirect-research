@@ -1,6 +1,0 @@
-native_pv_lock_init 0 13270
-native_pv_lock_init 1 13260
-paravirt_set_sched_clock 0 12260
-paravirt_disable_iospace 0 15260
-tlb_remove_page 0 13260
-tlb_remove_page 1 12260

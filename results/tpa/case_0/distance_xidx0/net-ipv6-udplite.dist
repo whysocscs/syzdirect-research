@@ -1,9 +1,0 @@
-udplitev6_sk_init 0 15010
-udplitev6_init 0 14371
-udplitev6_init 2 16010
-udplitev6_init 5 13010
-udplitev6_exit 0 13010
-udplite6_proc_init 0 10010
-udplite6_proc_exit 0 10010
-udplitev6_rcv 0 7010
-udplitev6_err 0 6010

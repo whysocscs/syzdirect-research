@@ -1,3 +1,0 @@
-register_dcbevent_notifier 0 16090
-unregister_dcbevent_notifier 0 12090
-call_dcbevent_notifiers 0 8090

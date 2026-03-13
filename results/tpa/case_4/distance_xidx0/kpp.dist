@@ -1,7 +1,0 @@
-crypto_alloc_kpp 0 9080
-kpp_register_instance 0 9090
-kpp_register_instance 2 9080
-crypto_grab_kpp 0 10080
-crypto_has_kpp 0 10080
-crypto_register_kpp 0 9080
-crypto_unregister_kpp 0 18080

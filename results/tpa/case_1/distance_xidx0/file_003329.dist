@@ -1,4 +1,0 @@
-nft_dup_netdev_module_exit 0 15090
-nft_dup_netdev_module_init 0 15090
-nft_dup_netdev_eval 0 10090
-nft_dup_netdev_offload 0 14090

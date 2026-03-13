@@ -1,3 +1,0 @@
-printk_sysctl_init 0 11360
-proc_dointvec_minmax_sysadmin 0 12370
-proc_dointvec_minmax_sysadmin 2 12360

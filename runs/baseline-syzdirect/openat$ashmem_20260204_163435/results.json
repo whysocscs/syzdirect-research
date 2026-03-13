@@ -1,7 +1,0 @@
-{
-    "run_type": "syzdirect",
-    "run_dir": "/work/runs/baseline-syzdirect/openat$ashmem_20260204_163435",
-    "timestamp": "2026-02-04T16:34:39+09:00",
-    "crashes": 0,
-    "corpus_size": 0
-}

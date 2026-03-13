@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/work/SyzDirect/source/template/template_generator.py", line 437, in <module>
-    with open(args.analysis, 'r') as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/work/runs/baseline-syzdirect/openat$ashmem_20260204_163435/templates/analysis.json'

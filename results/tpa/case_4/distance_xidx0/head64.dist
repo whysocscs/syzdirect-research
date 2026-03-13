@@ -1,4 +1,0 @@
-x86_64_start_kernel 0 7080
-x86_64_start_reservations 0 6090
-x86_64_start_reservations 1 6090
-x86_64_start_reservations 2 6080

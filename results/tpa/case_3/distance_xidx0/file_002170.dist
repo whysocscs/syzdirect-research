@@ -1,6 +1,0 @@
-match_int 0 10360
-match_uint 0 10360
-match_strdup 0 10360
-match_u64 0 10360
-match_octal 0 10360
-match_hex 0 10360

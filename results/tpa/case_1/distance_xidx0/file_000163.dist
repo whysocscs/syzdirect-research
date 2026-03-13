@@ -1,9 +1,0 @@
-flat_init_apic_ldr 0 19090
-flat_send_IPI_mask 0 20090
-flat_send_IPI_mask_allbutself 0 19090
-flat_send_IPI_mask_allbutself 1 20100
-flat_send_IPI_mask_allbutself 2 20090
-default_inquire_remote_apic 0 12100
-default_inquire_remote_apic 1 12090
-_flat_send_IPI_mask 0 19099
-_flat_send_IPI_mask 2 19090

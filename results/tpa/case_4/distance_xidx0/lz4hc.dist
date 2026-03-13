@@ -1,8 +1,0 @@
-lz4hc_mod_fini 0 18080
-lz4hc_mod_init 0 9080
-lz4hc_mod_init 2 10080
-lz4hc_mod_init 4 18080
-lz4hc_init 0 10080
-lz4hc_exit 0 9080
-lz4hc_alloc_ctx 0 10080
-lz4hc_free_ctx 0 9080

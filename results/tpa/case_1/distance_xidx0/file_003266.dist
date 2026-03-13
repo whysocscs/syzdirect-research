@@ -1,3 +1,0 @@
-nf_connlabels_get 0 15100
-nf_connlabels_get 2 15090
-nf_connlabels_put 0 15090

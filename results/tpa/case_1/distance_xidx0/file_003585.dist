@@ -1,3 +1,0 @@
-rxrpc_sysctl_init 0 11090
-rxrpc_sysctl_exit 0 13100
-rxrpc_sysctl_exit 2 13090

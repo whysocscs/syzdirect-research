@@ -1,9 +1,0 @@
-syscall_user_dispatch 0 13447
-syscall_user_dispatch 1 13437
-syscall_user_dispatch 2 13427
-syscall_user_dispatch 3 13423
-syscall_user_dispatch 4 13090
-syscall_user_dispatch 5 13581
-syscall_user_dispatch 6 13090
-syscall_user_dispatch 7 14090
-trigger_sigsys 0 13090

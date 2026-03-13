@@ -1,2 +1,0 @@
-inet_del_protocol 0 11090
-inet_del_offload 0 11090

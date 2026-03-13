@@ -1,2 +1,0 @@
-llc_nop_init 0 14080
-nfc_llc_nop_register 0 15080

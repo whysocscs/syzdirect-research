@@ -1,5 +1,0 @@
-debug_mutex_init 0 12360
-debug_mutex_wake_waiter 0 19369
-debug_mutex_wake_waiter 1 19360
-debug_mutex_add_waiter 0 19369
-debug_mutex_add_waiter 1 19360

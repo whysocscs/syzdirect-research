@@ -1,3 +1,0 @@
-ext4_xattr_trusted_list 0 12260
-ext4_xattr_trusted_get 0 10260
-ext4_xattr_trusted_set 0 9260

@@ -1,4 +1,0 @@
-ceph_auth_none_init 0 9369
-ceph_auth_none_init 1 9369
-ceph_auth_none_init 2 9360
-ceph_auth_none_create_authorizer 0 9360

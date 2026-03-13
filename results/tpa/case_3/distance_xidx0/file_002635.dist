@@ -1,3 +1,0 @@
-register_netevent_notifier 0 15360
-unregister_netevent_notifier 0 12360
-call_netevent_notifiers 0 7360

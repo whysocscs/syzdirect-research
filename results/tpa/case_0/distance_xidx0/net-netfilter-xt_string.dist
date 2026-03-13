@@ -1,8 +1,0 @@
-string_mt_exit 0 14010
-string_mt_init 0 14010
-string_mt_check 0 8050
-string_mt_check 2 8040
-string_mt_check 4 8030
-string_mt_check 6 8020
-string_mt_check 8 8010
-string_mt_destroy 0 20010

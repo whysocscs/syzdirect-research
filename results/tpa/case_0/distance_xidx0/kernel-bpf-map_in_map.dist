@@ -1,8 +1,0 @@
-bpf_map_meta_free 0 13010
-bpf_map_fd_put_ptr 0 13010
-bpf_map_meta_alloc 0 10963
-bpf_map_meta_alloc 2 10953
-bpf_map_meta_alloc 6 10943
-bpf_map_meta_alloc 10 10933
-bpf_map_meta_alloc 14 10010
-bpf_map_meta_alloc 18 12010

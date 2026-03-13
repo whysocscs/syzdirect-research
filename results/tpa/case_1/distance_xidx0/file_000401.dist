@@ -1,7 +1,0 @@
-relocate_restore_code 0 15090
-arch_resume_nosmt 0 14090
-arch_resume_nosmt 1 14100
-arch_resume_nosmt 2 9090
-arch_resume_nosmt 3 14100
-arch_resume_nosmt 4 9090
-arch_resume_nosmt 5 14090

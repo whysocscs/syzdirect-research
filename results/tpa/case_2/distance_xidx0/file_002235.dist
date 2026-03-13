@@ -1,9 +1,0 @@
-check_preemption_disabled 0 16789
-check_preemption_disabled 1 16779
-check_preemption_disabled 2 16769
-check_preemption_disabled 3 16769
-check_preemption_disabled 4 16759
-check_preemption_disabled 5 16260
-check_preemption_disabled 6 17260
-__this_cpu_preempt_check 0 17260
-debug_smp_processor_id 0 17260

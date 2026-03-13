@@ -1,4 +1,0 @@
-ax25_register_dev_sysctl 0 13090
-ax25_register_dev_sysctl 2 13080
-ax25_unregister_dev_sysctl 0 13090
-ax25_unregister_dev_sysctl 2 13080

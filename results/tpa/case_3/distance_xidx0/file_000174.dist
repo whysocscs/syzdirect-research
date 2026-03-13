@@ -1,8 +1,0 @@
-pvclock_touch_watchdogs 0 19360
-pvclock_clocksource_read 0 20389
-pvclock_clocksource_read 1 20380
-pvclock_clocksource_read 2 20370
-pvclock_clocksource_read 3 20360
-pvclock_read_wallclock 0 21380
-pvclock_read_wallclock 1 21370
-pvclock_read_wallclock 2 21360

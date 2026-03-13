@@ -1,4 +1,0 @@
-ip_vs_sip_cleanup 0 9080
-ip_vs_sip_init 0 22080
-ip_vs_sip_conn_out 0 15090
-ip_vs_sip_conn_out 2 15080

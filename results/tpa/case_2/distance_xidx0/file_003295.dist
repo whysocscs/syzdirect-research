@@ -1,9 +1,0 @@
-nflog_tg_exit 0 13260
-nflog_tg_init 0 13260
-nflog_tg 0 8260
-nflog_tg_check 0 8084
-nflog_tg_check 2 8073
-nflog_tg_check 4 11260
-nflog_tg_check 6 6270
-nflog_tg_check 8 6260
-nflog_tg_destroy 0 11260

@@ -1,6 +1,0 @@
-sctp_tsnmap_init 0 10020
-sctp_tsnmap_init 1 10010
-sctp_tsnmap_mark 0 10040
-sctp_tsnmap_mark 2 10030
-sctp_tsnmap_mark 4 10020
-sctp_tsnmap_mark 6 10010

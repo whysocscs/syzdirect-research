@@ -1,5 +1,0 @@
-v9fs_xattr_get 0 14080
-v9fs_xattr_set 0 14080
-v9fs_listxattr 0 15080
-v9fs_xattr_handler_get 0 15080
-v9fs_xattr_handler_set 0 15080

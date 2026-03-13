@@ -1,8 +1,0 @@
-ima_read_modsig 0 10520
-ima_read_modsig 2 10510
-ima_read_modsig 4 10500
-ima_read_modsig 6 10010
-ima_read_modsig 8 11010
-ima_collect_modsig 0 12020
-ima_collect_modsig 2 12010
-ima_modsig_verify 0 13010

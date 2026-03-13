@@ -1,7 +1,0 @@
-xfs_sysctl_register 0 11090
-xfs_sysctl_unregister 0 12090
-xfs_deprecated_dointvec_minmax 0 16100
-xfs_deprecated_dointvec_minmax 2 16090
-xfs_stats_clear_proc_handler 0 21110
-xfs_stats_clear_proc_handler 2 21100
-xfs_stats_clear_proc_handler 4 21090

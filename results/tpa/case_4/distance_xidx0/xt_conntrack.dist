@@ -1,5 +1,0 @@
-conntrack_mt_exit 0 22080
-conntrack_mt_destroy 0 22080
-conntrack_mt_init 0 22080
-conntrack_mt_check 0 15080
-conntrack_mt_check 2 21080

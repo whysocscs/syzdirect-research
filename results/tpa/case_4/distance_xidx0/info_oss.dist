@@ -1,5 +1,0 @@
-snd_oss_info_register 0 21100
-snd_oss_info_register 2 21090
-snd_oss_info_register 4 21080
-snd_sndstat_proc_read 0 22080
-snd_sndstat_show_strings 0 21080

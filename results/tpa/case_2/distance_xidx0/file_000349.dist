@@ -1,5 +1,0 @@
-blk_integrity_unregister 0 12270
-blk_integrity_unregister 2 12260
-blk_integrity_add 0 12260
-blk_integrity_add 2 7260
-blk_integrity_del 0 7260

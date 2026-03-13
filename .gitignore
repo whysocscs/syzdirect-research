@@ -21,6 +21,21 @@
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # OS
 .DS_Store
+
+# Local runtime / dependencies
+.runtime/
+deps/
+
+# Generated experiment artifacts
+logs/
+runs/
+results/
+B*_crashes/
+*.qcow2
+*.img
+bzImage
+vmlinux

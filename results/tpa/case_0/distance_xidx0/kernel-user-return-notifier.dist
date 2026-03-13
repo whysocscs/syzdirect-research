@@ -1,9 +1,0 @@
-user_return_notifier_register 0 19010
-user_return_notifier_unregister 0 19030
-user_return_notifier_unregister 1 19020
-user_return_notifier_unregister 2 19020
-user_return_notifier_unregister 3 19010
-fire_user_return_notifiers 0 19010
-fire_user_return_notifiers 2 20020
-fire_user_return_notifiers 3 20010
-fire_user_return_notifiers 4 20020

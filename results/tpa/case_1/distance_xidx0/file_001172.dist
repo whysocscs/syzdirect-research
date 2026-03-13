@@ -1,8 +1,0 @@
-jffs2_init_security 0 11090
-jffs2_initxattrs 0 10110
-jffs2_initxattrs 1 10100
-jffs2_initxattrs 3 10110
-jffs2_initxattrs 4 10100
-jffs2_initxattrs 6 10090
-jffs2_security_getxattr 0 11090
-jffs2_security_setxattr 0 10090

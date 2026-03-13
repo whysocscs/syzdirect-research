@@ -1,7 +1,0 @@
-netlbl_netlink_init 0 8080
-netlbl_netlink_init 2 8080
-netlbl_netlink_init 4 8080
-netlbl_netlink_init 6 8080
-netlbl_audit_start_common 0 14100
-netlbl_audit_start_common 2 14090
-netlbl_audit_start_common 4 14080

@@ -1,4 +1,0 @@
-ebt_mark_init 0 13260
-mark_tg_compat_to_user 0 14260
-mark_tg_compat_to_user 2 14260
-ebt_mark_fini 0 13260

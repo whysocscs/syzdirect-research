@@ -1,9 +1,0 @@
-trace_seq_bprintf 0 15040
-trace_seq_bprintf 2 15030
-trace_seq_bprintf 3 15020
-trace_seq_bprintf 4 15020
-trace_seq_bprintf 5 15010
-trace_seq_to_user 0 17030
-trace_seq_to_user 1 17020
-trace_seq_to_user 2 17020
-trace_seq_to_user 3 17010

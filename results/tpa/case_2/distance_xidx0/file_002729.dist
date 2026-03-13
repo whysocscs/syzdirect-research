@@ -1,8 +1,0 @@
-ethtool_get_max_rxfh_channel 0 8163
-ethtool_get_max_rxfh_channel 2 8152
-ethtool_get_max_rxfh_channel 4 7260
-ethtool_get_max_rxfh_channel 6 9260
-__ethtool_get_link 0 7280
-__ethtool_get_link 2 7270
-__ethtool_get_link 4 7260
-ethtool_set_ethtool_phy_ops 0 8260

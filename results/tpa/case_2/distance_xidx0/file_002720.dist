@@ -1,9 +1,0 @@
-brcm_tag_rcv_ll 0 6280
-brcm_tag_rcv_ll 2 6270
-brcm_tag_rcv_ll 4 6260
-brcm_tag_xmit 0 7260
-brcm_tag_rcv 0 7260
-brcm_tag_xmit_ll 0 6270
-brcm_tag_xmit_ll 2 6260
-brcm_tag_xmit_prepend 0 7260
-brcm_tag_rcv_prepend 0 7260

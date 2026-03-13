@@ -1,9 +1,0 @@
-x25_parse_facilities 0 7039
-x25_parse_facilities 1 7040
-x25_parse_facilities 2 7039
-x25_parse_facilities 4 7010
-x25_parse_facilities 6 7040
-x25_parse_facilities 7 7030
-x25_parse_facilities 9 7020
-x25_parse_facilities 11 7010
-x25_negotiate_facilities 0 8010

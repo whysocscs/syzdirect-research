@@ -1,7 +1,0 @@
-regset_get 0 12100
-regset_get 2 12090
-regset_get 4 12080
-regset_get_alloc 0 12090
-regset_get_alloc 2 12080
-copy_regset_to_user 0 12090
-copy_regset_to_user 2 12080

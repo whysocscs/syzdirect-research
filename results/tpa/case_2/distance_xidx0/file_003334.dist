@@ -1,6 +1,0 @@
-nfacct_mt_exit 0 13260
-nfacct_mt_init 0 13260
-nfacct_mt 0 6260
-nfacct_mt_checkentry 0 11260
-nfacct_mt_checkentry 1 15260
-nfacct_mt_destroy 0 12260

@@ -1,3 +1,0 @@
-pci_map_biosrom 0 11090
-pci_map_biosrom 1 11080
-pci_unmap_biosrom 0 17080

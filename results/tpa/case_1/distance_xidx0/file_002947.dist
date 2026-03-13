@@ -1,9 +1,0 @@
-dctcp_unregister 0 12090
-dctcp_register 0 10090
-dctcp_register 2 16090
-dctcp_cwnd_event 0 10130
-dctcp_cwnd_event 1 10120
-dctcp_cwnd_event 2 10120
-dctcp_cwnd_event 4 10110
-dctcp_cwnd_event 6 10100
-dctcp_cwnd_event 8 10090

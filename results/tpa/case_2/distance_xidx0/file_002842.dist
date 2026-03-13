@@ -1,7 +1,0 @@
-rtm_getroute_parse_ip_proto 0 18280
-rtm_getroute_parse_ip_proto 3 18270
-rtm_getroute_parse_ip_proto 4 18280
-rtm_getroute_parse_ip_proto 5 18270
-rtm_getroute_parse_ip_proto 7 18280
-rtm_getroute_parse_ip_proto 8 18270
-rtm_getroute_parse_ip_proto 10 18260

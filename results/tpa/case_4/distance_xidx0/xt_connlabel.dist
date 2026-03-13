@@ -1,9 +1,0 @@
-connlabel_mt_exit 0 22080
-connlabel_mt_init 0 22080
-connlabel_mt_check 0 19708
-connlabel_mt_check 1 21080
-connlabel_mt_check 4 15080
-connlabel_mt_check 5 21080
-connlabel_mt_check 8 21080
-connlabel_mt_check 10 22080
-connlabel_mt_destroy 0 21080

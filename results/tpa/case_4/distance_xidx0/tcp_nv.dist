@@ -1,5 +1,0 @@
-tcpnv_unregister 0 10080
-tcpnv_register 0 21080
-tcpnv_init 0 25094
-tcpnv_init 2 25080
-tcpnv_init 4 25080

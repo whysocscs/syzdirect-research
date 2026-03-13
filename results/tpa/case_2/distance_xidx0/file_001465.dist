@@ -1,9 +1,0 @@
-proc_setup_self 0 10260
-proc_setup_self 1 11270
-proc_setup_self 2 8260
-proc_setup_self 3 11260
-proc_setup_self 4 11260
-proc_setup_self 5 11260
-proc_self_init 0 11260
-proc_self_get_link 0 11260
-proc_self_get_link 2 9260

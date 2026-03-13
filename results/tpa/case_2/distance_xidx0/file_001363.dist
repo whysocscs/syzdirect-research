@@ -1,8 +1,0 @@
-mlog_sys_init 0 8280
-mlog_sys_init 1 8290
-mlog_sys_init 2 8270
-mlog_sys_init 3 8280
-mlog_sys_init 4 8290
-mlog_sys_init 5 8270
-mlog_sys_init 6 8260
-mlog_sys_shutdown 0 10260

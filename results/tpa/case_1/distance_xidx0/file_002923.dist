@@ -1,3 +1,0 @@
-nf_nat_snmp_basic_fini 0 11090
-nf_nat_snmp_basic_init 0 14100
-nf_nat_snmp_basic_init 2 14090

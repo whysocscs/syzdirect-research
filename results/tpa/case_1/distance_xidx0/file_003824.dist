@@ -1,6 +1,0 @@
-wext_proc_init 0 11090
-wext_proc_exit 0 11090
-wireless_dev_seq_start 0 14090
-wireless_dev_seq_stop 0 10090
-wireless_dev_seq_show 0 20090
-wireless_dev_seq_show 2 14090

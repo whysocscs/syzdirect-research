@@ -1,9 +1,0 @@
-udplite_sk_init 0 14260
-udplite4_proc_init_net 0 11260
-udplite4_proc_exit_net 0 11260
-udplite4_register 0 10260
-udplite4_register 2 10561
-udplite4_register 3 9260
-udplite4_register 6 12260
-udplite_rcv 0 6260
-udplite_err 0 5260

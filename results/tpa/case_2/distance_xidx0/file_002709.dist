@@ -1,7 +1,0 @@
-devm_alloc_etherdev_mqs 0 8270
-devm_alloc_etherdev_mqs 2 8260
-devm_free_netdev 0 7260
-devm_register_netdev 0 8280
-devm_register_netdev 2 8270
-devm_register_netdev 4 8260
-devm_unregister_netdev 0 8260

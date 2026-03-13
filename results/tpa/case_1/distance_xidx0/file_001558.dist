@@ -1,5 +1,0 @@
-proc_uptime_init 0 10090
-uptime_proc_show 0 14455
-uptime_proc_show 1 14445
-uptime_proc_show 2 13090
-uptime_proc_show 3 16090

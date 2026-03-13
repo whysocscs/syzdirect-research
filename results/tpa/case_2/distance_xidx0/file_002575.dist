@@ -1,7 +1,0 @@
-ebtable_filter_fini 0 9260
-ebtable_filter_init 0 10260
-ebtable_filter_init 2 9260
-ebtable_filter_init 4 13260
-frame_filter_net_pre_exit 0 10260
-frame_filter_net_exit 0 9260
-frame_filter_table_init 0 8260

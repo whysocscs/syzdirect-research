@@ -1,7 +1,0 @@
-checksum_tg_exit 0 14010
-checksum_tg_init 0 14010
-checksum_tg 0 8030
-checksum_tg 2 8020
-checksum_tg 4 8010
-checksum_tg_check 0 16020
-checksum_tg_check 1 16010

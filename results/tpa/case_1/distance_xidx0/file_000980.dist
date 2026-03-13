@@ -1,4 +1,0 @@
-ext4_xattr_hurd_get 0 10100
-ext4_xattr_hurd_get 2 10090
-ext4_xattr_hurd_set 0 11100
-ext4_xattr_hurd_set 2 11090

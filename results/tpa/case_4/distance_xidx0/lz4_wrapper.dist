@@ -1,6 +1,0 @@
-lz4_free 0 9090
-lz4_free 2 9080
-lz4_init 0 14080
-lz4_init 2 10080
-lz4_init 4 10080
-lz4_init 6 9080

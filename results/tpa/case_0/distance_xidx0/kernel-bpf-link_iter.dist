@@ -1,9 +1,0 @@
-bpf_link_iter_init 0 11010
-bpf_link_seq_start 0 16010
-bpf_link_seq_stop 0 10309
-bpf_link_seq_stop 1 12020
-bpf_link_seq_stop 3 12010
-bpf_link_seq_stop 5 9010
-bpf_link_seq_next 0 9010
-bpf_link_seq_show 0 12020
-bpf_link_seq_show 2 12010

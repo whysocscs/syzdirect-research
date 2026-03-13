@@ -1,6 +1,0 @@
-ip_misc_proc_init 0 10010
-sockstat_seq_show 0 16010
-netstat_seq_show 0 10030
-netstat_seq_show 1 10020
-netstat_seq_show 2 10030
-netstat_seq_show 3 10010

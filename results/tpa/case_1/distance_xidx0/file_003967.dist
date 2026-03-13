@@ -1,8 +1,0 @@
-snd_info_minor_register 0 11090
-snd_info_minor_register 2 11090
-snd_sndstat_proc_read 0 14090
-snd_sndstat_show_strings 0 13090
-snd_oss_info_register 0 11422
-snd_oss_info_register 2 11412
-snd_oss_info_register 4 13090
-snd_oss_info_register 6 10090

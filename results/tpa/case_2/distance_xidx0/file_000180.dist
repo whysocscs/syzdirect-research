@@ -1,9 +1,0 @@
-init_ISA_irqs 0 12260
-init_ISA_irqs 1 10260
-init_IRQ 0 8065
-init_IRQ 1 8065
-init_IRQ 2 11260
-init_IRQ 4 6260
-native_init_IRQ 0 6260
-native_init_IRQ 1 10270
-native_init_IRQ 2 10260

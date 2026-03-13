@@ -1,5 +1,0 @@
-register_8022_client 0 9260
-register_8022_client 2 10260
-p8022_request 0 6260
-unregister_8022_client 0 12270
-unregister_8022_client 4 12260

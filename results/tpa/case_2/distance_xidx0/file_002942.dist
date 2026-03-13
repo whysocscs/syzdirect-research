@@ -1,6 +1,0 @@
-ip6t_npt_exit 0 13260
-ip6t_npt_init 0 13260
-ip6t_snpt_tg 0 8270
-ip6t_snpt_tg 1 8260
-ip6t_dnpt_tg 0 8270
-ip6t_dnpt_tg 1 8260

@@ -1,4 +1,0 @@
-ebt_vlan_fini 0 13360
-ebt_vlan_init 0 13370
-ebt_vlan_init 1 13370
-ebt_vlan_init 2 13360

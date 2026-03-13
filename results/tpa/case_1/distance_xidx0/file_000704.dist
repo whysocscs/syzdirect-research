@@ -1,3 +1,0 @@
-autofs_mount 0 9090
-exit_autofs_fs 0 12090
-init_autofs_fs 0 16090

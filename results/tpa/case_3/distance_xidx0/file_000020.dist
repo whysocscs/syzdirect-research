@@ -1,5 +1,0 @@
-serpent_avx2_fini 0 14360
-serpent_avx2_init 0 10390
-serpent_avx2_init 2 10380
-serpent_avx2_init 5 10370
-serpent_avx2_init 7 10360

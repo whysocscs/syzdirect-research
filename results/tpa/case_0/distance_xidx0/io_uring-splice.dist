@@ -1,8 +1,0 @@
-io_tee 0 15468
-io_tee 2 15458
-io_tee 3 13010
-io_tee 4 19010
-io_splice 0 15468
-io_splice 2 15458
-io_splice 3 13010
-io_splice 4 19010

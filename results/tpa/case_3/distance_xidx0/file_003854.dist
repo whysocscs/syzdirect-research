@@ -1,9 +1,0 @@
-copy_to_user_fromio 0 15380
-copy_to_user_fromio 1 15370
-copy_to_user_fromio 3 15360
-copy_to_user_fromio 5 15380
-copy_from_user_toio 0 15380
-copy_from_user_toio 1 15370
-copy_from_user_toio 3 15360
-copy_from_user_toio 5 15380
-copy_from_user_toio 6 15370

@@ -1,8 +1,0 @@
-nf_conntrack_sane_fini 0 12090
-nf_conntrack_sane_init 0 13130
-nf_conntrack_sane_init 1 13120
-nf_conntrack_sane_init 2 13120
-nf_conntrack_sane_init 3 13110
-nf_conntrack_sane_init 4 13100
-nf_conntrack_sane_init 5 13110
-nf_conntrack_sane_init 6 13090

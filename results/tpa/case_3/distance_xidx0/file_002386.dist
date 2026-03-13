@@ -1,8 +1,0 @@
-vlan_mvrp_request_join 0 10370
-vlan_mvrp_request_join 2 10360
-vlan_mvrp_request_leave 0 15370
-vlan_mvrp_request_leave 2 15360
-vlan_mvrp_init_applicant 0 9360
-vlan_mvrp_uninit_applicant 0 7360
-vlan_mvrp_init 0 16360
-vlan_mvrp_uninit 0 12360

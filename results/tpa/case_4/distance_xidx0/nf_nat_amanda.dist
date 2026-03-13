@@ -1,3 +1,0 @@
-nf_nat_amanda_fini 0 9080
-nf_nat_amanda_init 0 22090
-nf_nat_amanda_init 2 22080

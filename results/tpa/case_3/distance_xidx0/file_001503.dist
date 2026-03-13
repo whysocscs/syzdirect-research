@@ -1,6 +1,0 @@
-squashfs_decompressor_create 0 9360
-squashfs_decompressor_create 2 10360
-squashfs_decompressor_create 4 14360
-squashfs_decompressor_destroy 0 5370
-squashfs_decompressor_destroy 2 5360
-squashfs_decompress 0 11360

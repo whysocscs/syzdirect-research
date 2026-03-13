@@ -1,4 +1,0 @@
-utsname_sysctl_init 0 14080
-proc_do_uts_string 0 20080
-proc_do_uts_string 2 16080
-uts_proc_notify 0 16080

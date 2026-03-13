@@ -1,3 +1,0 @@
-memremap 0 16010
-devm_memremap 0 17020
-devm_memremap 2 17010

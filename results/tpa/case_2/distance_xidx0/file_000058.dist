@@ -1,8 +1,0 @@
-twofish_3way_fini 0 13260
-twofish_3way_init 0 9280
-twofish_3way_init 1 9270
-twofish_3way_init 2 9280
-twofish_3way_init 4 9270
-twofish_3way_init 5 9280
-twofish_3way_init 9 9270
-twofish_3way_init 11 9260

@@ -1,4 +1,0 @@
-bpf_tcp_send_ack 0 6080
-bpf_tcp_ca_reg 0 21080
-bpf_tcp_ca_unreg 0 10080
-bpf_tcp_ca_kfunc_init 0 14080

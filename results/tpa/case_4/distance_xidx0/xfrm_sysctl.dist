@@ -1,6 +1,0 @@
-xfrm_sysctl_init 0 13110
-xfrm_sysctl_init 2 13100
-xfrm_sysctl_init 3 13090
-xfrm_sysctl_init 4 13090
-xfrm_sysctl_init 5 13080
-xfrm_sysctl_fini 0 13080

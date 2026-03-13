@@ -1,4 +1,0 @@
-usb6fire_comm_init 0 14080
-usb6fire_comm_init 2 14080
-usb6fire_comm_write8 0 14080
-usb6fire_comm_write16 0 14080

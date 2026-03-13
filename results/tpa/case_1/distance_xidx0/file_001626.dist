@@ -1,4 +1,0 @@
-squashfs_read_fragment_index_table 0 10100
-squashfs_read_fragment_index_table 2 10090
-squashfs_frag_lookup 0 12100
-squashfs_frag_lookup 2 12090

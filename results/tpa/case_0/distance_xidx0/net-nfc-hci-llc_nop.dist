@@ -1,3 +1,0 @@
-nfc_llc_nop_register 0 11010
-llc_nop_init 0 10010
-llc_nop_rcv_from_drv 0 8010

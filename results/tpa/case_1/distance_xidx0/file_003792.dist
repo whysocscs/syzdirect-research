@@ -1,6 +1,0 @@
-unix_sysctl_register 0 10580
-unix_sysctl_register 1 11100
-unix_sysctl_register 2 10090
-unix_sysctl_register 4 11100
-unix_sysctl_register 5 11090
-unix_sysctl_unregister 0 13090

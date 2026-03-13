@@ -1,6 +1,0 @@
-Warning: Permanently added '[localhost]:50068' (ED25519) to the list of known hosts.
-2026/02/26 14:10:08 fuzzer started
-2026/02/26 14:10:13 dialing manager at localhost:44847
-2026/02/26 14:10:13 checking machine...
-2026/02/26 14:10:13 checking revisions...
-2026/02/26 14:10:13 SYZFATAL: Manager.Check call failed: machine check failed: mismatching fuzzer/executor git revisions:  vs 02c9a6504a757e6cec0f10202624d175aa474d94+

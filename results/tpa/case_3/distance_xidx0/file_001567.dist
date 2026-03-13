@@ -1,8 +1,0 @@
-ubifs_sysfs_register 0 9360
-ubifs_sysfs_register 2 11287
-ubifs_sysfs_register 4 12360
-ubifs_sysfs_register 6 10360
-ubifs_sysfs_unregister 0 9360
-ubifs_sysfs_init 0 8360
-ubifs_sysfs_exit 0 10360
-ubifs_sb_release 0 11360

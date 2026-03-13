@@ -1,5 +1,0 @@
-create_init_pkru_value 0 12100
-create_init_pkru_value 1 12100
-create_init_pkru_value 2 12090
-init_pkru_read_file 0 17090
-init_pkru_write_file 0 16090

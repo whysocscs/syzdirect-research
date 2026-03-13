@@ -1,5 +1,0 @@
-go_to_protected_mode 0 9120
-go_to_protected_mode 1 9110
-go_to_protected_mode 2 9110
-go_to_protected_mode 3 9100
-go_to_protected_mode 4 9090

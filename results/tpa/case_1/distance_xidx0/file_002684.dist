@@ -1,7 +1,0 @@
-cfvidl_create 0 9090
-cfvidl_receive 0 11090
-cfvidl_receive 1 11090
-cfvidl_receive 2 6090
-cfvidl_transmit 0 7873
-cfvidl_transmit 1 11090
-cfvidl_transmit 2 6090

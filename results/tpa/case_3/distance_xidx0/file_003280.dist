@@ -1,7 +1,0 @@
-connbytes_mt_exit 0 13360
-connbytes_mt_init 0 13360
-connbytes_mt_check 0 10851
-connbytes_mt_check 2 10840
-connbytes_mt_check 4 8360
-connbytes_mt_check 6 15360
-connbytes_mt_destroy 0 10360

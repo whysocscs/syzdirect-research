@@ -1,7 +1,0 @@
-nhpoly1305_mod_exit 0 13260
-nhpoly1305_mod_init 0 9260
-nhpoly1305_sse2_update 0 19290
-nhpoly1305_sse2_update 2 19280
-nhpoly1305_sse2_update 4 19270
-nhpoly1305_sse2_update 6 19260
-nhpoly1305_sse2_update 7 19270

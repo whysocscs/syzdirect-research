@@ -1,8 +1,0 @@
-ksys_ioperm 0 12130
-ksys_ioperm 1 12120
-ksys_ioperm 2 12110
-ksys_ioperm 3 12100
-ksys_ioperm 5 12090
-ksys_ioperm 6 12080
-__x64_sys_ioperm 0 13080
-__ia32_sys_ioperm 0 13080

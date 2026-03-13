@@ -1,8 +1,0 @@
-io_epoll_ctl_prep 0 15410
-io_epoll_ctl_prep 1 15400
-io_epoll_ctl_prep 2 15400
-io_epoll_ctl_prep 3 15390
-io_epoll_ctl_prep 5 15380
-io_epoll_ctl_prep 7 15370
-io_epoll_ctl_prep 9 15360
-io_epoll_ctl 0 9360

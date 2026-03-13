@@ -1,9 +1,0 @@
-ksysfs_init 0 11080
-ksysfs_init 2 11100
-ksysfs_init 3 11090
-ksysfs_init 4 11110
-ksysfs_init 6 11100
-ksysfs_init 8 11090
-ksysfs_init 9 11080
-kexec_crash_size_store 0 15090
-kexec_crash_size_store 2 15080

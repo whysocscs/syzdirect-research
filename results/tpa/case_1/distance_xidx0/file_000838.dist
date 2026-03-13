@@ -1,4 +1,0 @@
-cifs_genl_init 0 10090
-cifs_genl_init 2 16090
-cifs_genl_exit 0 11090
-cifs_genl_exit 2 16090

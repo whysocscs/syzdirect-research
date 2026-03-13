@@ -1,5 +1,0 @@
-pci_iommu_alloc 0 6090
-pci_iommu_alloc 1 6090
-pci_iommu_alloc 2 6080
-pci_iommu_init 0 1080
-pci_iommu_init 2 17080

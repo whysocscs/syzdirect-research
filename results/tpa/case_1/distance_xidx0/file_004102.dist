@@ -1,8 +1,0 @@
-snd_usb_audio_create_proc 0 11090
-snd_usb_proc_pcm_format_add 0 11090
-proc_pcm_format_read 0 14109
-proc_pcm_format_read 1 14110
-proc_pcm_format_read 2 14090
-proc_pcm_format_read 3 14100
-proc_pcm_format_read 5 14090
-proc_dump_substream_status 0 13090

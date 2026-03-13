@@ -1,7 +1,0 @@
-jffs2_lzo_init 0 12360
-jffs2_lzo_init 2 15360
-jffs2_lzo_init 4 11360
-alloc_workspace 0 11360
-alloc_workspace 2 11360
-jffs2_lzo_exit 0 11360
-jffs2_lzo_compress 0 12360

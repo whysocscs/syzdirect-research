@@ -1,5 +1,0 @@
-ax25_std_nr_error_recovery 0 8010
-ax25_std_establish_data_link 0 8010
-ax25_std_transmit_enquiry 0 8010
-ax25_std_enquiry_response 0 8010
-ax25_std_timeout_response 0 8010

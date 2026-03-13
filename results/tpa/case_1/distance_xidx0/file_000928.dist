@@ -1,9 +1,0 @@
-erofs_register_sysfs 0 12090
-erofs_register_sysfs 2 11090
-erofs_sb_release 0 13090
-erofs_unregister_sysfs 0 11100
-erofs_unregister_sysfs 2 11090
-erofs_init_sysfs 0 12090
-erofs_init_sysfs 2 12090
-erofs_init_sysfs 4 11090
-erofs_exit_sysfs 0 11090
