@@ -8,24 +8,22 @@ Based on the SyzDirect paper:
 - Argument condition refinement (code condition ↔ Syzlang condition matching)
 """
 
-import os
 import re
-import json
 import subprocess
+import sys
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Set, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 
-@dataclass
-class TargetInfo:
-    """Target code location specification"""
-    target_id: str
-    kernel_commit: str
-    file_path: str
-    function: Optional[str] = None
-    line: Optional[int] = None
-    target_type: str = "bug_repro"  # bug_repro | patch_test
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.target_spec import TargetSpec, load_target_spec
+
+
+TargetInfo = TargetSpec
 
 
 @dataclass
@@ -33,7 +31,7 @@ class SyscallVariant:
     """Syscall variant with refined arguments"""
     name: str
     syzlang_name: str
-    arguments: Dict[str, any] = field(default_factory=dict)
+    arguments: Dict[str, object] = field(default_factory=dict)
     constraints: List[str] = field(default_factory=list)
     resource_type: Optional[str] = None  # e.g., "fd", "sock", "file"
     operation_type: Optional[str] = None  # e.g., "read", "write", "ioctl"
@@ -46,7 +44,7 @@ class Template:
     entry_syscall: SyscallVariant
     related_syscalls: List[SyscallVariant] = field(default_factory=list)
     sequence_order: List[str] = field(default_factory=list)
-    constraints: Dict[str, any] = field(default_factory=dict)
+    constraints: Dict[str, object] = field(default_factory=dict)
 
 
 class SyscallAnalyzer:
@@ -350,9 +348,7 @@ class SyscallAnalyzer:
 
 def load_target(target_file: str) -> TargetInfo:
     """Load target specification from JSON file."""
-    with open(target_file, 'r') as f:
-        data = json.load(f)
-    return TargetInfo(**data)
+    return load_target_spec(target_file)
 
 
 def save_templates(templates: List[Template], output_file: str):

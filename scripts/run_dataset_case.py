@@ -14,7 +14,6 @@ This wrapper turns a public SyzDirect dataset case ID into:
 from __future__ import annotations
 
 import argparse
-import getpass
 import difflib
 import html
 import json
@@ -30,6 +29,13 @@ import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable, Optional
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.target_spec import TargetSpec, load_target_spec
 
 
 SYZBOT_ROOT = "https://syzkaller.appspot.com"
@@ -839,34 +845,27 @@ def augment_known_bug_case(case: DatasetCase, case_dir: Path) -> DatasetCase:
 
 
 def build_target_spec(case: DatasetCase) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "target_id": f"syzdirect_{case.dataset_kind}_case_{case.case_id}",
-        "kernel_commit": case.kernel_commit or "",
-        "file_path": case.file_path,
-        "line": case.line or 0,
-        "target_type": "syzdirect_dataset_case",
-        "description": case.bug_title or case.position,
-        "notes": f"SyzDirect {case.dataset_kind} dataset case {case.case_id}",
-    }
-    if case.target_function:
-        payload["function"] = case.target_function
-    if case.syzbot_bug_id:
-        payload["syzbot_bug_id"] = case.syzbot_bug_id
-    if case.fix_commit:
-        payload["fix_commit"] = case.fix_commit
-    if case.cause_commit:
-        payload["cause_commit"] = case.cause_commit
-    if case.patch_commit:
-        payload["patch_commit"] = case.patch_commit
-    if case.patch_type:
-        payload["patch_type"] = case.patch_type
-    if case.entry_syscalls:
-        payload["entry_syscalls"] = case.entry_syscalls
-    if case.related_syscalls:
-        payload["related_syscalls"] = case.related_syscalls
-    if case.sequence:
-        payload["sequence"] = case.sequence
-    return payload
+    if not case.kernel_commit:
+        raise ValueError(f"case {case.case_id} is missing kernel_commit; cannot build target spec")
+
+    return TargetSpec(
+        target_id=f"syzdirect_{case.dataset_kind}_case_{case.case_id}",
+        kernel_commit=case.kernel_commit,
+        file_path=case.file_path,
+        function=case.target_function,
+        line=case.line,
+        target_type="syzdirect_dataset_case",
+        description=case.bug_title or case.position,
+        notes=f"SyzDirect {case.dataset_kind} dataset case {case.case_id}",
+        syzbot_bug_id=case.syzbot_bug_id,
+        fix_commit=case.fix_commit,
+        cause_commit=case.cause_commit,
+        patch_commit=case.patch_commit,
+        patch_type=case.patch_type,
+        entry_syscalls=list(case.entry_syscalls),
+        related_syscalls=list(case.related_syscalls),
+        sequence=list(case.sequence),
+    ).to_dict()
 
 
 def prepare_kernel_source(case_dir: Path, commit: str) -> Optional[Path]:
@@ -1043,16 +1042,13 @@ def find_existing_kernel_config(case_dir: Path, output_root: Path) -> Optional[P
     return config_path
 
 
-def resolve_sudo_password(prompt_reason: str = "image build") -> Optional[str]:
+def resolve_sudo_password(password_file: Optional[Path]) -> Optional[str]:
     env_password = os.environ.get("SUDO_PASSWORD")
     if env_password:
         return env_password
-    if sys.stdin.isatty():
-        try:
-            return getpass.getpass(f"sudo password for {prompt_reason} (leave empty to skip): ")
-        except EOFError:
-            return None
-    return None
+    if not password_file:
+        return None
+    return password_file.read_text(encoding="utf-8").rstrip("\r\n")
 
 
 def ensure_vm_assets(
@@ -1225,7 +1221,51 @@ def run_analysis_pipeline(repo_root: Path, kernel_src: Path, target_json: Path, 
 
 
 def build_target_spec_from_file(path: Path) -> dict[str, object]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return load_target_spec(path).to_dict()
+
+
+def ensure_preflight_requirements(
+    args: argparse.Namespace,
+    env_data: dict[str, object],
+    *,
+    sudo_password: Optional[str],
+) -> None:
+    problems: list[str] = []
+
+    commands = env_data["commands"]
+    if not commands.get("python3"):
+        problems.append("python3 is required")
+    if not commands.get("git"):
+        problems.append("git is required")
+
+    if not args.skip_fuzzer_build and env_data["missing_for_fuzzer_build"]:
+        missing = ", ".join(env_data["missing_for_fuzzer_build"])
+        problems.append(f"missing fuzzer build commands: {missing}")
+
+    needs_kernel_build = not args.skip_kernel_build and args.kernel_build_dir is None
+    if needs_kernel_build and env_data["missing_for_kernel_build"]:
+        missing = ", ".join(env_data["missing_for_kernel_build"])
+        problems.append(f"missing kernel build commands: {missing}")
+
+    needs_image_build = args.image is None or args.ssh_key is None
+    if needs_image_build and env_data["missing_for_image_build"]:
+        missing = ", ".join(env_data["missing_for_image_build"])
+        problems.append(f"missing image build commands: {missing}")
+
+    if not args.prepare_only and env_data["missing_for_fuzz_run"]:
+        missing = ", ".join(env_data["missing_for_fuzz_run"])
+        problems.append(f"missing runtime commands: {missing}")
+
+    if needs_image_build and env_data["image_build_requires_sudo_prompt"] and not sudo_password:
+        problems.append(
+            "image build requires sudo but no non-interactive credential was provided "
+            "(set SUDO_PASSWORD or pass --sudo-password-file)"
+        )
+
+    if problems:
+        for problem in problems:
+            err(problem)
+        raise SystemExit(1)
 
 
 def ensure_syzdirect_manager(fuzzer_root: Path, *, force_rebuild: bool = False) -> bool:
@@ -1351,9 +1391,8 @@ def run_full_experiment(
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parents[1]
-    default_syzdirect_root = repo_root / "deps" / "SyzDirect"
-    default_output_root = repo_root / ".runtime"
+    default_syzdirect_root = REPO_ROOT / "deps" / "SyzDirect"
+    default_output_root = REPO_ROOT / ".runtime"
     parser = argparse.ArgumentParser(
         description="Prepare and run a SyzDirect public dataset case",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -1391,6 +1430,12 @@ def parse_args() -> argparse.Namespace:
         default=default_output_root,
         help="repo-local directory where case bundles and runtime data are stored",
     )
+    parser.add_argument(
+        "--sudo-password-file",
+        type=Path,
+        default=None,
+        help="path to a file containing the sudo password for non-interactive image/KVM setup",
+    )
     parser.add_argument("--image", type=Path, default=None, help="existing image path")
     parser.add_argument("--ssh-key", type=Path, default=None, help="existing SSH private key path")
     parser.add_argument("--kernel-build-dir", type=Path, default=None, help="existing kernel build dir with bzImage")
@@ -1400,7 +1445,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-analysis", action="store_true", help="do not run analyzer/distance/template generation")
     parser.add_argument("--skip-fuzzer-build", action="store_true", help="do not build SyzDirect manager if missing")
     parser.add_argument("--force-refresh", action="store_true", help="refresh case bundle artifacts")
-    parser.add_argument("--repo-root", type=Path, default=repo_root, help=argparse.SUPPRESS)
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -1431,6 +1476,8 @@ def prepare_case_bundle(
         case_json=case_dir / "case_metadata.json",
         target_json=case_dir / "target.json",
     )
+    if not bundle.case.kernel_commit:
+        raise SystemExit(f"case {case_id} is missing kernel_commit; cannot continue")
     bundle.save()
     log(f"case bundle written to {case_dir}")
     return bundle
@@ -1439,11 +1486,11 @@ def prepare_case_bundle(
 def prepare_fuzzer_runtime(
     case_dir: Path,
     fuzzer_root: Path,
+    env_data: dict[str, object],
     *,
     skip_fuzzer_build: bool,
 ) -> tuple[dict[str, object], bool]:
     fuzzer_changed = ensure_syzdirect_fuzzer_compatibility(fuzzer_root)
-    env_data = environment_report(case_dir, fuzzer_root)
     manager_ok = (fuzzer_root / "bin" / "syz-manager").exists()
     if (fuzzer_changed or not manager_ok) and not skip_fuzzer_build:
         manager_ok = ensure_syzdirect_manager(
@@ -1522,11 +1569,12 @@ def resolve_runtime_assets(
     output_root: Path,
     fuzzer_root: Path,
     env_data: dict[str, object],
+    sudo_password: Optional[str],
 ) -> RuntimeAssets:
     assets = RuntimeAssets(
         image_path=args.image.resolve() if args.image else None,
         ssh_key_path=args.ssh_key.resolve() if args.ssh_key else None,
-        sudo_password=os.environ.get("SUDO_PASSWORD") or None,
+        sudo_password=sudo_password,
     )
 
     if not assets.image_path or not assets.ssh_key_path:
@@ -1537,18 +1585,6 @@ def resolve_runtime_assets(
             if not assets.ssh_key_path:
                 assets.ssh_key_path = auto_ssh_key_path
             log(f"reusing VM assets from {auto_image_path.parent}")
-
-    needs_sudo_help = (
-        command_path("sudo") is not None
-        and not env_data["passwordless_sudo"]
-        and (
-            not assets.image_path
-            or not assets.ssh_key_path
-            or (env_data["kvm_exists"] and not env_data["kvm_accessible"])
-        )
-    )
-    if needs_sudo_help and not assets.sudo_password:
-        assets.sudo_password = resolve_sudo_password("image build / KVM setup")
 
     if assets.image_path and assets.ssh_key_path:
         return assets
@@ -1595,11 +1631,9 @@ def report_full_run_blockers(
 def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
+    sudo_password_file = args.sudo_password_file.resolve() if args.sudo_password_file else None
+    sudo_password = resolve_sudo_password(sudo_password_file)
     syzdirect_root = ensure_syzdirect_checkout(args.syzdirect_root.resolve())
-    dataset_pdf = args.dataset_pdf.resolve() if args.dataset_pdf else syzdirect_root / "dataset" / "dataset.pdf"
-    if not dataset_pdf.exists():
-        raise SystemExit(f"dataset pdf not found: {dataset_pdf}")
-
     output_root = args.output_root.resolve()
     case_dir = prepare_case_dir(
         output_root,
@@ -1607,17 +1641,32 @@ def main() -> int:
         args.case_id,
         force_refresh=args.force_refresh,
     )
-    bundle = prepare_case_bundle(dataset_pdf, args.case_id, args.dataset_kind, case_dir)
 
     fuzzer_root = syzdirect_root / "source" / "syzdirect" / "syzdirect_fuzzer"
+    env_data = environment_report(case_dir, fuzzer_root)
+    ensure_preflight_requirements(args, env_data, sudo_password=sudo_password)
+
+    dataset_pdf = args.dataset_pdf.resolve() if args.dataset_pdf else syzdirect_root / "dataset" / "dataset.pdf"
+    if not dataset_pdf.exists():
+        raise SystemExit(f"dataset pdf not found: {dataset_pdf}")
+
+    bundle = prepare_case_bundle(dataset_pdf, args.case_id, args.dataset_kind, case_dir)
     env_data, manager_ok = prepare_fuzzer_runtime(
         case_dir,
         fuzzer_root,
+        env_data,
         skip_fuzzer_build=args.skip_fuzzer_build,
     )
 
     prepared = prepare_kernel_artifacts(args, bundle, repo_root, output_root, env_data)
-    runtime_assets = resolve_runtime_assets(args, case_dir, output_root, fuzzer_root, env_data)
+    runtime_assets = resolve_runtime_assets(
+        args,
+        case_dir,
+        output_root,
+        fuzzer_root,
+        env_data,
+        sudo_password,
+    )
 
     if args.prepare_only:
         log("prepare-only requested; stopping before full run")
