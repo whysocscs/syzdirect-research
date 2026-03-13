@@ -8,10 +8,9 @@ SyzDirect (CCS 2023) 기반 directed greybox fuzzing + LLM Agent 보완 연구
 ## 케이스 할당
 | Case | 담당 | 타겟 | 상태 |
 |------|------|------|------|
-| Case 2 | 호준 | drivers/block/nbd.c:2006 | 퍼징 완료 (dist=0) |
-| Case 4 | 현영 | drivers/block/nbd.c:1809 | TPA 완료 |
+
 | Case 6 | 상호 | drivers/misc/vmw_vmci/vmci_queuepair.c:542 | 퍼징 진행 중 |
-| Case 8 | 나현 | drivers/net/bonding/bond_main.c:434 | 미셋업 |
+
 
 ## Case 6 파이프라인 완료 상태
 - [x] srcs/case_6 (Linux 6.1 + kcov 패치)
