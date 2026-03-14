@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
@@ -129,12 +130,17 @@ def apply_llm_hook(summary: WindowSummary, llm_hook_cmd: str) -> tuple[str, str]
     with tempfile.TemporaryDirectory(prefix="fuzz_health_") as tmpdir:
         summary_path = Path(tmpdir) / "summary.json"
         summary_path.write_text(json.dumps(asdict(summary), indent=2), encoding="utf-8")
-        result = subprocess.run(
-            ["bash", "-lc", f"{llm_hook_cmd} {summary_path}"],
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        command = f"{llm_hook_cmd} {shlex.quote(str(summary_path))}"
+        try:
+            result = subprocess.run(
+                ["bash", "-lc", command],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            return summary.decision, "LLM hook timed out"
         if result.returncode != 0:
             return summary.decision, f"LLM hook failed: {result.stderr.strip() or result.stdout.strip()}"
         try:

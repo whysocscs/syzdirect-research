@@ -103,14 +103,19 @@ class SyscallAnalyzer:
         
         # Step 2: Identify entry syscall variants
         entry_variants = self._identify_entry_variants(anchor_functions, target)
+        if not entry_variants:
+            entry_variants = self._variants_from_target_spec(target)
+            if entry_variants:
+                print(f"[+] Falling back to target spec syscall hints: {len(entry_variants)} entry variants")
         print(f"[+] Identified {len(entry_variants)} entry syscall variants")
         
         # Step 3: Infer dependent syscalls
         templates = []
         for entry in entry_variants:
             related = self._infer_related_syscalls(entry, target)
+            entry_label = re.sub(r"[^0-9A-Za-z_]+", "_", entry.syzlang_name).strip("_") or entry.name
             template = Template(
-                template_id=f"{target.target_id}_{entry.name}",
+                template_id=f"{target.target_id}_{entry_label}",
                 entry_syscall=entry,
                 related_syscalls=related,
                 sequence_order=[s.name for s in related] + [entry.name],
@@ -123,6 +128,38 @@ class SyscallAnalyzer:
             
         print(f"[+] Generated {len(templates)} templates")
         return templates
+
+    def _variants_from_target_spec(self, target: TargetInfo) -> List[SyscallVariant]:
+        """Build entry variants from dataset-provided syscall hints when call-graph recovery fails."""
+        entries: List[str] = []
+        if target.entry_syscalls:
+            entries.extend(target.entry_syscalls)
+        elif target.sequence:
+            entries.append(target.sequence[-1])
+
+        variants: List[SyscallVariant] = []
+        seen: Set[str] = set()
+        for syscall_name in entries:
+            if syscall_name in seen:
+                continue
+            seen.add(syscall_name)
+            base_name, syzlang_name = self._normalize_syscall_name(syscall_name)
+            variants.append(
+                SyscallVariant(
+                    name=base_name,
+                    syzlang_name=syzlang_name,
+                    resource_type=self._infer_resource_type(base_name),
+                    operation_type=self._infer_operation_type(base_name),
+                )
+            )
+        return variants
+
+    def _normalize_syscall_name(self, syscall_name: str) -> tuple[str, str]:
+        """Split a syzlang syscall variant into base syscall name and variant name."""
+        if "$" in syscall_name:
+            base_name = syscall_name.split("$", 1)[0]
+            return base_name, syscall_name
+        return syscall_name, self._map_to_syzlang(syscall_name)
     
     def _find_anchor_functions(self, target: TargetInfo) -> List[str]:
         """
@@ -244,16 +281,7 @@ class SyscallAnalyzer:
         """Map kernel syscall name to syzlang definition name."""
         # Simplified mapping - real implementation parses syzlang files
         name = syscall.replace('sys_', '').replace('__x64_', '')
-        
-        # Common variants
-        variant_map = {
-            'openat': 'openat$',
-            'ioctl': 'ioctl$',
-            'socket': 'socket$',
-            'setsockopt': 'setsockopt$',
-        }
-        
-        return variant_map.get(name, name)
+        return name
     
     def _infer_resource_type(self, func: str) -> Optional[str]:
         """Infer resource type from function name/context."""
@@ -285,6 +313,10 @@ class SyscallAnalyzer:
         Infer related syscalls needed to set up context for entry syscall.
         Based on resource create/use relationships.
         """
+        hinted_related = self._related_from_target_spec(entry, target)
+        if hinted_related:
+            return hinted_related
+
         related = []
         
         if not entry.resource_type:
@@ -311,6 +343,35 @@ class SyscallAnalyzer:
                 operation_type='configure',
             ))
             
+        return related
+
+    def _related_from_target_spec(self, entry: SyscallVariant, target: TargetInfo) -> List[SyscallVariant]:
+        """Use dataset-provided syscall ordering when available."""
+        related_names: List[str] = []
+        if target.related_syscalls:
+            related_names.extend(target.related_syscalls)
+        elif target.sequence:
+            for syscall_name in target.sequence:
+                base_name, _ = self._normalize_syscall_name(syscall_name)
+                if base_name == entry.name:
+                    break
+                related_names.append(syscall_name)
+
+        related: List[SyscallVariant] = []
+        seen: Set[str] = set()
+        for syscall_name in related_names:
+            base_name, syzlang_name = self._normalize_syscall_name(syscall_name)
+            if base_name == entry.name or syzlang_name in seen:
+                continue
+            seen.add(syzlang_name)
+            related.append(
+                SyscallVariant(
+                    name=base_name,
+                    syzlang_name=syzlang_name,
+                    resource_type=self._infer_resource_type(base_name),
+                    operation_type=self._infer_operation_type(base_name),
+                )
+            )
         return related
     
     def _refine_constraints(self, template: Template, target: TargetInfo):

@@ -142,6 +142,18 @@ else:
 PY
 }
 
+ensure_nonempty_templates() {
+    local template_file="$1"
+    local context="$2"
+    local count
+    count=$(json_template_count "$template_file")
+    if [ "$count" -le 0 ]; then
+        log_error "$context produced no templates; refusing to start fuzzing with an empty call set"
+        return 1
+    fi
+    return 0
+}
+
 allocate_local_port() {
     python3 - <<'PY'
 import socket
@@ -587,6 +599,7 @@ run_syzdirect() {
         --distances "$run_dir/distances/distances.json" \
         --output "$run_dir/templates" \
         2>&1 | tee "$run_dir/logs/template.log"
+    ensure_nonempty_templates "$run_dir/templates/templates.json" "template generation"
     
     log_info "Step 3b: Preparing SyzDirect template artifacts..."
     prepare_template_artifacts "$run_dir/templates/templates.json" "$run_dir/artifacts" "$syzdirect_root"
@@ -661,6 +674,7 @@ run_agent_loop() {
         2>&1 | tee "$run_dir/logs/initial_template.log"
     
     current_templates="$run_dir/templates/templates.json"
+    ensure_nonempty_templates "$current_templates" "initial template generation"
     local syzdirect_root
     local manager_bin
     local http_port
@@ -691,7 +705,7 @@ run_agent_loop() {
         "$http_addr" \
         "$run_dir/workdir" \
         "$run_dir/artifacts/runtime-syzkaller" \
-        false \
+        true \
         true
 
     log_info "Starting continuous fuzzing manager..."
@@ -749,7 +763,6 @@ run_agent_loop() {
         save_round_summary "$window_dir" "$cycle" "$status" "$window_dir/decision.json" ""
 
         if [ "$decision" = "stop" ]; then
-            intervention_count=$((intervention_count + 1))
             log_warn "Stopping continuous fuzzing after watcher decision"
             stop_manager_session
             break
@@ -794,7 +807,7 @@ run_agent_loop() {
                         "$http_addr" \
                         "$run_dir/workdir" \
                         "$run_dir/artifacts/runtime-syzkaller" \
-                        false \
+                        true \
                         true
                     if ! restart_continuous_manager \
                         "$manager_bin" \
@@ -1082,12 +1095,26 @@ collect_results() {
     local target_id="${3:-unknown}"
     local crash_count
     local corpus_count
+    local live_crash_count=0
+    local live_corpus_count=0
+    local round_crash_count=0
+    local round_corpus_count=0
     
     log_info "Collecting results for $run_type run..."
     
     if [ "$run_type" = "agent-loop" ]; then
-        crash_count=$(find "$run_dir/rounds" -path '*/workdir/crashes/*' -type f 2>/dev/null | wc -l || echo 0)
-        corpus_count=$(find "$run_dir/rounds" -path '*/workdir/corpus/*' -type f 2>/dev/null | wc -l || echo 0)
+        if [ -d "$run_dir/workdir/crashes" ]; then
+            live_crash_count=$(find "$run_dir/workdir/crashes" -type f 2>/dev/null | wc -l || echo 0)
+        fi
+        if [ -d "$run_dir/workdir/corpus" ]; then
+            live_corpus_count=$(find "$run_dir/workdir/corpus" -type f 2>/dev/null | wc -l || echo 0)
+        fi
+        if [ -d "$run_dir/rounds" ]; then
+            round_crash_count=$(find "$run_dir/rounds" -path '*/workdir/crashes/*' -type f 2>/dev/null | wc -l || echo 0)
+            round_corpus_count=$(find "$run_dir/rounds" -path '*/workdir/corpus/*' -type f 2>/dev/null | wc -l || echo 0)
+        fi
+        crash_count=$((live_crash_count + round_crash_count))
+        corpus_count=$((live_corpus_count + round_corpus_count))
     else
         crash_count=$(find "$run_dir/workdir/crashes" -type f 2>/dev/null | wc -l || echo 0)
         corpus_count=$(find "$run_dir/workdir/corpus" -type f 2>/dev/null | wc -l || echo 0)

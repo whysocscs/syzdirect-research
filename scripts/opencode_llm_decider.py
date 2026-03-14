@@ -118,6 +118,7 @@ def call_opencode(prompt: str) -> dict[str, Any]:
     agent = os.environ.get("OPENCODE_AGENT")
     variant = os.environ.get("OPENCODE_VARIANT")
     workdir = os.environ.get("OPENCODE_DIR") or os.getcwd()
+    timeout_seconds = int(os.environ.get("OPENCODE_TIMEOUT_SECONDS", "120"))
 
     if model:
         cmd += ["--model", model]
@@ -127,12 +128,16 @@ def call_opencode(prompt: str) -> dict[str, Any]:
         cmd += ["--variant", variant]
     cmd += ["--dir", workdir, prompt]
 
-    result = subprocess.run(
-        cmd,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            cmd,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"opencode run timed out after {timeout_seconds}s") from exc
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "opencode run failed")
 
