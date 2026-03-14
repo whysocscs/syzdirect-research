@@ -8,9 +8,17 @@ Templates combine entry syscalls with related syscalls and refined arguments.
 
 import json
 import random
+import sys
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any
 from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.template_bundle import normalize_template_bundle, template_list
 
 
 @dataclass
@@ -196,7 +204,7 @@ class TemplateGenerator:
         },
     }
     
-    def __init__(self, analysis_results: Dict, distance_info: Dict = None):
+    def __init__(self, analysis_results: Any, distance_info: Dict = None):
         """
         Initialize generator with analysis results.
         
@@ -212,7 +220,7 @@ class TemplateGenerator:
         """Generate all templates from analysis results."""
         templates = []
         
-        for template_data in self.analysis.get('templates', []):
+        for template_data in template_list(self.analysis):
             template = self._create_template(template_data)
             if template:
                 templates.append(template)
@@ -315,8 +323,12 @@ class TemplateGenerator:
         
         # Export JSON format
         templates_data = [asdict(t) for t in templates]
+        bundle = normalize_template_bundle(
+            templates_data,
+            default_target_id=self.analysis.get("target_id", "unknown") if isinstance(self.analysis, dict) else "unknown",
+        )
         with open(output_path / 'templates.json', 'w') as f:
-            json.dump(templates_data, f, indent=2)
+            json.dump(bundle, f, indent=2)
             
         # Export syzlang programs
         for template in templates:
@@ -326,6 +338,36 @@ class TemplateGenerator:
                 f.write(prog)
                 
         print(f"[+] Exported {len(templates)} templates to {output_dir}")
+
+    def export_legacy_artifacts(
+        self,
+        templates: List[FuzzTemplate],
+        callfile_output: str,
+        program_output: str,
+    ):
+        program_path = Path(program_output)
+        program_path.mkdir(parents=True, exist_ok=True)
+
+        callfile_entries = []
+        for template in templates:
+            prog = template.to_syzlang_program()
+            prog_file = program_path / f'{template.template_id}.syz'
+            with open(prog_file, 'w') as f:
+                f.write(prog)
+            callfile_entries.append(
+                {
+                    "id": template.template_id,
+                    "program": str(prog_file),
+                    "priority": template.priority,
+                    "estimated_distance": template.estimated_distance,
+                }
+            )
+
+        with open(callfile_output, 'w') as f:
+            json.dump(callfile_entries, f, indent=2)
+
+        print(f"[+] Exported legacy callfile to {callfile_output}")
+        print(f"[+] Exported {len(templates)} template programs to {program_output}")
 
 
 class TemplateScheduler:
@@ -427,14 +469,28 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='SyzDirect Template Generator')
-    parser.add_argument('--analysis', required=True, help='Analysis results JSON')
+    parser.add_argument('--analysis', help='Analysis results JSON')
     parser.add_argument('--distances', help='Distance info JSON')
-    parser.add_argument('--output', required=True, help='Output directory')
+    parser.add_argument('--output', help='Output directory')
+    parser.add_argument('--templates', help='Legacy template JSON input')
+    parser.add_argument('--callfile-output', help='Legacy callfile JSON output')
+    parser.add_argument('--program-output', help='Legacy syz program output directory')
     
     args = parser.parse_args()
+
+    analysis_input = args.analysis or args.templates
+    output_dir = args.output
+    legacy_mode = bool(args.templates or args.callfile_output or args.program_output)
+
+    if not analysis_input:
+        parser.error('one of --analysis or --templates is required')
+    if not legacy_mode and not output_dir:
+        parser.error('--output is required unless using legacy export flags')
+    if legacy_mode and (not args.callfile_output or not args.program_output):
+        parser.error('--callfile-output and --program-output are required in legacy mode')
     
     # Load inputs
-    with open(args.analysis, 'r') as f:
+    with open(analysis_input, 'r') as f:
         analysis = json.load(f)
         
     distances = {}
@@ -447,6 +503,13 @@ if __name__ == '__main__':
     templates = generator.generate_templates()
     
     # Export
-    generator.export_templates(templates, args.output)
+    if output_dir:
+        generator.export_templates(templates, output_dir)
+    if legacy_mode:
+        generator.export_legacy_artifacts(
+            templates,
+            args.callfile_output,
+            args.program_output,
+        )
     
     print(f"\n[+] Generated {len(templates)} templates")

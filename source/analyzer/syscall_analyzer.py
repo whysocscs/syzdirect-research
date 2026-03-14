@@ -21,6 +21,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from source.common.target_spec import TargetSpec, load_target_spec
+from source.common.template_bundle import save_template_bundle
 
 
 TargetInfo = TargetSpec
@@ -351,10 +352,10 @@ def load_target(target_file: str) -> TargetInfo:
     return load_target_spec(target_file)
 
 
-def save_templates(templates: List[Template], output_file: str):
+def save_templates(templates: List[Template], output_file: str, target_id: str):
     """Save generated templates to JSON file."""
-    with open(output_file, 'w') as f:
-        json.dump([asdict(t) for t in templates], f, indent=2)
+    template_dicts = [asdict(t) for t in templates]
+    save_template_bundle(output_file, template_dicts, default_target_id=target_id)
 
 
 if __name__ == '__main__':
@@ -371,6 +372,6 @@ if __name__ == '__main__':
     target = load_target(args.target)
     analyzer = SyscallAnalyzer(args.kernel, args.syzlang)
     templates = analyzer.analyze_target(target)
-    save_templates(templates, args.output)
+    save_templates(templates, args.output, target.target_id)
     
     print(f"\n[+] Templates saved to {args.output}")
