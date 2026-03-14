@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -52,7 +53,17 @@ def load_template_bundle(path: str | Path) -> dict[str, Any]:
     return normalize_template_bundle(payload)
 
 
+def sanitize_json_numbers(data: Any) -> Any:
+    if isinstance(data, float):
+        return data if math.isfinite(data) else None
+    if isinstance(data, list):
+        return [sanitize_json_numbers(item) for item in data]
+    if isinstance(data, dict):
+        return {key: sanitize_json_numbers(value) for key, value in data.items()}
+    return data
+
+
 def save_template_bundle(path: str | Path, data: Any, *, default_target_id: str = "unknown") -> dict[str, Any]:
     bundle = normalize_template_bundle(data, default_target_id=default_target_id)
-    Path(path).write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    Path(path).write_text(json.dumps(sanitize_json_numbers(bundle), indent=2, allow_nan=False), encoding="utf-8")
     return bundle

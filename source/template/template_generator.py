@@ -7,6 +7,7 @@ Templates combine entry syscalls with related syscalls and refined arguments.
 """
 
 import json
+import math
 import random
 import sys
 from dataclasses import dataclass, field, asdict
@@ -18,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from source.common.template_bundle import normalize_template_bundle, template_list
+from source.common.template_bundle import normalize_template_bundle, sanitize_json_numbers, template_list
 
 
 @dataclass
@@ -328,7 +329,7 @@ class TemplateGenerator:
             default_target_id=self.analysis.get("target_id", "unknown") if isinstance(self.analysis, dict) else "unknown",
         )
         with open(output_path / 'templates.json', 'w') as f:
-            json.dump(bundle, f, indent=2)
+            json.dump(sanitize_json_numbers(bundle), f, indent=2, allow_nan=False)
             
         # Export syzlang programs
         for template in templates:
@@ -354,17 +355,22 @@ class TemplateGenerator:
             prog_file = program_path / f'{template.template_id}.syz'
             with open(prog_file, 'w') as f:
                 f.write(prog)
+            related_names = []
+            seen_related = set()
+            for syscall in template.related_syscalls:
+                name = syscall.syzlang_name or syscall.name
+                if name and name not in seen_related:
+                    seen_related.add(name)
+                    related_names.append(name)
             callfile_entries.append(
                 {
-                    "id": template.template_id,
-                    "program": str(prog_file),
-                    "priority": template.priority,
-                    "estimated_distance": template.estimated_distance,
+                    "Target": template.entry_syscall.syzlang_name or template.entry_syscall.name,
+                    "Relate": related_names,
                 }
             )
 
         with open(callfile_output, 'w') as f:
-            json.dump(callfile_entries, f, indent=2)
+            json.dump(sanitize_json_numbers(callfile_entries), f, indent=2, allow_nan=False)
 
         print(f"[+] Exported legacy callfile to {callfile_output}")
         print(f"[+] Exported {len(templates)} template programs to {program_output}")
