@@ -11,9 +11,17 @@ Actions:
 """
 
 import json
+import sys
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.template_bundle import normalize_template_bundle, template_list
 
 
 @dataclass
@@ -143,7 +151,7 @@ class RelatedSyscallAgent:
         """
         enhanced_templates = []
         
-        for template in self.template_data.get('templates', []):
+        for template in template_list(self.template_data):
             # Analyze current template
             entry = template.get('entry_syscall', {})
             related = template.get('related_syscalls', [])
@@ -368,11 +376,11 @@ def enhance_templates(template_file: str, triage_file: str, output_file: str):
     enhanced = agent.analyze_and_enhance()
     
     output = {
-        'original_template_count': len(template_data.get('templates', [])),
+        'original_template_count': len(template_list(template_data)),
         'enhanced_template_count': len(enhanced),
-        'templates': enhanced,
         'enhancement_summary': agent.get_enhancement_summary(),
     }
+    output.update(normalize_template_bundle(enhanced))
     
     with open(output_file, 'w') as f:
         json.dump(output, f, indent=2)

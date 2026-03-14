@@ -12,11 +12,19 @@ Based on SyzDirect paper's Table 4 failure analysis.
 
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from enum import Enum
 from pathlib import Path
 import statistics
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.template_bundle import template_list
 
 
 class FailureClass(Enum):
@@ -288,7 +296,7 @@ class FailureTriageAgent:
                 
         # Check static info for short sequences
         if static_info:
-            templates = static_info.get('templates', [])
+            templates = template_list(static_info)
             for t in templates:
                 related = t.get('related_syscalls', [])
                 if len(related) < 2:

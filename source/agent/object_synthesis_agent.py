@@ -13,9 +13,17 @@ Actions:
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from source.common.template_bundle import template_list
 
 
 @dataclass
@@ -163,7 +171,7 @@ class ObjectSynthesisAgent:
                 return True
                 
         # Check templates for fs-related syscalls
-        for template in self.template_data.get('templates', []):
+        for template in template_list(self.template_data):
             entry = template.get('entry_syscall', {}).get('name', '')
             if entry in ['mount', 'umount', 'statfs', 'fstatfs']:
                 return True
@@ -203,7 +211,7 @@ class ObjectSynthesisAgent:
         needed = []
         
         # Analyze templates for resource requirements
-        for template in self.template_data.get('templates', []):
+        for template in template_list(self.template_data):
             entry = template.get('entry_syscall', {})
             entry_name = entry.get('name', '')
             resource_type = entry.get('resource_type')
@@ -274,7 +282,7 @@ class ObjectSynthesisAgent:
             
             # Find original template
             original = None
-            for t in self.template_data.get('templates', []):
+            for t in template_list(self.template_data):
                 if t.get('template_id') == template_id:
                     original = t
                     break
