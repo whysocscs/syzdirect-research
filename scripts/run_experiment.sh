@@ -24,6 +24,9 @@ SSHKEY_PATH="${SSHKEY_PATH:-$IMAGE_DIR/bullseye.id_rsa}"
 HIT_INDEX="${HIT_INDEX:-0}"
 VM_CPU="${VM_CPU:-1}"
 KERNEL_CMDLINE_EXTRA="${KERNEL_CMDLINE_EXTRA:-maxcpus=1 net.ifnames=0 biosdevname=0}"
+AGENT_CHECK_INTERVAL="${AGENT_CHECK_INTERVAL:-300}"
+AGENT_MAX_INTERVENTIONS="${AGENT_MAX_INTERVENTIONS:-5}"
+LLM_DECISION_CMD="${LLM_DECISION_CMD:-}"
 
 mkdir -p "$WORK_DIR"
 
@@ -262,6 +265,86 @@ run_manager_session() {
     kill "$monitor_pid" 2>/dev/null || true
 }
 
+MANAGER_SESSION_PID=""
+MANAGER_MONITOR_PID=""
+
+start_manager_session() {
+    local manager_bin="$1"
+    local config_path="$2"
+    local log_path="$3"
+    local budget_seconds="$4"
+    local http_addr="$5"
+    local monitor_dir="$6"
+    shift 6
+    local extra_args=("$@")
+
+    (
+        timeout "${budget_seconds}s" \
+            "$manager_bin" -config "$config_path" "${extra_args[@]}" \
+            2>&1 | tee "$log_path"
+    ) &
+    MANAGER_SESSION_PID=$!
+
+    monitor_fuzzing "$monitor_dir" "$MANAGER_SESSION_PID" "$budget_seconds" "$http_addr" &
+    MANAGER_MONITOR_PID=$!
+}
+
+remaining_budget_seconds() {
+    local deadline_epoch="$1"
+    local now
+    now=$(date +%s)
+    if [ "$deadline_epoch" -le "$now" ]; then
+        echo 0
+    else
+        echo $((deadline_epoch - now))
+    fi
+}
+
+restart_continuous_manager() {
+    local manager_bin="$1"
+    local config_path="$2"
+    local log_path="$3"
+    local deadline_epoch="$4"
+    local http_addr="$5"
+    local monitor_dir="$6"
+    shift 6
+    local extra_args=("$@")
+    local remaining
+    remaining=$(remaining_budget_seconds "$deadline_epoch")
+    if [ "$remaining" -le 0 ]; then
+        return 1
+    fi
+    start_manager_session \
+        "$manager_bin" \
+        "$config_path" \
+        "$log_path" \
+        "$remaining" \
+        "$http_addr" \
+        "$monitor_dir" \
+        "${extra_args[@]}"
+}
+
+stop_manager_session() {
+    if [ -n "$MANAGER_SESSION_PID" ] && kill -0 "$MANAGER_SESSION_PID" 2>/dev/null; then
+        kill "$MANAGER_SESSION_PID" 2>/dev/null || true
+        wait "$MANAGER_SESSION_PID" 2>/dev/null || true
+    fi
+    if [ -n "$MANAGER_MONITOR_PID" ] && kill -0 "$MANAGER_MONITOR_PID" 2>/dev/null; then
+        kill "$MANAGER_MONITOR_PID" 2>/dev/null || true
+        wait "$MANAGER_MONITOR_PID" 2>/dev/null || true
+    fi
+}
+
+wait_manager_session() {
+    if [ -n "$MANAGER_SESSION_PID" ]; then
+        wait "$MANAGER_SESSION_PID" 2>/dev/null || true
+    fi
+    if [ -n "$MANAGER_MONITOR_PID" ] && kill -0 "$MANAGER_MONITOR_PID" 2>/dev/null; then
+        kill "$MANAGER_MONITOR_PID" 2>/dev/null || true
+        wait "$MANAGER_MONITOR_PID" 2>/dev/null || true
+    fi
+}
+
 require_target_file() {
     local target_file="$1"
     local mode_name="$2"
@@ -497,14 +580,17 @@ run_agent_loop() {
     local target_id="$1"
     local target_file="$2"
     local total_budget_seconds="$3"
-    local max_rounds="${4:-5}"
-    local per_round_seconds=$((total_budget_seconds / max_rounds))
+    local max_rounds="${4:-$AGENT_MAX_INTERVENTIONS}"
+    local check_interval="$AGENT_CHECK_INTERVAL"
+    if [ "$check_interval" -le 0 ]; then
+        check_interval=300
+    fi
     
     local run_dir="$WORK_DIR/runs/agent-loop/${target_id}_$(date +%Y%m%d_%H%M%S)"
     
     log_step "Running Agent-Enhanced Loop for $target_id"
-    log_info "Total budget: ${total_budget_seconds}s, Max rounds: $max_rounds"
-    log_info "Per-round budget: ${per_round_seconds}s"
+    log_info "Total budget: ${total_budget_seconds}s, Max interventions: $max_rounds"
+    log_info "Check interval: ${check_interval}s"
     log_info "Output: $run_dir"
     
     mkdir -p "$run_dir"/{rounds,templates,logs,triage,distances,artifacts}
@@ -525,98 +611,179 @@ run_agent_loop() {
         --output "$run_dir/templates" \
         2>&1 | tee "$run_dir/logs/initial_template.log"
     
-    # Agent loop
     current_templates="$run_dir/templates/templates.json"
-    
-    for round in $(seq 1 $max_rounds); do
-        log_step "=== Round $round of $max_rounds ==="
-        
-        round_dir="$run_dir/rounds/round_$round"
-        mkdir -p "$round_dir"/{workdir,logs,artifacts}
-        
-        # Run short fuzzing session
-        log_info "Running fuzzing for round $round..."
-        run_short_fuzz "$round_dir" "$current_templates" "$per_round_seconds"
-        
-        # Analyze results
-        log_info "Analyzing round $round results..."
-        
-        # Generate execution logs for triage
-        generate_execution_logs "$round_dir" "$current_templates"
-        
-        # Run failure triage
-        python3 "$SOURCE_DIR/agent/failure_triage.py" \
-            --logs "$round_dir/execution_logs.json" \
-            --static-info "$current_templates" \
-            --output "$round_dir/triage_result.json" \
-            2>&1 | tee "$round_dir/logs/triage.log"
-        
-        # Check triage result
-        failure_class=$(json_field "$round_dir/triage_result.json" "failure_class" "UNKNOWN")
-        
-        log_info "Failure class: $failure_class"
-        
-        if [ "$failure_class" == "SUCCESS" ]; then
-            if [ ! -f "$round_dir/enhanced_templates.json" ]; then
-                cp "$current_templates" "$round_dir/enhanced_templates.json"
-            fi
-            save_round_summary "$round_dir" "$round" "$failure_class"
-            log_info "Target reached! Stopping loop."
+    local syzdirect_root
+    local manager_bin
+    local http_port
+    local http_addr
+    local callfile_arg=()
+    local llm_hook_args=()
+    local intervention_count=0
+    local cycle=0
+    local cleanup_trap_set=0
+    local deadline_epoch
+    deadline_epoch=$(($(date +%s) + total_budget_seconds))
+
+    syzdirect_root="$(get_syzdirect_root)"
+    manager_bin="$(get_syzdirect_manager)"
+    http_port="$(allocate_local_port)"
+    http_addr="127.0.0.1:${http_port}"
+
+    prepare_template_artifacts "$current_templates" "$run_dir/artifacts" "$syzdirect_root"
+    if manager_supports_callfile "$manager_bin" "$syzdirect_root"; then
+        callfile_arg=(-callfile "$run_dir/artifacts/callfile.json")
+    fi
+    if [ -n "$LLM_DECISION_CMD" ]; then
+        llm_hook_args=(--llm-hook-cmd "$LLM_DECISION_CMD")
+    fi
+
+    write_manager_config \
+        "$run_dir/config.cfg" \
+        "$http_addr" \
+        "$run_dir/workdir" \
+        "$run_dir/artifacts/runtime-syzkaller" \
+        false \
+        true
+
+    log_info "Starting continuous fuzzing manager..."
+    start_manager_session \
+        "$manager_bin" \
+        "$run_dir/config.cfg" \
+        "$run_dir/manager.log" \
+        "$total_budget_seconds" \
+        "$http_addr" \
+        "$run_dir" \
+        "${callfile_arg[@]}"
+    trap 'stop_manager_session' INT TERM EXIT
+    cleanup_trap_set=1
+
+    while kill -0 "$MANAGER_SESSION_PID" 2>/dev/null; do
+        sleep "$check_interval"
+        if ! kill -0 "$MANAGER_SESSION_PID" 2>/dev/null; then
             break
         fi
-        
-        # Apply appropriate agent based on failure class
-        case "$failure_class" in
-            "R1")
-                log_info "Applying Related-Syscall Deepening Agent..."
-                # R1 is similar to R3 in treatment
-                python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
-                    --templates "$current_templates" \
-                    --triage "$round_dir/triage_result.json" \
-                    --output "$round_dir/enhanced_templates.json"
-                ;;
-            "R2")
-                log_info "Applying Object/Parameter Synthesis Agent..."
-                python3 "$SOURCE_DIR/agent/object_synthesis_agent.py" \
-                    --triage "$round_dir/triage_result.json" \
-                    --templates "$current_templates" \
-                    --output "$round_dir/enhanced_templates.json"
-                ;;
-            "R3"|"MIXED")
-                log_info "Applying Related-Syscall Deepening Agent..."
-                python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
-                    --templates "$current_templates" \
-                    --triage "$round_dir/triage_result.json" \
-                    --output "$round_dir/enhanced_templates.json"
-                ;;
-            *)
-                log_warn "Unknown failure class, continuing with current templates"
-                cp "$current_templates" "$round_dir/enhanced_templates.json"
+
+        cycle=$((cycle + 1))
+        local window_dir="$run_dir/triage/window_$cycle"
+        mkdir -p "$window_dir"
+
+        log_info "Scoring fuzzing health for window $cycle..."
+        python3 "$SOURCE_DIR/agent/fuzzing_health_monitor.py" \
+            --metrics "$run_dir/logs/metrics.jsonl" \
+            --manager-log "$run_dir/manager.log" \
+            --window-seconds "$check_interval" \
+            --output "$window_dir/decision.json" \
+            "${llm_hook_args[@]}" \
+            --manager-alive
+
+        local decision
+        local status
+        local reason
+        decision=$(json_field "$window_dir/decision.json" "decision" "continue")
+        status=$(json_field "$window_dir/decision.json" "status" "unknown")
+        reason=$(json_field "$window_dir/decision.json" "reason" "")
+        log_info "Window $cycle health: status=$status decision=$decision"
+        if [ -n "$reason" ] && [ "$reason" != "null" ]; then
+            log_info "Decision reason: $reason"
+        fi
+
+        save_round_summary "$window_dir" "$cycle" "$status" "$window_dir/decision.json" ""
+
+        if [ "$decision" = "stop" ]; then
+            intervention_count=$((intervention_count + 1))
+            log_warn "Stopping continuous fuzzing after watcher decision"
+            stop_manager_session
+            break
+        fi
+
+        case "$decision" in
+            intervene_r1|intervene_r2|intervene_r3|intervene_mixed)
+                intervention_count=$((intervention_count + 1))
+                if [ "$intervention_count" -gt "$max_rounds" ]; then
+                    log_warn "Reached maximum intervention count ($max_rounds); stopping continuous fuzzing"
+                    stop_manager_session
+                    break
+                fi
+
+                log_info "Preparing intervention for decision: $decision"
+                stop_manager_session
+                generate_execution_logs "$run_dir" "$current_templates"
+
+                python3 "$SOURCE_DIR/agent/failure_triage.py" \
+                    --logs "$run_dir/execution_logs.json" \
+                    --static-info "$current_templates" \
+                    --output "$window_dir/triage_result.json" \
+                    2>&1 | tee "$window_dir/triage.log"
+
+                local intervention_target="$window_dir/enhanced_templates.json"
+                case "$decision" in
+                    intervene_r1|intervene_r3)
+                        python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
+                            --templates "$current_templates" \
+                            --triage "$window_dir/triage_result.json" \
+                            --output "$intervention_target"
+                        ;;
+                    intervene_r2)
+                        python3 "$SOURCE_DIR/agent/object_synthesis_agent.py" \
+                            --triage "$window_dir/triage_result.json" \
+                            --templates "$current_templates" \
+                            --output "$intervention_target"
+                        ;;
+                    intervene_mixed)
+                        python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
+                            --templates "$current_templates" \
+                            --triage "$window_dir/triage_result.json" \
+                            --output "$intervention_target"
+                        ;;
+                esac
+
+                if [ -f "$intervention_target" ] && [ "$(json_template_count "$intervention_target")" != "0" ]; then
+                    current_templates="$intervention_target"
+                    rm -rf "$run_dir/artifacts"
+                    prepare_template_artifacts "$current_templates" "$run_dir/artifacts" "$syzdirect_root"
+                    callfile_arg=()
+                    if manager_supports_callfile "$manager_bin" "$syzdirect_root"; then
+                        callfile_arg=(-callfile "$run_dir/artifacts/callfile.json")
+                    fi
+                    write_manager_config \
+                        "$run_dir/config.cfg" \
+                        "$http_addr" \
+                        "$run_dir/workdir" \
+                        "$run_dir/artifacts/runtime-syzkaller" \
+                        false \
+                        true
+                    if ! restart_continuous_manager \
+                        "$manager_bin" \
+                        "$run_dir/config.cfg" \
+                        "$run_dir/manager.log" \
+                        "$deadline_epoch" \
+                        "$http_addr" \
+                        "$run_dir" \
+                        "${callfile_arg[@]}"; then
+                        log_warn "No remaining budget after intervention; stopping"
+                        break
+                    fi
+                    save_round_summary "$window_dir" "$cycle" "$decision" "$window_dir/triage_result.json" "$intervention_target"
+                    continue
+                fi
+
+                log_warn "Intervention did not produce usable templates; stopping continuous fuzzing"
+                save_round_summary "$window_dir" "$cycle" "$decision" "$window_dir/triage_result.json" "$intervention_target"
+                break
                 ;;
         esac
-        
-        if [ ! -f "$round_dir/enhanced_templates.json" ]; then
-            cp "$current_templates" "$round_dir/enhanced_templates.json"
+
+        if [ "$intervention_count" -ge "$max_rounds" ]; then
+            log_warn "Reached maximum intervention count ($max_rounds); stopping continuous fuzzing"
+            stop_manager_session
+            break
         fi
-        
-        local enhanced_count
-        enhanced_count=$(json_template_count "$round_dir/enhanced_templates.json")
-        if [ "$enhanced_count" = "0" ]; then
-            log_warn "Enhanced template set is empty, keeping current templates"
-            cp "$current_templates" "$round_dir/enhanced_templates.json"
-        fi
-        
-        # Check if improvements meet criteria
-        if check_improvement "$round_dir"; then
-            log_info "Improvement detected, updating templates"
-            current_templates="$round_dir/enhanced_templates.json"
-        else
-            log_warn "No significant improvement, keeping current templates"
-        fi
-        
-        # Save round summary
-        save_round_summary "$round_dir" "$round" "$failure_class"
     done
+
+    wait_manager_session
+    if [ "$cleanup_trap_set" -eq 1 ]; then
+        trap - INT TERM EXIT
+    fi
     
     # Final summary
     generate_final_report "$run_dir"
@@ -716,6 +883,7 @@ error_counts = {
     errno: len(re.findall(rf'\b{errno}\b', manager_log))
     for errno in ('EINVAL', 'EPERM', 'EFAULT', 'ENOENT', 'EACCES')
 }
+all_target_calls_disabled = 'all target calls are disabled' in manager_log.lower()
 
 last_metrics = metrics[-1] if metrics else {}
 crash_count = 0
@@ -759,8 +927,9 @@ for idx, template in enumerate(templates, 1):
         'syscall_distances': {},
         'seed_distance': template_distance,
         'template_distance': template_distance,
-        'reached_target': crash_count > 0,
+        'reached_target': False,
         'crash': crash_count > 0,
+        'fatal_error': all_target_calls_disabled,
         'errno_counts': error_counts,
         'coverage_new': bool(metric.get('exec_total', 0) or last_metrics.get('exec_total', 0)),
         'iteration': idx,
@@ -802,14 +971,16 @@ save_round_summary() {
     local round_dir="$1"
     local round_num="$2"
     local failure_class="$3"
+    local triage_file="${4:-$round_dir/triage_result.json}"
+    local enhanced_templates="${5:-$round_dir/enhanced_templates.json}"
     
     cat > "$round_dir/summary.json" << EOF
 {
     "round": $round_num,
     "failure_class": "$failure_class",
     "timestamp": "$(date -Iseconds)",
-    "triage_file": "$round_dir/triage_result.json",
-    "enhanced_templates": "$round_dir/enhanced_templates.json"
+    "triage_file": "$triage_file",
+    "enhanced_templates": "$enhanced_templates"
 }
 EOF
 }
@@ -898,7 +1069,9 @@ import sys
 
 run_dir = Path(sys.argv[1])
 rounds = []
-for round_dir in sorted((run_dir / "rounds").glob("round_*")):
+round_dirs = list((run_dir / "rounds").glob("round_*")) + list((run_dir / "rounds").glob("cycle_*"))
+round_dirs += list((run_dir / "triage").glob("window_*"))
+for round_dir in sorted(round_dirs):
     summary_path = round_dir / "summary.json"
     if not summary_path.exists():
         continue
