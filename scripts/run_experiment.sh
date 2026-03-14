@@ -324,6 +324,55 @@ restart_continuous_manager() {
         "${extra_args[@]}"
 }
 
+apply_intervention_templates() {
+    local decision="$1"
+    local source_templates="$2"
+    local triage_file="$3"
+    local output_dir="$4"
+
+    local related_output="$output_dir/related_enhanced_templates.json"
+    local object_output="$output_dir/object_enhanced_templates.json"
+
+    case "$decision" in
+        intervene_r1|intervene_r3)
+            python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
+                --templates "$source_templates" \
+                --triage "$triage_file" \
+                --output "$related_output"
+            printf '%s\n' "$related_output"
+            ;;
+        intervene_r2)
+            python3 "$SOURCE_DIR/agent/object_synthesis_agent.py" \
+                --triage "$triage_file" \
+                --templates "$source_templates" \
+                --output "$object_output"
+            printf '%s\n' "$object_output"
+            ;;
+        intervene_mixed)
+            python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
+                --templates "$source_templates" \
+                --triage "$triage_file" \
+                --output "$related_output"
+            local mixed_source="$source_templates"
+            if [ -f "$related_output" ] && [ "$(json_template_count "$related_output")" != "0" ]; then
+                mixed_source="$related_output"
+            fi
+            python3 "$SOURCE_DIR/agent/object_synthesis_agent.py" \
+                --triage "$triage_file" \
+                --templates "$mixed_source" \
+                --output "$object_output"
+            if [ -f "$object_output" ] && [ "$(json_template_count "$object_output")" != "0" ]; then
+                printf '%s\n' "$object_output"
+            else
+                printf '%s\n' "$mixed_source"
+            fi
+            ;;
+        *)
+            printf '%s\n' "$source_templates"
+            ;;
+    esac
+}
+
 stop_manager_session() {
     if [ -n "$MANAGER_SESSION_PID" ] && kill -0 "$MANAGER_SESSION_PID" 2>/dev/null; then
         kill "$MANAGER_SESSION_PID" 2>/dev/null || true
@@ -715,27 +764,12 @@ run_agent_loop() {
                     --output "$window_dir/triage_result.json" \
                     2>&1 | tee "$window_dir/triage.log"
 
-                local intervention_target="$window_dir/enhanced_templates.json"
-                case "$decision" in
-                    intervene_r1|intervene_r3)
-                        python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
-                            --templates "$current_templates" \
-                            --triage "$window_dir/triage_result.json" \
-                            --output "$intervention_target"
-                        ;;
-                    intervene_r2)
-                        python3 "$SOURCE_DIR/agent/object_synthesis_agent.py" \
-                            --triage "$window_dir/triage_result.json" \
-                            --templates "$current_templates" \
-                            --output "$intervention_target"
-                        ;;
-                    intervene_mixed)
-                        python3 "$SOURCE_DIR/agent/related_syscall_agent.py" \
-                            --templates "$current_templates" \
-                            --triage "$window_dir/triage_result.json" \
-                            --output "$intervention_target"
-                        ;;
-                esac
+                local intervention_target
+                intervention_target=$(apply_intervention_templates \
+                    "$decision" \
+                    "$current_templates" \
+                    "$window_dir/triage_result.json" \
+                    "$window_dir")
 
                 if [ -f "$intervention_target" ] && [ "$(json_template_count "$intervention_target")" != "0" ]; then
                     current_templates="$intervention_target"
