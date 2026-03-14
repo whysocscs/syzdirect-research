@@ -728,10 +728,20 @@ run_agent_loop() {
         local decision
         local status
         local reason
+        local score
+        local exec_delta
+        local cover_delta
+        local crash_delta
+        local distance_delta
         decision=$(json_field "$window_dir/decision.json" "decision" "continue")
         status=$(json_field "$window_dir/decision.json" "status" "unknown")
         reason=$(json_field "$window_dir/decision.json" "reason" "")
-        log_info "Window $cycle health: status=$status decision=$decision"
+        score=$(json_field "$window_dir/decision.json" "score" "0")
+        exec_delta=$(json_field "$window_dir/decision.json" "exec_delta" "0")
+        cover_delta=$(json_field "$window_dir/decision.json" "cover_delta" "0")
+        crash_delta=$(json_field "$window_dir/decision.json" "crash_delta" "0")
+        distance_delta=$(json_field "$window_dir/decision.json" "distance_delta" "n/a")
+        log_info "Window $cycle health: status=$status decision=$decision score=$score exec_delta=$exec_delta cover_delta=$cover_delta crash_delta=$crash_delta distance_delta=$distance_delta"
         if [ -n "$reason" ] && [ "$reason" != "null" ]; then
             log_info "Decision reason: $reason"
         fi
@@ -1039,15 +1049,26 @@ monitor_fuzzing() {
         local metrics
         metrics=$(curl -fsS "http://${http_addr}/metrics" 2>/dev/null || true)
         if [ -n "$metrics" ]; then
-            local exec_total corpus crashes
+            local exec_total corpus crashes distance_min
             exec_total=$(printf '%s\n' "$metrics" | awk '/^syz_exec_total / {print int($2)}' | tail -n 1)
             corpus=$(printf '%s\n' "$metrics" | awk '/^syz_corpus_cover / {print int($2)}' | tail -n 1)
             crashes=$(printf '%s\n' "$metrics" | awk '/^syz_crash_total / {print int($2)}' | tail -n 1)
+            distance_min=$(printf '%s\n' "$metrics" | awk '
+                /^syz_distance_min / {print $2}
+                /^syz_dist_min / {print $2}
+                /^syzgo_distance_min / {print $2}
+                /^syzgo_best_distance / {print $2}
+            ' | tail -n 1)
             exec_total=${exec_total:-0}
             corpus=${corpus:-0}
             crashes=${crashes:-0}
-            printf '{"timestamp":%s,"elapsed":%s,"exec_total":%s,"corpus_cover":%s,"crashes":%s}\n' \
-                "$(date +%s)" "$elapsed" "$exec_total" "$corpus" "$crashes" >> "$run_dir/logs/metrics.jsonl"
+            if [ -n "$distance_min" ]; then
+                printf '{"timestamp":%s,"elapsed":%s,"exec_total":%s,"corpus_cover":%s,"crashes":%s,"distance_min":%s}\n' \
+                    "$(date +%s)" "$elapsed" "$exec_total" "$corpus" "$crashes" "$distance_min" >> "$run_dir/logs/metrics.jsonl"
+            else
+                printf '{"timestamp":%s,"elapsed":%s,"exec_total":%s,"corpus_cover":%s,"crashes":%s}\n' \
+                    "$(date +%s)" "$elapsed" "$exec_total" "$corpus" "$crashes" >> "$run_dir/logs/metrics.jsonl"
+            fi
         fi
     done
 }
