@@ -39,3 +39,14 @@ B*_crashes/
 *.img
 bzImage
 vmlinux
+
+# LLVM source (build dependency, too large for git)
+source/llvm-project-15.0.7.src/
+source/llvm-project-15.0.7.src.tar.xz
+source/llvm-project-new/
+
+# SyzDirect build outputs
+source/syzdirect/Runner/workdir/
+source/syzdirect/syzdirect_function_model/
+source/syzdirect/syzdirect_fuzzer/
+source/syzdirect/syzdirect_kernel_analysis/
