@@ -45,16 +45,24 @@ python3 source/syzdirect/Runner/run_hunt.py fuzz \
   --workdir /path/to/workdir
 ```
 
-### Agent Loop 실행
+### Agent Loop (자동 triage + 템플릿 강화)
+
+`--agent-rounds` 옵션을 주면 퍼징 후 자동으로 agent loop이 돈다:
+1. 퍼징 실행 → 2. 건강도 평가 → 3. 실패 분류(R1/R2/R3) → 4. 템플릿 강화 → 5. 재퍼징
 
 ```bash
-# syzagent CLI — 전체 파이프라인
-python3 -m syzagent.cli --full --case 74
+# CVE 원클릭 + agent loop 3라운드 (라운드당 6시간 퍼징)
+python3 source/syzdirect/Runner/run_hunt.py new \
+  --cve CVE-2025-XXXXX --commit abc123 \
+  --function vuln_func --file net/core/sock.c \
+  --agent-rounds 3 --agent-uptime 6
 
-# health monitor — 퍼징 중 거리 정체 감지 시 LLM hook 호출
-python3 source/agent/fuzzing_health_monitor.py \
-  --workdir /path/to/workdir \
-  --llm-hook-cmd "python3 source/agent/failure_triage.py"
+# 프리빌트 타겟 + agent loop
+python3 source/syzdirect/Runner/run_hunt.py fuzz \
+  --targets 0 --agent-rounds 5
+
+# agent loop 없이 기존 동작 (--agent-rounds 0 또는 생략)
+python3 source/syzdirect/Runner/run_hunt.py fuzz --targets 0 3 5
 ```
 
 ### 케이스 실행 (스크립트)
@@ -83,26 +91,41 @@ BUDGET_HOURS=2 bash scripts/run_case.sh 74     # 시간 조정
 ## 실행 흐름
 
 ```
-run_hunt.py (dataset/new/fuzz)
+run_hunt.py (dataset/new/fuzz) + --agent-rounds N
     │
-    ├── 커널 빌드 (clang 버전 완화 + kcov 패치 자동 적용)
-    ├── LLVM bitcode → syscall-to-target 정적 분석
-    ├── BB 거리 계산 → 에너지 할당 맵
-    ├── syzlang 템플릿 생성
-    │
-    ▼
-QEMU 퍼징 (Fuzz.py → syz-manager)
+    ├── [1] 커널 빌드 (clang 버전 완화 + kcov 패치 자동 적용)
+    ├── [2] LLVM bitcode 컴파일
+    ├── [3] 정적 분석 (SyzDirect C++ 도구: interface_generator, target_analyzer)
+    ├── [4] BB 거리 계산 → 에너지 할당 맵
+    ├── [5] 거리 계측 커널 빌드
     │
     ▼
-Health Monitor (거리 정체 감지)
+    [6] QEMU 퍼징 (syz-manager, 로그 캡처)
     │
-    ├── 정체 없음 → 계속 퍼징
-    └── 정체 감지 → failure_triage.py
-         ├── R1 → syscall 재식별
-         ├── R2 → object_synthesis_agent (복잡 오브젝트 생성)
-         └── R3 → related_syscall_agent (의존 체인 보강)
-              │
-              └── 강화된 템플릿으로 재퍼징
+    ├── --agent-rounds 0 → 여기서 끝 (기존 SyzDirect 동작)
+    │
+    └── --agent-rounds N → Agent Loop 진입
+         │
+         ▼
+    ┌──────────────────────────────────┐
+    │  [A] 건강도 평가                 │
+    │      (exec/s, cover/s, crashes)  │
+    │                                  │
+    │  [B] 실패 분류                   │
+    │      R1: target calls disabled   │
+    │          → RelatedSyscallAgent   │
+    │      R2: EINVAL/EFAULT 다수      │
+    │          → ObjectSynthesisAgent  │
+    │      R3: 커버리지 정체           │
+    │          → RelatedSyscallAgent   │
+    │                                  │
+    │  [C] callfile 강화               │
+    │      (syscall 체인 확장/보강)    │
+    │                                  │
+    │  [D] 강화된 callfile로 재퍼징    │
+    │      ↓                           │
+    │      다음 라운드로 반복          │
+    └──────────────────────────────────┘
 ```
 
 ---

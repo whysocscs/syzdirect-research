@@ -1074,12 +1074,25 @@ class NewCVEPipeline:
         print(f"  Done: {self.layout.bzimage(ci)}")
 
     def step6_fuzz(self):
-        print("\n[6/6] FUZZ")
-        launch_fuzzing(
-            self.layout, self.cpus, self.uptime, self.fuzz_rounds,
-            [{"idx": self.ci, "name": self.safe_name,
-              "function": self.function, "func_path": self.file_path}],
-        )
+        target_info = {"idx": self.ci, "name": self.safe_name,
+                       "function": self.function, "func_path": self.file_path}
+        agent_rounds = getattr(self.args, "agent_rounds", 0)
+        if agent_rounds > 0:
+            print(f"\n[6/7] FUZZ + AGENT LOOP ({agent_rounds} rounds)")
+            agent = AgentLoop(
+                layout=self.layout, target_info=target_info,
+                max_rounds=agent_rounds,
+                window_seconds=getattr(self.args, "agent_window", 300),
+                uptime_per_round=getattr(self.args, "agent_uptime", None) or self.uptime,
+                cpus=self.cpus, fuzz_rounds=self.fuzz_rounds,
+            )
+            agent.run()
+        else:
+            print("\n[6/6] FUZZ")
+            launch_fuzzing(
+                self.layout, self.cpus, self.uptime, self.fuzz_rounds,
+                [target_info],
+            )
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -1145,6 +1158,390 @@ def launch_fuzzing(layout, cpus, uptime, fuzz_rounds, targets):
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# Agent Loop: fuzz → assess → triage → enhance → re-fuzz
+# ──────────────────────────────────────────────────────────────────────────
+
+# Path to source/agent/ (relative to this repo)
+_AGENT_DIR = os.path.normpath(os.path.join(RESOURCE_ROOT, "..", "..", "agent"))
+
+
+def _ensure_agent_imports():
+    """Make source/agent importable."""
+    source_dir = os.path.normpath(os.path.join(RESOURCE_ROOT, "..", ".."))
+    if source_dir not in sys.path:
+        sys.path.insert(0, source_dir)
+
+
+class AgentLoop:
+    """
+    Multi-round fuzz → assess → triage → enhance → re-fuzz loop.
+
+    After each fuzzing round, checks health metrics. If the distance is
+    stagnant (not decreasing), classifies the failure as R1/R2/R3 and
+    dispatches the appropriate agent to enhance the callfile (syscall
+    templates). Then re-fuzzes with the enhanced callfile.
+    """
+
+    def __init__(self, layout, target_info, max_rounds, window_seconds,
+                 uptime_per_round, cpus, fuzz_rounds=1):
+        self.layout = layout
+        self.target = target_info
+        self.max_rounds = max_rounds
+        self.window_seconds = window_seconds
+        self.uptime = uptime_per_round
+        self.cpus = cpus
+        self.fuzz_rounds = fuzz_rounds
+        self.ci = target_info["idx"]
+
+    def run(self):
+        for round_num in range(1, self.max_rounds + 1):
+            print(f"\n{'=' * 60}")
+            print(f"  AGENT ROUND {round_num}/{self.max_rounds}")
+            print(f"{'=' * 60}")
+
+            round_dir = os.path.join(
+                self.layout.fuzzres_xidx(self.ci),
+                f"agent_round_{round_num}",
+            )
+            os.makedirs(round_dir, exist_ok=True)
+
+            # ── A. Fuzz with log capture ─────────────────────────────────
+            manager_log, metrics_jsonl = self._run_fuzz_round(round_dir, round_num)
+
+            # ── B. Check for crashes (early success) ─────────────────────
+            crash_dir = os.path.join(round_dir, "crashes")
+            if self._has_crashes(crash_dir, round_dir):
+                print("  TARGET CRASHED — SUCCESS!")
+                break
+
+            # ── C. Assess health ─────────────────────────────────────────
+            health = self._assess_health(metrics_jsonl, manager_log)
+            print(f"  Health: status={health['status']}  score={health['score']:.1f}")
+            print(f"  Reason: {health['reason']}")
+
+            if health["status"] == "healthy":
+                if round_num < self.max_rounds:
+                    print("  Fuzzing is healthy, continuing to next round...")
+                continue
+
+            if health["status"] == "fatal":
+                print("  FATAL: all target calls disabled. Stopping.")
+                break
+
+            # ── D. Triage failure ────────────────────────────────────────
+            failure_class = self._triage(health, metrics_jsonl, manager_log)
+            print(f"  Triage result: {failure_class}")
+
+            if failure_class == "SUCCESS":
+                break
+
+            # ── E. Enhance callfile ──────────────────────────────────────
+            if round_num < self.max_rounds:
+                enhanced = self._enhance_callfile(failure_class, round_dir, round_num)
+                if not enhanced:
+                    print("  No enhancement produced. Stopping agent loop.")
+                    break
+                print(f"  Callfile enhanced for next round.")
+            else:
+                print("  Last round, no more enhancements.")
+
+        self._print_summary()
+
+    # ── Fuzzing ──────────────────────────────────────────────────────────
+
+    def _run_fuzz_round(self, round_dir, round_num):
+        """Run one round of syz-manager with log capture."""
+        Cfg = configure_runner(
+            self.layout, self.cpus, self.uptime, self.fuzz_rounds,
+        )
+        import Fuzz
+
+        ci = self.ci
+        template_config = Cfg.LoadJson(Cfg.TemplateConfigPath)
+        assert template_config, "Failed to load fuzzing config template"
+        template_config["sshkey"] = Cfg.KeyPath
+
+        syzdirect_path = Cfg.FuzzerDir
+        tfmap = Cfg.ParseTargetFunctionsInfoFile(ci)
+
+        for xidx in tfmap.keys():
+            callfile = self.layout.callfile(ci, xidx)
+            kernel_img = self.layout.bzimage(ci, xidx)
+            assert os.path.exists(callfile), f"callfile missing: {callfile}"
+            assert os.path.exists(kernel_img), f"bzImage missing: {kernel_img}"
+
+            import copy
+            config = copy.deepcopy(template_config)
+            config["image"] = Cfg.CleanImageTemplatePath
+            # Accumulate corpus: do NOT wipe workdir between rounds
+            sub_workdir = os.path.join(round_dir, f"workdir_x{xidx}")
+            config["workdir"] = sub_workdir
+            config["http"] = f"0.0.0.0:{2345 + round_num * 100 + int(xidx)}"
+            config["vm"]["kernel"] = kernel_img
+            config["syzkaller"] = syzdirect_path
+            config["hitindex"] = int(xidx)
+
+            config_path = os.path.join(round_dir, f"config_x{xidx}.json")
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent="\t")
+
+            fuzzer_file = os.path.join(syzdirect_path, "bin", "syz-manager")
+            log_dir = os.path.join(round_dir, f"logs_x{xidx}")
+
+            print(f"  Fuzzing case={ci} xidx={xidx} for {self.uptime}h ...")
+            manager_log, metrics_jsonl = Fuzz.runFuzzer(
+                fuzzer_file, config_path, callfile, log_dir=log_dir,
+            )
+            return manager_log, metrics_jsonl
+
+        # Fallback if no xidx found
+        return None, None
+
+    # ── Health assessment ─────────────────────────────────────────────────
+
+    def _assess_health(self, metrics_jsonl, manager_log):
+        """Score the fuzzing round using the same logic as fuzzing_health_monitor."""
+        metrics = []
+        if metrics_jsonl and os.path.exists(metrics_jsonl):
+            with open(metrics_jsonl) as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            metrics.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            pass
+
+        log_text = ""
+        if manager_log and os.path.exists(manager_log):
+            with open(manager_log) as f:
+                log_text = f.read().lower()
+
+        if not metrics:
+            return {"status": "stagnant", "score": -5.0,
+                    "reason": "no metrics collected", "metrics": []}
+
+        # Compute deltas over the window
+        window = metrics  # Use all metrics for the round
+        first, last = window[0], window[-1]
+
+        exec_delta = max(0, last.get("exec_total", 0) - first.get("exec_total", 0))
+        cover_delta = max(0, last.get("corpus_cover", 0) - first.get("corpus_cover", 0))
+        crash_delta = max(0, last.get("crashes", 0) - first.get("crashes", 0))
+        elapsed = max(1, last.get("timestamp", 0) - first.get("timestamp", 0))
+
+        avg_exec = exec_delta / elapsed
+        avg_cover = cover_delta / elapsed
+
+        # Score (same formula as health monitor)
+        score = 0.0
+        score += min(avg_exec / 5.0, 5.0)
+        score += min(avg_cover, 3.0)
+        score -= min((crash_delta / elapsed) * 30.0, 5.0)
+
+        fatal = "all target calls are disabled" in log_text
+
+        status = "healthy"
+        reason = "fuzzing is progressing"
+
+        if fatal:
+            status = "fatal"
+            reason = "all target calls are disabled"
+            score -= 10.0
+        elif exec_delta == 0:
+            status = "stagnant"
+            reason = "execution count did not increase"
+        elif cover_delta == 0 and exec_delta > 100:
+            status = "stagnant"
+            reason = "coverage stalled despite executions"
+
+        return {
+            "status": status, "score": score, "reason": reason,
+            "exec_delta": exec_delta, "cover_delta": cover_delta,
+            "crash_delta": crash_delta, "elapsed": elapsed,
+            "total_exec": last.get("exec_total", 0),
+            "total_cover": last.get("corpus_cover", 0),
+            "total_crashes": last.get("crashes", 0),
+            "fatal": fatal, "metrics": metrics,
+        }
+
+    # ── Crash detection ──────────────────────────────────────────────────
+
+    def _has_crashes(self, crash_dir, round_dir):
+        """Check if syz-manager found crashes this round."""
+        # syz-manager puts crashes in workdir/crashes/
+        for dirpath, dirnames, filenames in os.walk(round_dir):
+            if os.path.basename(dirpath) == "crashes" and filenames:
+                print(f"  Found {len(filenames)} crash files in {dirpath}")
+                return True
+        return False
+
+    # ── Failure triage ───────────────────────────────────────────────────
+
+    def _triage(self, health, metrics_jsonl, manager_log):
+        """
+        Classify failure as R1/R2/R3 using heuristics.
+        Simpler than full FailureTriageAgent since we lack per-exec distance data.
+        """
+        if health.get("total_crashes", 0) > 0:
+            return "SUCCESS"
+
+        if health.get("fatal"):
+            # All target calls disabled → wrong syscalls identified (R1)
+            return "R1"
+
+        exec_d = health.get("exec_delta", 0)
+        cover_d = health.get("cover_delta", 0)
+
+        if exec_d == 0:
+            # Nothing executed → likely missing/wrong syscall (R1)
+            return "R1"
+
+        # Check log for EINVAL/EFAULT patterns (R2 indicator)
+        einval_count = 0
+        if manager_log and os.path.exists(manager_log):
+            with open(manager_log) as f:
+                log_text = f.read()
+                einval_count = log_text.lower().count("einval") + log_text.lower().count("efault")
+
+        if einval_count > 50:
+            # High error rate → parameter generation failure (R2)
+            return "R2"
+
+        if cover_d == 0 and exec_d > 100:
+            # Executions running but no new coverage → dependency chain issue (R3)
+            return "R3"
+
+        # Default: distance not decreasing → R3 (context insufficient)
+        return "R3"
+
+    # ── Template enhancement ─────────────────────────────────────────────
+
+    def _enhance_callfile(self, failure_class, round_dir, round_num):
+        """Enhance the callfile using the appropriate agent."""
+        callfile_path = self.layout.callfile(self.ci)
+        with open(callfile_path) as f:
+            current_callfile = json.load(f)
+
+        # Convert callfile to template_bundle format for agents
+        template_data = self._callfile_to_templates(current_callfile)
+        triage_result = {
+            "failure_class": failure_class,
+            "evidence": [f"Agent loop round {round_num} triage: {failure_class}"],
+            "recommended_actions": [],
+        }
+
+        enhanced_templates = None
+
+        _ensure_agent_imports()
+
+        if failure_class in ("R3", "R1"):
+            try:
+                from source.agent.related_syscall_agent import RelatedSyscallAgent
+                agent = RelatedSyscallAgent(
+                    template_data=template_data,
+                    triage_result=triage_result,
+                )
+                enhanced_templates = agent.analyze_and_enhance()
+                print(f"  RelatedSyscallAgent produced {len(enhanced_templates)} templates")
+            except Exception as e:
+                print(f"  WARNING: RelatedSyscallAgent failed: {e}")
+
+        elif failure_class == "R2":
+            try:
+                from source.agent.object_synthesis_agent import ObjectSynthesisAgent
+                image_dir = os.path.join(round_dir, "images")
+                agent = ObjectSynthesisAgent(
+                    triage_result=triage_result,
+                    template_data=template_data,
+                    image_dir=image_dir,
+                )
+                result = agent.analyze_and_synthesize()
+                enhanced_templates = result.get("enhanced_templates", [])
+                print(f"  ObjectSynthesisAgent produced {len(enhanced_templates)} templates")
+            except Exception as e:
+                print(f"  WARNING: ObjectSynthesisAgent failed: {e}")
+
+        if not enhanced_templates:
+            return False
+
+        # Convert back to callfile format and write
+        new_callfile = self._templates_to_callfile(enhanced_templates)
+        if not new_callfile:
+            return False
+
+        # Backup old callfile
+        backup = callfile_path + f".round{round_num}"
+        shutil.copyfile(callfile_path, backup)
+
+        # Merge: keep originals + add new entries
+        merged = list(current_callfile)
+        existing_targets = {e["Target"] for e in merged}
+        for entry in new_callfile:
+            if entry["Target"] not in existing_targets:
+                merged.append(entry)
+                existing_targets.add(entry["Target"])
+
+        with open(callfile_path, "w") as f:
+            json.dump(merged, f, indent="\t")
+
+        return True
+
+    # ── Format converters ────────────────────────────────────────────────
+
+    @staticmethod
+    def _callfile_to_templates(callfile):
+        """Convert callfile JSON to template_bundle format."""
+        templates = []
+        for i, entry in enumerate(callfile):
+            target_name = entry.get("Target", "")
+            related_names = entry.get("Relate", [])
+            templates.append({
+                "template_id": f"tmpl_{i}_{target_name}",
+                "entry_syscall": {
+                    "name": target_name.split("$")[0] if "$" in target_name else target_name,
+                    "syzlang_name": target_name,
+                },
+                "related_syscalls": [
+                    {"name": r.split("$")[0] if "$" in r else r, "syzlang_name": r}
+                    for r in related_names
+                ],
+                "sequence_order": related_names + [target_name],
+            })
+        return templates
+
+    @staticmethod
+    def _templates_to_callfile(templates):
+        """Convert template_bundle format back to callfile JSON."""
+        callfile = []
+        seen = set()
+        for t in templates:
+            entry = t.get("entry_syscall", {})
+            target = entry.get("syzlang_name") or entry.get("name", "")
+            if not target or target in seen:
+                continue
+            seen.add(target)
+            related = [
+                s.get("syzlang_name") or s.get("name", "")
+                for s in t.get("related_syscalls", [])
+                if s.get("syzlang_name") or s.get("name")
+            ]
+            callfile.append({"Target": target, "Relate": related})
+        return callfile
+
+    # ── Summary ──────────────────────────────────────────────────────────
+
+    def _print_summary(self):
+        print(f"\n{'=' * 60}")
+        print("  AGENT LOOP COMPLETE")
+        callfile_path = self.layout.callfile(self.ci)
+        print(f"  Final callfile: {callfile_path}")
+        fuzzres = self.layout.fuzzres_xidx(self.ci)
+        print(f"  Results: {fuzzres}")
+        print(f"{'=' * 60}")
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # CLI
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -1174,6 +1571,12 @@ Examples:
   # Pre-built targets — fuzz only:
   python3 run_hunt.py fuzz --targets 0 3 5 -uptime 12
   python3 run_hunt.py fuzz
+
+  # Agent loop — fuzz + auto triage/enhance (3 rounds, 6h each):
+  python3 run_hunt.py new --cve CVE-2025-99999 --commit abc123 \\
+      --function vuln_func --file net/core/sock.c \\
+      --agent-rounds 3 --agent-uptime 6
+  python3 run_hunt.py fuzz --targets 0 --agent-rounds 5
 
 Available dataset actions:
   {', '.join(DATASET_ACTION_NAMES)}
@@ -1211,6 +1614,15 @@ Available dataset actions:
     p_fuzz = sub.add_parser("fuzz", help="Fuzz pre-built targets only")
     p_fuzz.add_argument("--targets", nargs="*", type=int, default=None)
 
+    # Agent loop options (shared by new + fuzz modes)
+    for p in [p_new, p_fuzz]:
+        p.add_argument("--agent-rounds", type=int, default=0, dest="agent_rounds",
+                        help="Agent loop iterations (0=off, >0=auto triage+enhance)")
+        p.add_argument("--agent-window", type=int, default=300, dest="agent_window",
+                        help="Health check window in seconds (default: 300)")
+        p.add_argument("--agent-uptime", type=int, default=None, dest="agent_uptime",
+                        help="Uptime per agent round in hours (default: same as -uptime)")
+
     args = parser.parse_args()
     if not args.mode:
         parser.print_help()
@@ -1234,7 +1646,20 @@ Available dataset actions:
 
         print(f"Targets: {[t['name'] for t in targets]}")
         setup_prebuilt(layout, targets)
-        launch_fuzzing(layout, args.j, args.uptime, args.fuzz_rounds, targets)
+
+        if args.agent_rounds > 0:
+            # Agent loop for each target sequentially
+            for t in targets:
+                agent = AgentLoop(
+                    layout=layout, target_info=t,
+                    max_rounds=args.agent_rounds,
+                    window_seconds=args.agent_window,
+                    uptime_per_round=args.agent_uptime or args.uptime,
+                    cpus=args.j, fuzz_rounds=args.fuzz_rounds,
+                )
+                agent.run()
+        else:
+            launch_fuzzing(layout, args.j, args.uptime, args.fuzz_rounds, targets)
 
 
 if __name__ == "__main__":
