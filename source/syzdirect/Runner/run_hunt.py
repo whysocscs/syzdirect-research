@@ -9,7 +9,10 @@ Usage:
       analyze_kernel_syscall extract_syscall_entry \\
       instrument_kernel_with_distance fuzz
 
-  # New CVE — full pipeline (source -> bitcode -> analysis -> distance -> fuzz):
+  # New CVE — CVE number only (auto-resolves commit/function/file):
+  python3 run_hunt.py new --cve CVE-2025-XXXXX
+
+  # New CVE — with manual overrides:
   python3 run_hunt.py new --cve CVE-2025-XXXXX --commit abc123 \\
       --function vuln_func --file net/core/sock.c -j 8
 
@@ -48,9 +51,15 @@ KCOV_PATCH = os.path.join(RESOURCE_ROOT, "kcov.diff")
 BIGCONFIG = os.path.join(RESOURCE_ROOT, "bigconfig")
 TEMPLATE_CONFIG = os.path.join(RESOURCE_ROOT, "template_config")
 
-RUNTIME_BASE = "/home/ai/syzdirect-runtime/cve"
-VM_IMAGE = os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work/bullseye.img")
-SSH_KEY = os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work/bullseye.id_rsa")
+RUNTIME_BASE = os.environ.get("SYZDIRECT_RUNTIME", "/home/ai/syzdirect-runtime/cve")
+VM_IMAGE = os.environ.get(
+    "SYZDIRECT_VM_IMAGE",
+    os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work/bullseye.img"),
+)
+SSH_KEY = os.environ.get(
+    "SYZDIRECT_SSH_KEY",
+    os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work/bullseye.id_rsa"),
+)
 
 # Syscall names MUST match syzkaller sys/linux/gen/amd64.go
 PREBUILT_TARGETS = [
@@ -167,7 +176,25 @@ def sh(cmd, check=True, capture=False, big=False):
             print(f"  STDERR: {r.stderr[:500]}")
             raise RuntimeError(f"Command failed: {cmd}")
         return r.stdout.strip()
-    os.system(cmd)
+    subprocess.run(cmd, shell=True, check=check)
+
+
+def write_makefile_kcov(src_dir, dist_dir, target_func):
+    """Write scripts/Makefile.kcov for distance-guided instrumentation."""
+    path = os.path.join(src_dir, "scripts", "Makefile.kcov")
+    with open(path, "w") as f:
+        f.write(
+            "# SPDX-License-Identifier: GPL-2.0-only\n"
+            f"kcov-flags-$(CONFIG_CC_HAS_SANCOV_TRACE_PC) += "
+            f"-fsanitize-coverage=trace-pc,second "
+            f"-fsanitize-coverage-kernel-src-dir={src_dir} "
+            f"-fsanitize-coverage-distance-dir={dist_dir} "
+            f"-fsanitize-coverage-target-function={target_func}\n"
+            "kcov-flags-$(CONFIG_KCOV_ENABLE_COMPARISONS)\t+= -fsanitize-coverage=trace-cmp\n"
+            "kcov-flags-$(CONFIG_GCC_PLUGIN_SANCOV)\t\t+= "
+            "-fplugin=$(objtree)/scripts/gcc-plugins/sancov_plugin.so\n"
+            "\nexport CFLAGS_KCOV := $(kcov-flags-y)\n"
+        )
 
 
 def append_build_config(config_path):
@@ -201,6 +228,24 @@ def _get_clang_version():
     return tuple(int(x) for x in m.groups()) if m else None
 
 
+def _patch_file(path, replacements, label=""):
+    """Apply text replacements to a file. Returns True if changed."""
+    if not os.path.exists(path):
+        return False
+    with open(path) as f:
+        txt = f.read()
+    updated = txt
+    for old, new in replacements.items():
+        updated = updated.replace(old, new)
+    if updated != txt:
+        with open(path, "w") as f:
+            f.write(updated)
+        if label:
+            print(f"  [compat] {label}: {path}")
+        return True
+    return False
+
+
 def relax_kernel_build(src_dir):
     """Apply all clang/kernel build compatibility relaxations to a source tree."""
     ver = _get_clang_version()
@@ -208,19 +253,16 @@ def relax_kernel_build(src_dir):
         return
 
     # 1) min-tool-version.sh: lower required clang from 15 to 13
-    p = os.path.join(src_dir, "scripts", "min-tool-version.sh")
-    if os.path.exists(p):
-        txt = open(p).read()
-        updated = txt.replace("echo 15.0.0", "echo 13.0.0")
-        if updated != txt:
-            open(p, "w").write(updated)
-            print(f"  [compat] Relaxed min clang version in {p}")
+    _patch_file(
+        os.path.join(src_dir, "scripts", "min-tool-version.sh"),
+        {"echo 15.0.0": "echo 13.0.0"},
+        "Relaxed min clang version",
+    )
 
     # 2) arch/x86/Makefile: wrap clang-only flags in cc-option
-    p = os.path.join(src_dir, "arch", "x86", "Makefile")
-    if os.path.exists(p):
-        txt = open(p).read()
-        replacements = {
+    _patch_file(
+        os.path.join(src_dir, "arch", "x86", "Makefile"),
+        {
             "KBUILD_CFLAGS += -mno-fp-ret-in-387":
                 "KBUILD_CFLAGS += $(call cc-option,-mno-fp-ret-in-387)",
             "KBUILD_CFLAGS += -mskip-rax-setup":
@@ -231,19 +273,14 @@ def relax_kernel_build(src_dir):
                 "KBUILD_CFLAGS += $(call cc-option,-mstack-protector-guard-symbol=__ref_stack_chk_guard)",
             "KBUILD_CFLAGS += -mstack-protector-guard=global":
                 "KBUILD_CFLAGS += $(call cc-option,-mstack-protector-guard=global)",
-        }
-        updated = txt
-        for old, new in replacements.items():
-            updated = updated.replace(old, new)
-        if updated != txt:
-            open(p, "w").write(updated)
-            print(f"  [compat] Relaxed x86 clang flags in {p}")
+        },
+        "Relaxed x86 clang flags",
+    )
 
     # 3) scripts/Makefile.warn: wrap clang warning flags
-    p = os.path.join(src_dir, "scripts", "Makefile.warn")
-    if os.path.exists(p):
-        txt = open(p).read()
-        replacements = {
+    _patch_file(
+        os.path.join(src_dir, "scripts", "Makefile.warn"),
+        {
             "KBUILD_CFLAGS += -Wno-pointer-to-enum-cast":
                 "KBUILD_CFLAGS += $(call cc-disable-warning,pointer-to-enum-cast)",
             "KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare":
@@ -252,13 +289,9 @@ def relax_kernel_build(src_dir):
                 "KBUILD_CFLAGS += $(call cc-disable-warning,unaligned-access)",
             "KBUILD_CFLAGS += -Wno-enum-compare-conditional":
                 "KBUILD_CFLAGS += $(call cc-disable-warning,enum-compare-conditional)",
-        }
-        updated = txt
-        for old, new in replacements.items():
-            updated = updated.replace(old, new)
-        if updated != txt:
-            open(p, "w").write(updated)
-            print(f"  [compat] Relaxed warning flags in {p}")
+        },
+        "Relaxed warning flags",
+    )
 
 
 def ensure_kcov_support(src_dir):
@@ -267,7 +300,8 @@ def ensure_kcov_support(src_dir):
     source_path = os.path.join(src_dir, "kernel", "kcov.c")
 
     if os.path.exists(header_path):
-        txt = open(header_path).read()
+        with open(header_path) as f:
+            txt = f.read()
         updated = txt
         if "void notrace kcov_mark_block(u32 i);" not in updated:
             updated = updated.replace(
@@ -279,11 +313,13 @@ def ensure_kcov_support(src_dir):
                 "static inline void kcov_remote_stop_softirq(void) {}\n"
                 "static inline void kcov_mark_block(u32 i) {}\n")
         if updated != txt:
-            open(header_path, "w").write(updated)
+            with open(header_path, "w") as f:
+                f.write(updated)
             print(f"  [kcov] Patched {header_path}")
 
     if os.path.exists(source_path):
-        txt = open(source_path).read()
+        with open(source_path) as f:
+            txt = f.read()
         updated = txt
 
         if "#define DISTBLOCKSIZE 300" not in updated:
@@ -405,7 +441,8 @@ EXPORT_SYMBOL(kcov_mark_block);
                 "\tdst_occupied = count_size + (dst_len << entry_size_log);\n")
 
         if updated != txt:
-            open(source_path, "w").write(updated)
+            with open(source_path, "w") as f:
+                f.write(updated)
             print(f"  [kcov] Patched {source_path}")
 
 
@@ -809,21 +846,7 @@ class DatasetPipeline:
                 os.makedirs(temp, exist_ok=True)
                 dist_dir = self.layout.dist_dir(ci, xidx)
 
-                # write Makefile.kcov
-                kcov_config = (
-                    "# SPDX-License-Identifier: GPL-2.0-only\n"
-                    f"kcov-flags-$(CONFIG_CC_HAS_SANCOV_TRACE_PC) += "
-                    f"-fsanitize-coverage=trace-pc,second "
-                    f"-fsanitize-coverage-kernel-src-dir={src} "
-                    f"-fsanitize-coverage-distance-dir={dist_dir} "
-                    f"-fsanitize-coverage-target-function={target_func}\n"
-                    "kcov-flags-$(CONFIG_KCOV_ENABLE_COMPARISONS)\t+= -fsanitize-coverage=trace-cmp\n"
-                    "kcov-flags-$(CONFIG_GCC_PLUGIN_SANCOV)\t\t+= "
-                    "-fplugin=$(objtree)/scripts/gcc-plugins/sancov_plugin.so\n"
-                    "\nexport CFLAGS_KCOV := $(kcov-flags-y)\n"
-                )
-                with open(os.path.join(src, "scripts/Makefile.kcov"), "w") as f:
-                    f.write(kcov_config)
+                write_makefile_kcov(src, dist_dir, target_func)
 
                 sh(f"cd {Q(src)} && make clean && make mrproper", check=False)
                 shutil.copyfile(config_path, os.path.join(temp, ".config"))
@@ -909,6 +932,11 @@ class NewCVEPipeline:
         src = self.layout.src(self.ci)
         os.makedirs(os.path.dirname(src), exist_ok=True)
 
+        # Handle relative refs like "abc123~1": fetch the base hash,
+        # then checkout the relative ref locally.
+        commit = self.commit
+        fetch_ref = re.sub(r"[~^]\d*$", "", commit)  # strip ~1, ^2, etc.
+
         if os.path.isdir(os.path.join(src, ".git")):
             print(f"  Reusing: {src}")
         else:
@@ -919,9 +947,11 @@ class NewCVEPipeline:
             else:
                 print("  Cloning from GitHub...")
                 sh(f"git clone --depth=1 https://github.com/torvalds/linux.git {Q(src)}")
-                sh(f"cd {Q(src)} && git fetch --depth=1 origin {self.commit}")
+                # For relative refs (e.g. abc~1), we need depth=2 so the parent exists
+                depth = 2 if fetch_ref != commit else 1
+                sh(f"cd {Q(src)} && git fetch --depth={depth} origin {fetch_ref}")
 
-        sh(f"cd {Q(src)} && git checkout -f {self.commit}")
+        sh(f"cd {Q(src)} && git checkout -f {commit}")
         relax_kernel_build(src)
 
         result = sh(f"cd {Q(src)} && git apply {Q(KCOV_PATCH)} 2>&1",
@@ -1030,7 +1060,8 @@ class NewCVEPipeline:
 
         xidx, target_func = "0", self.function
         if os.path.exists(self.layout.tfinfo(ci)):
-            parts = open(self.layout.tfinfo(ci)).readline().split()
+            with open(self.layout.tfinfo(ci)) as _f:
+                parts = _f.readline().split()
             xidx, target_func = parts[0], parts[1]
 
         dist = self.layout.dist_dir(ci, xidx)
@@ -1041,18 +1072,7 @@ class NewCVEPipeline:
         temp = os.path.join(self.layout.kwithdist(ci), "temp_build")
         os.makedirs(temp, exist_ok=True)
 
-        with open(os.path.join(src, "scripts/Makefile.kcov"), "w") as f:
-            f.write(
-                "# SPDX-License-Identifier: GPL-2.0-only\n"
-                f"kcov-flags-$(CONFIG_CC_HAS_SANCOV_TRACE_PC) += -fsanitize-coverage=trace-pc,second "
-                f"-fsanitize-coverage-kernel-src-dir={src} "
-                f"-fsanitize-coverage-distance-dir={dist} "
-                f"-fsanitize-coverage-target-function={target_func}\n"
-                "kcov-flags-$(CONFIG_KCOV_ENABLE_COMPARISONS)\t+= -fsanitize-coverage=trace-cmp\n"
-                "kcov-flags-$(CONFIG_GCC_PLUGIN_SANCOV)\t\t+= "
-                "-fplugin=$(objtree)/scripts/gcc-plugins/sancov_plugin.so\n"
-                "\nexport CFLAGS_KCOV := $(kcov-flags-y)\n"
-            )
+        write_makefile_kcov(src, dist, target_func)
 
         sh(f"cd {Q(src)} && make clean && make mrproper", check=False)
         shutil.copyfile(self.config_path, os.path.join(temp, ".config"))
@@ -1279,7 +1299,8 @@ class AgentLoop:
             # Accumulate corpus: do NOT wipe workdir between rounds
             sub_workdir = os.path.join(round_dir, f"workdir_x{xidx}")
             config["workdir"] = sub_workdir
-            config["http"] = f"0.0.0.0:{2345 + round_num * 100 + int(xidx)}"
+            port = 2345 + (round_num * 10 + int(xidx)) % 60000
+            config["http"] = f"0.0.0.0:{port}"
             config["vm"]["kernel"] = kernel_img
             config["syzkaller"] = syzdirect_path
             config["hitindex"] = int(xidx)
@@ -1626,9 +1647,14 @@ Available dataset actions:
     # new CVE mode
     p_new = sub.add_parser("new", help="Full pipeline for a new CVE")
     p_new.add_argument("--cve", required=True)
-    p_new.add_argument("--commit", required=True)
-    p_new.add_argument("--function", required=True)
-    p_new.add_argument("--file", required=True)
+    p_new.add_argument("--commit", default=None,
+                        help="Kernel commit to check out (auto-resolved from CVE if omitted)")
+    p_new.add_argument("--function", default=None,
+                        help="Target function (auto-resolved from CVE patch if omitted)")
+    p_new.add_argument("--file", default=None,
+                        help="Target source file (auto-resolved from CVE patch if omitted)")
+    p_new.add_argument("--verify-patch", action="store_true", dest="verify_patch",
+                        help="Patch verification mode: fuzz the FIXED kernel to confirm bug is gone")
     p_new.add_argument("--syscalls", default="")
     p_new.add_argument("--config", default=None)
     p_new.add_argument("--linux-template", default=None)
@@ -1657,6 +1683,30 @@ Available dataset actions:
         DatasetPipeline(args).run()
 
     elif args.mode == "new":
+        # Auto-resolve missing --commit/--function/--file from CVE ID
+        if not all([args.commit, args.function, args.file]):
+            from cve_resolver import CVEResolver, CVEResolveError
+            try:
+                resolved = CVEResolver(args.cve).resolve()
+                if getattr(args, "verify_patch", False):
+                    # Patch verification: fuzz the FIXED kernel
+                    args.commit = args.commit or resolved["fix_commit"]
+                    mode_label = "PATCH VERIFICATION (post-fix)"
+                else:
+                    # 1-day reproduction: fuzz the VULNERABLE kernel
+                    args.commit = args.commit or resolved["commit"]
+                    mode_label = "1-DAY REPRODUCTION (pre-fix)"
+                args.function = args.function or resolved["function"]
+                args.file = args.file or resolved["file"]
+                print(f"\n[CVE Resolver] Auto-resolved from {args.cve}:")
+                print(f"  mode        : {mode_label}")
+                print(f"  fix commit  : {resolved['fix_commit']}")
+                print(f"  checkout    : {args.commit}")
+                print(f"  function    : {args.function}")
+                print(f"  file        : {args.file}")
+                print()
+            except CVEResolveError as e:
+                sys.exit(f"ERROR: CVE auto-resolve failed: {e}")
         NewCVEPipeline(args).run(args.from_stage)
 
     elif args.mode == "fuzz":

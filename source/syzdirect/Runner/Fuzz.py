@@ -1,7 +1,7 @@
 
 import os, json, re, shlex, subprocess
-from concurrent.futures import ThreadPoolExecutor, thread
-import concurrent
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 import datetime, time
 import copy, shutil
 import pandas as pd
@@ -37,6 +37,11 @@ def _parse_stats_line(line):
 def MultirunFuzzer():
     runItems=[]
     CLEAN_IMAGE_PATH = Config.CleanImageTemplatePath
+    syzdirect_path = Config.FuzzerDir
+
+    # Build fuzzer once before all runs
+    os.system(f"cd {syzdirect_path}; make")
+
     runCount = 1
     for datapoint in Config.datapoints:
 
@@ -44,10 +49,6 @@ def MultirunFuzzer():
         template_config=Config.LoadJson(Config.TemplateConfigPath)
         assert template_config, "Fail to load fuzzing config template "
         template_config["sshkey"]=Config.KeyPath
-
-        # first build it again
-        syzdirect_path = Config.FuzzerDir
-        os.system(f"cd {syzdirect_path}; make")
 
         # collect all xidxs
         tfmap=Config.ParseTargetFunctionsInfoFile(caseIdx)

@@ -14,7 +14,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import Any, List, Dict, Optional, Tuple
 from enum import Enum
 from pathlib import Path
 import statistics
@@ -98,9 +98,9 @@ class TriageResult:
     recommended_actions: List[str]
     
     # Detailed diagnostics
-    distance_analysis: Dict[str, any]
-    error_analysis: Dict[str, any]
-    template_analysis: Dict[str, any]
+    distance_analysis: Dict[str, Any]
+    error_analysis: Dict[str, Any]
+    template_analysis: Dict[str, Any]
 
 
 class FailureTriageAgent:
