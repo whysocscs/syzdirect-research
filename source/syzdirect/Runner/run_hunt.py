@@ -1251,6 +1251,8 @@ class AgentLoop:
 
     def _run_fuzz_round(self, round_dir, round_num):
         """Run one round of syz-manager with log capture."""
+        import copy as _copy
+
         Cfg = configure_runner(
             self.layout, self.cpus, self.uptime, self.fuzz_rounds,
         )
@@ -1264,14 +1266,15 @@ class AgentLoop:
         syzdirect_path = Cfg.FuzzerDir
         tfmap = Cfg.ParseTargetFunctionsInfoFile(ci)
 
+        last_log, last_metrics = None, None
+
         for xidx in tfmap.keys():
             callfile = self.layout.callfile(ci, xidx)
             kernel_img = self.layout.bzimage(ci, xidx)
             assert os.path.exists(callfile), f"callfile missing: {callfile}"
             assert os.path.exists(kernel_img), f"bzImage missing: {kernel_img}"
 
-            import copy
-            config = copy.deepcopy(template_config)
+            config = _copy.deepcopy(template_config)
             config["image"] = Cfg.CleanImageTemplatePath
             # Accumulate corpus: do NOT wipe workdir between rounds
             sub_workdir = os.path.join(round_dir, f"workdir_x{xidx}")
@@ -1289,13 +1292,11 @@ class AgentLoop:
             log_dir = os.path.join(round_dir, f"logs_x{xidx}")
 
             print(f"  Fuzzing case={ci} xidx={xidx} for {self.uptime}h ...")
-            manager_log, metrics_jsonl = Fuzz.runFuzzer(
+            last_log, last_metrics = Fuzz.runFuzzer(
                 fuzzer_file, config_path, callfile, log_dir=log_dir,
             )
-            return manager_log, metrics_jsonl
 
-        # Fallback if no xidx found
-        return None, None
+        return last_log, last_metrics
 
     # ── Health assessment ─────────────────────────────────────────────────
 
@@ -1489,21 +1490,45 @@ class AgentLoop:
 
     # ── Format converters ────────────────────────────────────────────────
 
-    @staticmethod
-    def _callfile_to_templates(callfile):
+    # Heuristic: infer resource type from syscall name
+    _RESOURCE_HINTS = {
+        "sock": {"socket", "bind", "listen", "connect", "accept", "accept4",
+                 "send", "sendto", "sendmsg", "sendmmsg", "recv", "recvfrom",
+                 "recvmsg", "setsockopt", "getsockopt", "shutdown"},
+        "fd": {"open", "openat", "creat", "read", "write", "ioctl", "close",
+               "fcntl", "fstat", "lseek", "mmap"},
+    }
+
+    @classmethod
+    def _infer_resource_type(cls, syscall_name):
+        base = syscall_name.split("$")[0] if "$" in syscall_name else syscall_name
+        for rtype, names in cls._RESOURCE_HINTS.items():
+            if base in names:
+                return rtype
+        return None
+
+    @classmethod
+    def _callfile_to_templates(cls, callfile):
         """Convert callfile JSON to template_bundle format."""
         templates = []
         for i, entry in enumerate(callfile):
             target_name = entry.get("Target", "")
             related_names = entry.get("Relate", [])
+            base_name = target_name.split("$")[0] if "$" in target_name else target_name
+            rtype = cls._infer_resource_type(target_name)
             templates.append({
                 "template_id": f"tmpl_{i}_{target_name}",
                 "entry_syscall": {
-                    "name": target_name.split("$")[0] if "$" in target_name else target_name,
+                    "name": base_name,
                     "syzlang_name": target_name,
+                    "resource_type": rtype,
                 },
                 "related_syscalls": [
-                    {"name": r.split("$")[0] if "$" in r else r, "syzlang_name": r}
+                    {
+                        "name": r.split("$")[0] if "$" in r else r,
+                        "syzlang_name": r,
+                        "resource_type": cls._infer_resource_type(r),
+                    }
                     for r in related_names
                 ],
                 "sequence_order": related_names + [target_name],
