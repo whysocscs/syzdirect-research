@@ -20,6 +20,9 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
 
 #include <memory>
 #include <vector>
@@ -320,30 +323,68 @@ int main(int argc, char **argv) {
       }
   }
   
-	// Loading modules
+	// Two-phase module loading to prevent debug metadata OOM.
+	// For each .llbc file:
+	//   (a) Load into a temporary LLVMContext → extract StructFieldIdx
+	//       from debug metadata → strip debug info → serialize stripped
+	//       bitcode to an in-memory buffer → destroy temp context (frees
+	//       ALL debug metadata from the BumpPtrAllocator).
+	//   (b) Reload the stripped bitcode from the buffer into the shared
+	//       LLVMContext — no debug metadata ever enters the shared context.
+	//
+	// This saves ~10-15 GB that would otherwise be permanently trapped in
+	// the shared LLVMContext's BumpPtrAllocator after StripDebugInfo().
 	OP << "Total " << InputFilenames.size() << " file(s)\n";
 
-	// 방안 7+8: 단일 LLVMContext 공유 + 디버그 타입 중복 제거
 	LLVMContext *SharedCtx = new LLVMContext();
-	SharedCtx->enableDebugTypeODRUniquing();
+	DbgInfoHelperPass DIHTmpPass(&GlobalCtx);
+	unsigned loadErrors = 0;
 
 	for (unsigned i = 0; i < InputFilenames.size(); ++i) {
+		SmallVector<char, 0> Buffer;
+		bool loadOk = false;
 
-		LLVMContext *LLVMCtx = SharedCtx;
-		unique_ptr<Module> M = parseIRFile(InputFilenames[i], Err, *LLVMCtx);
+		// Phase A: Load in temporary context — extract debug info + serialize stripped
+		{
+			LLVMContext TmpCtx;
+			TmpCtx.enableDebugTypeODRUniquing();
+			unique_ptr<Module> M = parseIRFile(InputFilenames[i], Err, TmpCtx);
+			if (M) {
+				// Extract struct field indices from debug metadata
+				DIHTmpPass.doModulePass(M.get());
 
-		if (M == NULL) {
-		    Err.print("Analyzer.cc",OP);
-		    OP << "\n";
-			OP << argv[0] << ": error loading file '"
-				<< InputFilenames[i] << "'\n";
+				// Strip debug info and serialize to memory buffer
+				StripDebugInfo(*M);
+				raw_svector_ostream OS(Buffer);
+				WriteBitcodeToFile(*M, OS);
+				loadOk = true;
+			} else {
+				Err.print("Analyzer.cc", OP);
+				OP << "\n" << argv[0] << ": error loading file '"
+				   << InputFilenames[i] << "'\n";
+			}
+			// TmpCtx destroyed here — all debug metadata memory freed
+		}
+		if (!loadOk) { ++loadErrors; continue; }
+
+		// Phase B: Reload stripped bitcode into shared context (no debug metadata)
+		auto MB = MemoryBuffer::getMemBuffer(
+			StringRef(Buffer.data(), Buffer.size()), InputFilenames[i], false);
+		auto MOrErr = parseBitcodeFile(MB->getMemBufferRef(), *SharedCtx);
+		if (!MOrErr) {
+			OP << "Error reloading stripped module: " << InputFilenames[i] << "\n";
+			consumeError(MOrErr.takeError());
+			++loadErrors;
 			continue;
 		}
 
-		Module *Module = M.release();
+		Module *Module = MOrErr->release();
 		StringRef MName = StringRef(strdup(InputFilenames[i].data()));
 		GlobalCtx.Modules.push_back(make_pair(Module, MName));
 		GlobalCtx.ModuleMaps[Module] = InputFilenames[i];
+
+		if ((i + 1) % 500 == 0 || i + 1 == InputFilenames.size())
+			OP << "[Loading] " << (i + 1) << " / " << InputFilenames.size() << " modules\n";
 
     string location = InputFilenames[i];
     vector<string> splitRes;
@@ -363,6 +404,11 @@ int main(int argc, char **argv) {
     ModuleMap[Module->getSourceFileName()] = Module;
 	}
 
+	OP << "[Loading] Done — " << GlobalCtx.Modules.size()
+	   << " modules loaded (debug metadata excluded from shared context)";
+	if (loadErrors > 0)
+		OP << ", " << loadErrors << " errors";
+	OP << "\n";
 
   GlobalCtx.FunctionArgMap = getArgMapFromFile();
 	// Main workflow
@@ -379,7 +425,10 @@ int main(int argc, char **argv) {
 	CallGraphPass CGPass(&GlobalCtx);
 	CGPass.run(GlobalCtx.Modules);
 
-  // Get information from the debug info
+  // DbgInfoHelper: doInitialization still collects GlobalStructMap from
+  // global variables (no debug info needed).  doModulePass finds no debug
+  // metadata on stripped modules and returns immediately — StructFieldIdx
+  // was already populated during the two-phase loading above.
   DbgInfoHelperPass DIHPass(&GlobalCtx);
   DIHPass.run(GlobalCtx.Modules);
 

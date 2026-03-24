@@ -15,8 +15,9 @@ import sys
 from paths import (
     BIGCONFIG, CLANG_PATH, FUZZER_BIN, FUZZER_DIR, INTERFACE_GENERATOR,
     KCOV_PATCH, KNOWN_CRASH_DB, PIPELINE_STAGES, RESOURCE_ROOT,
-    RUNTIME_BASE, SCRIPT_DIR, SSH_KEY, TARGET_ANALYZER, TEMPLATE_CONFIG,
+    RUNTIME_BASE, SSH_KEY, TARGET_ANALYZER, TEMPLATE_CONFIG,
     VM_IMAGE, BootFallbackRequested, Q, sh, WorkdirLayout,
+    _file_is_empty, _file_exists_and_nonempty, ensure_script_dir_on_path,
 )
 from kernel_build import (
     append_build_config, ensure_kcov_support, relax_kernel_build,
@@ -69,7 +70,7 @@ def ensure_commit_available(src_dir, commit, fetch_ref):
 
 def ensure_target_function_info(path, function_name, file_path):
     """Make sure fuzzing has at least one target function entry."""
-    if os.path.exists(path) and os.path.getsize(path) > 0:
+    if _file_exists_and_nonempty(path):
         with open(path) as f:
             for line in f:
                 if line.strip():
@@ -94,7 +95,7 @@ def load_target_function_map(tfinfo_path):
 
 def ensure_callfile(path, syscalls):
     """Write a callfile if missing or empty."""
-    if os.path.exists(path) and os.path.getsize(path) > 0:
+    if _file_exists_and_nonempty(path):
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -104,7 +105,7 @@ def ensure_callfile(path, syscalls):
 def replicate_primary_callfile(layout, ci, tfmap):
     """Copy xidx0 callfile to any missing target slots as a conservative fallback."""
     primary = layout.callfile(ci, 0)
-    if not os.path.exists(primary) or os.path.getsize(primary) == 0:
+    if _file_is_empty(primary):
         return []
 
     created = []
@@ -113,7 +114,7 @@ def replicate_primary_callfile(layout, ci, tfmap):
 
     for xidx in tfmap.keys():
         callfile = layout.callfile(ci, xidx)
-        if os.path.exists(callfile) and os.path.getsize(callfile) > 0:
+        if _file_exists_and_nonempty(callfile):
             continue
         ensure_callfile(callfile, primary_data)
         created.append(callfile)
@@ -289,7 +290,7 @@ class NewCVEPipeline:
         sig = self.layout.kernel_sig(ci)
         if not os.path.exists(sig):
             syz_sig = self.layout.syz_sig()
-            if not os.path.exists(syz_sig) or os.stat(syz_sig).st_size == 0:
+            if _file_is_empty(syz_sig):
                 sh(f"{Q(os.path.join(FUZZER_BIN, 'syz-features'))} > {Q(syz_sig)}")
             ok = run_interface_generator_with_retries(
                 self.layout.bc(ci),
@@ -305,7 +306,7 @@ class NewCVEPipeline:
 
         k2s = self.layout.k2s(ci)
         if not os.path.exists(k2s):
-            sys.path.insert(0, SCRIPT_DIR)
+            ensure_script_dir_on_path()
             from SyscallAnalyze.InterfaceGenerate import MatchSig
             with open(k2s, "w") as f:
                 json.dump(MatchSig(self.layout.syz_sig(), sig), f, indent="\t")
@@ -341,17 +342,13 @@ class NewCVEPipeline:
             sys.exit("[4/6] ERROR: target_analyzer failed!")
 
         ensure_target_function_info(self.layout.tfinfo(ci), self.function, self.file_path)
-        if os.path.exists(self.layout.tfinfo(ci)):
-            rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
-            rcfg.apply_to_legacy_config()
-            sys.path.insert(0, SCRIPT_DIR)
-            from SyscallAnalyze.TargetPointAnalyze import PrepareForFuzzing
-            PrepareForFuzzing(ci, self.recommend_syscalls)
-            if not self._has_nonempty_callfile():
-                print("  PrepareForFuzzing produced no usable callfile, falling back to generated inputs")
-                self._create_fuzzinps()
-        else:
-            print("  tfinfo missing, falling back to LLM/heuristic syscalls")
+        rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+        rcfg.apply_to_legacy_config()
+        ensure_script_dir_on_path()
+        from SyscallAnalyze.TargetPointAnalyze import PrepareForFuzzing
+        PrepareForFuzzing(ci, self.recommend_syscalls)
+        if not self._has_nonempty_callfile():
+            print("  PrepareForFuzzing produced no usable callfile, falling back to generated inputs")
             self._create_fuzzinps()
         print("  Done.")
 
@@ -365,11 +362,12 @@ class NewCVEPipeline:
             return
 
         xidx, target_func = "0", self.function
-        if os.path.exists(self.layout.tfinfo(ci)):
-            ensure_target_function_info(self.layout.tfinfo(ci), self.function, self.file_path)
-            with open(self.layout.tfinfo(ci)) as _f:
+        tfinfo_path = self.layout.tfinfo(ci)
+        if _file_exists_and_nonempty(tfinfo_path):
+            with open(tfinfo_path) as _f:
                 parts = _f.readline().split()
-            xidx, target_func = parts[0], parts[1]
+            if len(parts) >= 2:
+                xidx, target_func = parts[0], parts[1]
 
         dist = self.layout.dist_dir(ci, xidx)
         if not os.path.exists(dist):
@@ -453,10 +451,7 @@ class NewCVEPipeline:
         with open(self.layout.callfile(ci), "w") as f:
             json.dump(syscalls, f, indent="\t")
 
-        if not os.path.exists(self.layout.tfinfo(ci)):
-            os.makedirs(self.layout.tpa(ci), exist_ok=True)
-            with open(self.layout.tfinfo(ci), "w") as f:
-                f.write(f"0 {self.function} {self.file_path}\n")
+        ensure_target_function_info(self.layout.tfinfo(ci), self.function, self.file_path)
 
     def _ensure_fuzz_inputs(self):
         ci = self.ci
@@ -464,14 +459,14 @@ class NewCVEPipeline:
         tfmap = load_target_function_map(self.layout.tfinfo(ci))
 
         callfile = self.layout.callfile(ci)
-        if not os.path.exists(callfile) or os.path.getsize(callfile) == 0:
+        if _file_is_empty(callfile):
             print("  Callfile missing or empty, regenerating fuzz inputs...")
             self._create_fuzzinps()
             tfmap = load_target_function_map(self.layout.tfinfo(ci))
 
         for xidx in tfmap.keys():
             x_callfile = self.layout.callfile(ci, xidx)
-            if not os.path.exists(x_callfile) or os.path.getsize(x_callfile) == 0:
+            if _file_is_empty(x_callfile):
                 continue
             with open(x_callfile) as f:
                 entries = json.load(f)
@@ -498,8 +493,7 @@ class NewCVEPipeline:
         if not tfmap:
             return False
         for xidx in tfmap.keys():
-            callfile = self.layout.callfile(ci, xidx)
-            if os.path.exists(callfile) and os.path.getsize(callfile) > 0:
+            if _file_exists_and_nonempty(self.layout.callfile(ci, xidx)):
                 return True
         return False
 
@@ -510,8 +504,6 @@ class NewCVEPipeline:
         print("  Rebuilding instrumented kernel with boot-safe x86 fallback profile...")
         self.boot_profile = "boot_safe_x86"
         self.boot_fallback_used = True
-        self.state["boot_profile"] = self.boot_profile
-        self.state["boot_fallback_used"] = self.boot_fallback_used
         shutil.rmtree(self.layout.kwithdist(self.ci), ignore_errors=True)
         self._save_state("distance", "running")
         self.step5_instrument_distance()
@@ -529,7 +521,7 @@ class NewCVEPipeline:
         for xidx in tfmap.keys():
             callfile = self.layout.callfile(ci, xidx)
             kernel_img = self.layout.bzimage(ci, xidx)
-            if not os.path.exists(callfile) or os.path.getsize(callfile) == 0:
+            if _file_is_empty(callfile):
                 missing.append(f"callfile[{xidx}]={callfile}")
             if not os.path.exists(kernel_img):
                 missing.append(f"bzImage[{xidx}]={kernel_img}")
@@ -538,31 +530,28 @@ class NewCVEPipeline:
             joined = "\n  - ".join([""] + missing)
             sys.exit(f"[6/6] ERROR: fuzz prerequisites missing:{joined}")
 
+    def _build_paths_dict(self):
+        """Build the paths sub-dict once (values never change for a given ci)."""
+        ci = self.ci
+        return {
+            "src": self.layout.src(ci),
+            "bc": self.layout.bc(ci),
+            "interface": self.layout.interface(ci),
+            "tpa": self.layout.tpa(ci),
+            "fuzzinps": self.layout.fuzzinps(ci),
+            "kwithdist": self.layout.kwithdist(ci),
+            "fuzzres": self.layout.fuzzres(ci),
+            "tfinfo": self.layout.tfinfo(ci),
+            "callfile": self.layout.callfile(ci),
+        }
+
     def _save_state(self, last_stage, phase, error=None):
-        self.state.update({
-            "commit": self.commit,
-            "function": self.function,
-            "file": self.file_path,
-            "config": self.config_path,
-            "recommend_syscalls": list(self.recommend_syscalls),
-            "hunt_mode": self.hunt_mode,
-            "known_crash_db": self.known_crash_db,
-            "boot_profile": self.boot_profile,
-            "boot_fallback_used": self.boot_fallback_used,
-            "last_stage": last_stage,
-            "phase": phase,
-            "paths": {
-                "src": self.layout.src(self.ci),
-                "bc": self.layout.bc(self.ci),
-                "interface": self.layout.interface(self.ci),
-                "tpa": self.layout.tpa(self.ci),
-                "fuzzinps": self.layout.fuzzinps(self.ci),
-                "kwithdist": self.layout.kwithdist(self.ci),
-                "fuzzres": self.layout.fuzzres(self.ci),
-                "tfinfo": self.layout.tfinfo(self.ci),
-                "callfile": self.layout.callfile(self.ci),
-            },
-        })
+        self.state["last_stage"] = last_stage
+        self.state["phase"] = phase
+        self.state["boot_profile"] = self.boot_profile
+        self.state["boot_fallback_used"] = self.boot_fallback_used
+        if "paths" not in self.state:
+            self.state["paths"] = self._build_paths_dict()
         if error:
             self.state["error"] = error
         else:

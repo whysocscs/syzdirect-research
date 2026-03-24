@@ -52,11 +52,13 @@ add_library (AnalyzerStatic STATIC $<TARGET_OBJECTS:AnalyzerObj>)
 set (EXECUTABLE_OUTPUT_PATH ${ANALYZER_BINARY_DIR})
 link_directories (${ANALYZER_BINARY_DIR}/lib)
 add_executable(interface_generator ${AnalyzerSourceCodes})
-target_link_libraries(interface_generator 
-	LLVMAsmParser 
-	LLVMSupport 
-	LLVMCore 
+target_link_libraries(interface_generator
+	LLVMAsmParser
+	LLVMSupport
+	LLVMCore
 	LLVMAnalysis
 	LLVMIRReader
+	LLVMBitWriter
+	LLVMBitReader
 	AnalyzerStatic
 	)

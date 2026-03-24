@@ -636,6 +636,13 @@ bool CallGraphPass::doModulePass(Module *M) {
 			// Map callsite to possible callees.
 			if (CallInst *CI = dyn_cast<CallInst>(&*i)) {
 
+				// Skip LLVM intrinsics (llvm.dbg.*, llvm.lifetime.*, etc.)
+				// — they are not user-level calls and caching them would
+				// create dangling pointers if debug info is stripped later.
+				if (Function *CalledF = CI->getCalledFunction())
+					if (CalledF->isIntrinsic())
+						continue;
+
 				CallSite CS(CI);
 				FuncSet FS;
 				Function *CF = CI->getCalledFunction();

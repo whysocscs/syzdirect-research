@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 from kernel_build import get_clang_version
+from paths import _file_is_empty
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -261,7 +262,7 @@ def validate_stage_output(stage, layout, ci):
 
     elif stage == "fuzz":
         callfile = layout.callfile(ci)
-        if not os.path.exists(callfile) or os.path.getsize(callfile) == 0:
+        if _file_is_empty(callfile):
             errors.append(f"Callfile missing or empty: {callfile}")
         bz = layout.bzimage(ci)
         if not os.path.exists(bz):
