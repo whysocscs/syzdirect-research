@@ -1,10 +1,19 @@
-
-import os, json, re, shlex, socket, subprocess, sys
-from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
-import datetime, time
-import copy, shutil
+import copy
+import datetime
+import json
+import os
+import re
+import shlex
+import shutil
+import socket
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
+
 import Config
 
 
@@ -66,83 +75,65 @@ def _alloc_free_tcp_port():
 
 
 def MultirunFuzzer():
-    runItems=[]
-    CLEAN_IMAGE_PATH = Config.CleanImageTemplatePath
+    run_items = []
+    clean_image_path = Config.CleanImageTemplatePath
     syzdirect_path = Config.FuzzerDir
-
     manager_path = _ensure_syzkaller_ready(syzdirect_path)
 
-    runCount = 1
     for datapoint in Config.datapoints:
+        case_idx = datapoint['idx']
+        template_config = Config.LoadJson(Config.TemplateConfigPath)
+        assert template_config, "Fail to load fuzzing config template"
+        template_config["sshkey"] = Config.KeyPath
 
-        caseIdx=datapoint['idx']
-        template_config=Config.LoadJson(Config.TemplateConfigPath)
-        assert template_config, "Fail to load fuzzing config template "
-        template_config["sshkey"]=Config.KeyPath
-
-        # collect all xidxs
-        tfmap=Config.ParseTargetFunctionsInfoFile(caseIdx)
+        tfmap = Config.ParseTargetFunctionsInfoFile(case_idx)
         print(tfmap)
 
-        Config.PrepareDir(Config.getFuzzInpDirPathByCase(caseIdx))
+        Config.PrepareDir(Config.getFuzzInpDirPathByCase(case_idx))
 
         for xidx in tfmap.keys():
-            ### check fuzzinp and kernel image ready to fuzz
+            callfile = Config.getFuzzInpDirPathByCaseAndXidx(case_idx, xidx)
+            kernel_image = Config.getInstrumentedKernelImageByCaseAndXidx(case_idx, xidx)
+            assert os.path.exists(callfile), \
+                f"[case {case_idx} xidx {xidx}] fuzz input file not exists"
+            assert os.path.exists(kernel_image), \
+                f"[case {case_idx} xidx {xidx}] bzimage file not exists"
 
-            callfile = Config.getFuzzInpDirPathByCaseAndXidx(caseIdx,xidx)
+            work_root_dir = Config.getFuzzResultDirByCaseAndXidx(case_idx, xidx)
+            customized_syzkaller = Config.getCustomizedSyzByCaseAndXidx(case_idx, xidx)
+            syzkaller_path = customized_syzkaller if os.path.exists(customized_syzkaller) else syzdirect_path
+            os.makedirs(work_root_dir, exist_ok=True)
 
-            kernelImage = Config.getInstrumentedKernelImageByCaseAndXidx(caseIdx,xidx)
-            assert os.path.exists(callfile), f"[case {caseIdx} xidx {xidx}] fuzz input file not exists, please check!"
-
-            assert os.path.exists(kernelImage), f"[case {caseIdx} xidx {xidx}] bzimage file not exists, please check!"
-
-
-            workRootDir = Config.getFuzzResultDirByCaseAndXidx(caseIdx, xidx)
-
-            customized_syzkaller=Config.getCustomizedSyzByCaseAndXidx(caseIdx,xidx)
-            if os.path.exists(customized_syzkaller):
-                syzkaller_path = customized_syzkaller
-            else:
-                syzkaller_path = syzdirect_path
-            os.makedirs(workRootDir, exist_ok=True)
-
-
-            rounds=Config.FuzzRounds
-            Config.logging.info(f"[case {caseIdx} xidx {xidx}] Preparing fuzzing for {rounds}")
+            rounds = Config.FuzzRounds
+            Config.logging.info(f"[case {case_idx} xidx {xidx}] Preparing fuzzing for {rounds}")
             for i in range(rounds):
-                configPath = os.path.join(workRootDir, f"config{i}")
-
-                subWorkDir = os.path.join(workRootDir, f"run{i}")
+                config_path = os.path.join(work_root_dir, f"config{i}")
+                sub_workdir = os.path.join(work_root_dir, f"run{i}")
                 config = copy.deepcopy(template_config)
+                shutil.rmtree(sub_workdir, ignore_errors=True)
 
-                shutil.rmtree(subWorkDir, ignore_errors=True)
-
-                config["image"] = CLEAN_IMAGE_PATH
-                config["workdir"] = subWorkDir
+                config["image"] = clean_image_path
+                config["workdir"] = sub_workdir
                 config["http"] = f"0.0.0.0:{_alloc_free_tcp_port()}"
-                config['vm']['kernel'] = kernelImage
-                config['syzkaller'] = syzkaller_path
-                config['hitindex']=int(xidx)
+                config["vm"]["kernel"] = kernel_image
+                config["syzkaller"] = syzkaller_path
+                config["hitindex"] = int(xidx)
 
-                bug_title=datapoint['repro bug title']
+                bug_title = datapoint['repro bug title']
                 if not pd.isna(bug_title):
-                    config['bugdesc']=bug_title
+                    config["bugdesc"] = bug_title
 
-
-                with open(configPath, "w") as fp:
+                with open(config_path, "w") as fp:
                     json.dump(config, fp, indent="\t")
 
                 fuzzer_file = manager_path if syzkaller_path == syzdirect_path else os.path.join(
                     syzkaller_path, "bin", "syz-manager")
-
-                runItems.append((fuzzer_file, configPath, callfile))
-                runCount += 1
-
+                run_items.append((fuzzer_file, config_path, callfile))
 
     with ThreadPoolExecutor(max_workers=75) as executor:
         futures = []
-        for runArg in runItems:
-            futures.append(executor.submit(runFuzzer, *runArg))
+        for run_arg in run_items:
+            futures.append(executor.submit(runFuzzer, *run_arg))
             time.sleep(5)
         for future in concurrent.futures.as_completed(futures):
             future.result()

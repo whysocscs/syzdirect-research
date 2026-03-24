@@ -102,9 +102,26 @@ _GENERIC_CONTEXT_TOKENS = {
 # Utilities
 # ──────────────────────────────────────────────────────────────────────────
 
+def _file_is_empty(path):
+    """Check if file doesn't exist or is empty."""
+    return not os.path.exists(path) or os.path.getsize(path) == 0
+
+
+def _file_exists_and_nonempty(path):
+    """Check if file exists and is non-empty."""
+    return os.path.exists(path) and os.path.getsize(path) > 0
+
+
 def Q(path):
     """Shell-quote a path for safe embedding in shell commands."""
     return shlex.quote(str(path))
+
+
+def ensure_script_dir_on_path():
+    """Ensure SCRIPT_DIR is on sys.path for SyscallAnalyze imports."""
+    import sys
+    if SCRIPT_DIR not in sys.path:
+        sys.path.insert(0, SCRIPT_DIR)
 
 
 def sh(cmd, check=True, capture=False, big=False):

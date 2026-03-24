@@ -13,8 +13,9 @@ import sys
 from paths import (
     BIGCONFIG, CLANG_PATH, FUZZER_BIN, FUZZER_DIR, FUNCTION_MODEL_DIR,
     INTERFACE_GENERATOR, KCOV_PATCH, KERNEL_ANALYSIS_DIR, LLVM_BUILD,
-    LLVM_ROOT, SCRIPT_DIR, TARGET_ANALYZER,
+    LLVM_ROOT, TARGET_ANALYZER,
     Q, sh, WorkdirLayout,
+    _file_is_empty, _file_exists_and_nonempty, ensure_script_dir_on_path,
 )
 from kernel_build import (
     append_build_config, ensure_kcov_support, relax_kernel_build,
@@ -196,9 +197,9 @@ class DatasetPipeline:
         print("\n[3/6] ANALYZE_KERNEL")
 
         syz_sig = self.layout.syz_sig()
-        if not os.path.exists(syz_sig) or os.stat(syz_sig).st_size == 0:
+        if _file_is_empty(syz_sig):
             sh(f"{Q(os.path.join(FUZZER_BIN, 'syz-features'))} > {Q(syz_sig)}")
-        assert os.path.exists(syz_sig) and os.stat(syz_sig).st_size != 0, \
+        assert _file_exists_and_nonempty(syz_sig), \
             "Failed to generate syzkaller signature"
 
         for dp in self.datapoints:
@@ -217,7 +218,7 @@ class DatasetPipeline:
 
             k2s = self.layout.k2s(ci)
             if not os.path.exists(k2s):
-                sys.path.insert(0, SCRIPT_DIR)
+                ensure_script_dir_on_path()
                 from SyscallAnalyze.InterfaceGenerate import MatchSig
                 result = MatchSig(syz_sig, sig)
                 with open(k2s, "w") as f:
@@ -267,7 +268,7 @@ class DatasetPipeline:
                 continue
 
             print(f"  [case {ci}] Target point analyzed, preparing for fuzzing...")
-            sys.path.insert(0, SCRIPT_DIR)
+            ensure_script_dir_on_path()
             from SyscallAnalyze.TargetPointAnalyze import PrepareForFuzzing
             PrepareForFuzzing(ci, dp['recommend syscall'])
 

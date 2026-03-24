@@ -8,7 +8,11 @@ import subprocess
 import json
 
 def Q(path):
-    """Shell-quote a path for safe embedding in shell commands."""
+    """Shell-quote a path for safe embedding in shell commands.
+
+    NOTE: Also defined in paths.py — kept here for legacy Compilation.py compatibility.
+    RunnerConfig.apply_to_legacy_config() overwrites this with the paths.py version.
+    """
     return shlex.quote(str(path))
 
 ### global definition
