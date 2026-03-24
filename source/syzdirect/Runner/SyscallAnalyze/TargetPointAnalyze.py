@@ -50,12 +50,18 @@ def PrepareForFuzzing(caseIdx, recommend_syscalls):
             json.dump(constraints, fp)
         
             
-        Config.ExecuteCMD(f"cd {TheFuzzerPath}; make clean")
-        assert not os.path.exists(Config.FuzzerBinDir), "fuzzer make clean fails"
+        # Skip fuzzer rebuild if binary already exists (pre-built fuzzer)
+        if os.path.exists(os.path.join(TheFuzzerPath, "Makefile")) or \
+           os.path.exists(os.path.join(TheFuzzerPath, "go.mod")):
+            Config.ExecuteCMD(f"cd {TheFuzzerPath}; make clean")
+            assert not os.path.exists(Config.FuzzerBinDir), "fuzzer make clean fails"
+            Config.ExecuteBigCMD(f"cd {TheFuzzerPath}; make")
+            os.remove(Refine_Input_File_Path)
+        else:
+            Config.logging.info(f"[case {caseIdx} xidx {xidx}] Pre-built fuzzer, skipping rebuild")
+            if os.path.exists(Refine_Input_File_Path):
+                os.remove(Refine_Input_File_Path)
 
-        Config.ExecuteBigCMD(f"cd {TheFuzzerPath}; make")
-        os.remove(Refine_Input_File_Path)
-        
         refinedFile=Config.getConstOutFilePathByCaseAndXidx(caseIdx,xidx)
         if os.path.exists(callTraceFile) and os.path.exists(Config.FuzzerBinDir):
             shutil.move(Config.FuzzerBinDir, os.path.join(new_syzkaller_path, "bin"))

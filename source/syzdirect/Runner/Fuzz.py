@@ -1,5 +1,5 @@
 
-import os, json, re, shlex, subprocess
+import os, json, re, shlex, socket, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 import datetime, time
@@ -9,10 +9,11 @@ import Config
 
 
 # syz-manager stats line pattern:
-# 2026/03/17 14:41:12 VMs 1, executed 2, cover 248, signal 285/0, crashes 0, repro 0
+# 2026/03/17 14:41:12 VMs 1, executed 2, cover 248, signal 285/0, crashes 0, repro 0, dist 42/100
 _STATS_RE = re.compile(
     r"(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}).*"
     r"executed (\d+).*cover (\d+).*signal (\d+).*crashes (\d+)"
+    r"(?:.*dist (\d+)/(\d+))?"
 )
 
 
@@ -25,13 +26,43 @@ def _parse_stats_line(line):
         ts = int(datetime.datetime.strptime(m.group(1), "%Y/%m/%d %H:%M:%S").timestamp())
     except ValueError:
         ts = int(time.time())
-    return {
+    result = {
         "timestamp": ts,
         "exec_total": int(m.group(2)),
         "corpus_cover": int(m.group(3)),
         "signal": int(m.group(4)),
         "crashes": int(m.group(5)),
     }
+    if m.group(6) is not None:
+        result["dist_min"] = int(m.group(6))
+        result["dist_max"] = int(m.group(7))
+    return result
+
+
+def _ensure_syzkaller_ready(syzdirect_path):
+    """Use an existing syzkaller build if present; only build when a Makefile exists."""
+    manager = os.path.join(syzdirect_path, "bin", "syz-manager")
+    if os.path.exists(manager):
+        return manager
+
+    makefile_names = ("Makefile", "makefile", "GNUmakefile")
+    if any(os.path.exists(os.path.join(syzdirect_path, name)) for name in makefile_names):
+        rc = os.system(f"cd {syzdirect_path}; make")
+        assert rc == 0, f"failed to build syzdirect_fuzzer in {syzdirect_path}"
+
+    assert os.path.exists(manager), (
+        f"syz-manager not found: {manager}. "
+        f"Provide a built syzdirect_fuzzer/bin tree or a Makefile-backed source tree."
+    )
+    return manager
+
+
+def _alloc_free_tcp_port():
+    """Pick an ephemeral TCP port for syz-manager's HTTP endpoint."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return sock.getsockname()[1]
 
 
 def MultirunFuzzer():
@@ -39,8 +70,7 @@ def MultirunFuzzer():
     CLEAN_IMAGE_PATH = Config.CleanImageTemplatePath
     syzdirect_path = Config.FuzzerDir
 
-    # Build fuzzer once before all runs
-    os.system(f"cd {syzdirect_path}; make")
+    manager_path = _ensure_syzkaller_ready(syzdirect_path)
 
     runCount = 1
     for datapoint in Config.datapoints:
@@ -89,7 +119,7 @@ def MultirunFuzzer():
 
                 config["image"] = CLEAN_IMAGE_PATH
                 config["workdir"] = subWorkDir
-                config["http"] = f"0.0.0.0:{2345+runCount}"
+                config["http"] = f"0.0.0.0:{_alloc_free_tcp_port()}"
                 config['vm']['kernel'] = kernelImage
                 config['syzkaller'] = syzkaller_path
                 config['hitindex']=int(xidx)
@@ -102,8 +132,8 @@ def MultirunFuzzer():
                 with open(configPath, "w") as fp:
                     json.dump(config, fp, indent="\t")
 
-                fuzzer_file = os.path.join(syzkaller_path, "bin",
-                                        "syz-manager")
+                fuzzer_file = manager_path if syzkaller_path == syzdirect_path else os.path.join(
+                    syzkaller_path, "bin", "syz-manager")
 
                 runItems.append((fuzzer_file, configPath, callfile))
                 runCount += 1
@@ -118,14 +148,20 @@ def MultirunFuzzer():
             future.result()
 
 
-def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None):
-    """Run syz-manager. If log_dir is given, capture output to manager.log + metrics.jsonl."""
+def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0):
+    """Run syz-manager. If log_dir is given, capture output to manager.log + metrics.jsonl.
+
+    stall_timeout: seconds of zero coverage growth before early termination (0=disabled).
+                   Only active when log_dir is set (agent-loop mode).
+    """
     command = f"{fuzzerFile} -config={configPath} -callfile={callFile} -uptime={Config.FuzzUptime}"
     Config.logging.info(f"Start running {command}")
 
     if log_dir is None:
-        os.system(command)
-        Config.logging.info(f"Finish running {command}")
+        rc = os.system(command)
+        Config.logging.info(f"Finish running {command} (exit={rc})")
+        if rc != 0:
+            raise RuntimeError(f"syz-manager exited with status {rc}: {command}")
         return None, None
 
     os.makedirs(log_dir, exist_ok=True)
@@ -140,14 +176,49 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None):
             text=True,
             bufsize=1,
         )
+        saw_metric = False
+        qemu_eof_count = 0
+        early_boot_failure = False
+        stall_terminated = False
+        last_cover_growth_ts = time.time()
+        peak_cover = 0
         for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
             log_f.write(line)
             log_f.flush()
             metric = _parse_stats_line(line)
             if metric:
+                saw_metric = True
                 met_f.write(json.dumps(metric) + "\n")
                 met_f.flush()
+                # stall detection: track coverage growth
+                if metric["corpus_cover"] > peak_cover:
+                    peak_cover = metric["corpus_cover"]
+                    last_cover_growth_ts = time.time()
+                elif stall_timeout > 0 and peak_cover > 0:
+                    stall_seconds = time.time() - last_cover_growth_ts
+                    if stall_seconds >= stall_timeout:
+                        stall_terminated = True
+                        msg = (f"STALL_TIMEOUT: coverage stuck at {peak_cover} "
+                               f"for {int(stall_seconds)}s (limit={stall_timeout}s), "
+                               f"terminating early\n")
+                        log_f.write(msg)
+                        log_f.flush()
+                        Config.logging.info(msg.strip())
+                        proc.terminate()
+                        break
+            if "failed to create instance: failed to read from qemu: EOF" in line:
+                qemu_eof_count += 1
+                if not saw_metric and qemu_eof_count >= 6:
+                    early_boot_failure = True
+                    log_f.write("EARLY_BOOT_FAILURE: repeated qemu EOF before metrics\n")
+                    log_f.flush()
+                    proc.terminate()
+                    break
         proc.wait()
 
     Config.logging.info(f"Finish running {command} (exit={proc.returncode})")
+    if proc.returncode != 0 and not early_boot_failure and not stall_terminated:
+        raise RuntimeError(f"syz-manager exited with status {proc.returncode}: {command}")
     return manager_log, metrics_jsonl
