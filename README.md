@@ -135,14 +135,40 @@ run_hunt.py (dataset/new/fuzz) + --agent-rounds N
 - **Fuzz.py 포트 충돌**: `runCount` 초기화 위치를 루프 밖으로 이동
 - **kcov 패치 탭 이스케이프**: raw string(`r"""`) 제거로 실제 탭 삽입
 - **SyscallAnalyze import**: `__init__.py` 추가 및 import 경로 수정
-- **LLVM 15 호환성**: opaque pointer 대응, clang 버전 체크 완화
+- **LLVM 18 업그레이드**: opaque pointer API 전면 대응 (C++ 엔진 11개 파일), distance pipeline 6개 버그 수정
 
 ---
 
-## 환경
+## Quick Start (새 머신에서 처음부터)
+
+```bash
+git clone https://github.com/whysocscs/syzdirect-research.git
+cd syzdirect-research
+./scripts/setup.sh          # 전체 환경 자동 구성 (30-60분)
+```
+
+`setup.sh`가 하는 일:
+1. 시스템 의존성 설치 (build-essential, cmake, golang, qemu 등)
+2. LLVM 18.1.8 다운로드 → SyzDirect 패치 적용 → 빌드
+3. interface_generator (C++ 정적 분석 도구) 빌드
+4. target_analyzer (거리 계산 도구) 빌드
+5. syzkaller fuzzer 빌드
+
+완료 후 바로 파이프라인 실행 가능:
+
+```bash
+cd source/syzdirect/Runner
+python3 run_hunt.py new --cve CVE-2025-XXXXX
+```
+
+**요구 사항**: Ubuntu 20.04+ / Debian 11+, 최소 32GB RAM (48GB+ 권장), 50GB+ 디스크
+
+---
+
+## 환경 (수동 설정)
 
 - Ubuntu 22.04 / WSL2
-- Python 3, Go, LLVM/Clang
+- Python 3, Go, LLVM/Clang 18
 - QEMU + KVM (없으면 TCG 폴백)
 
 ```bash
