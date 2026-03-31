@@ -1,7 +1,7 @@
 # SyzAgent: SyzDirect + LLM Agent Loop
 
 SyzDirect(CCS 2023) 기반 directed kernel fuzzer에 **LLM 에이전트 루프**를 결합한 프로젝트.
-퍼징 중 거리가 감소하지 않으면 실패를 분류(R1/R2/R3)하고, LLM으로 템플릿을 자동 강화하여 재퍼징한다.
+퍼징 중 거리가 감소하지 않으면 실패를 분류(R1/R2/R3/R4)하고, LLM으로 템플릿/시드를 자동 강화하여 재퍼징한다.
 
 ---
 
@@ -16,11 +16,18 @@ SyzDirect(CCS 2023) 기반 directed kernel fuzzer에 **LLM 에이전트 루프**
 
 ### 2. Agent Loop (`source/agent/`)
 - **fuzzing_health_monitor.py** — 퍼징 건강도 모니터링 (exec/s, cover/s, distance_delta)
-- **failure_triage.py** — R1(syscall 오식별) / R2(인자 생성 실패) / R3(의존 체인 부족) 분류
+- **failure_triage.py** — R1(syscall 오식별) / R2(인자 생성 실패) / R3(의존 체인 부족) / R4(distance stall) 분류
 - **related_syscall_agent.py** — R3 대응: 누락 syscall 체인 보강
 - **object_synthesis_agent.py** — R2 대응: 복잡 오브젝트 생성 파이프라인
 
-### 3. 분석 도구 (`source/analyzer/`, `source/distance/`, `source/template/`)
+### 3. Runner R4/Seed Loop (`source/syzdirect/Runner/`)
+- **agent_health.py** — raw distance + relevant distance + dist/coverage stall 분리
+- **agent_triage.py** — `primary / secondary / evidence` 기반 R1/R2/R3/R4 triage
+- **agent_loop.py** — proactive seed, R4 roadmap, target metadata sync, seed reinjection
+- **llm_enhance.py** — roadmap 기반 syscall/seed 제안, seed scoring/validation/rejection logging
+- **pipeline_new_cve.py** — workdir 기준 target metadata 복구 및 prebuilt target setup
+
+### 4. 분석 도구 (`source/analyzer/`, `source/distance/`, `source/template/`)
 - syscall 정적 분석, BB 거리 계산, syzlang 템플릿 생성
 
 ---
@@ -48,7 +55,7 @@ python3 source/syzdirect/Runner/run_hunt.py fuzz \
 ### Agent Loop (자동 triage + 템플릿 강화)
 
 `--agent-rounds` 옵션을 주면 퍼징 후 자동으로 agent loop이 돈다:
-1. 퍼징 실행 → 2. 건강도 평가 → 3. 실패 분류(R1/R2/R3) → 4. 템플릿 강화 → 5. 재퍼징
+1. 퍼징 실행 → 2. 건강도 평가 → 3. 실패 분류(R1/R2/R3/R4) → 4. callfile/seed 강화 → 5. 재퍼징
 
 ```bash
 # CVE 원클릭 + agent loop 3라운드 (라운드당 6시간 퍼징)
@@ -60,6 +67,18 @@ python3 source/syzdirect/Runner/run_hunt.py new \
 # 프리빌트 타겟 + agent loop
 python3 source/syzdirect/Runner/run_hunt.py fuzz \
   --targets 0 --agent-rounds 5
+
+# proactive seed + R4 distance-stall loop
+python3 source/syzdirect/Runner/run_hunt.py fuzz \
+  -workdir /path/to/workdir \
+  --targets 0 \
+  --agent-rounds 5 \
+  --agent-uptime 1 \
+  --hunt-mode hybrid \
+  --stall-timeout 1800 \
+  --dist-stall-timeout 900 \
+  --proactive-seed \
+  -j 8
 
 # agent loop 없이 기존 동작 (--agent-rounds 0 또는 생략)
 python3 source/syzdirect/Runner/run_hunt.py fuzz --targets 0 3 5
@@ -118,15 +137,36 @@ run_hunt.py (dataset/new/fuzz) + --agent-rounds N
     │          → ObjectSynthesisAgent  │
     │      R3: 커버리지 정체           │
     │          → RelatedSyscallAgent   │
+    │      R4: 거리 정체               │
+    │          → roadmap + seed loop   │
     │                                  │
     │  [C] callfile 강화               │
     │      (syscall 체인 확장/보강)    │
     │                                  │
-    │  [D] 강화된 callfile로 재퍼징    │
+    │  [D] seed corpus 재주입          │
+    │                                  │
+    │  [E] 강화된 callfile로 재퍼징    │
     │      ↓                           │
     │      다음 라운드로 반복          │
     └──────────────────────────────────┘
 ```
+
+---
+
+## 최근 R4 / Seed 변경
+
+- `dist_stall_timeout` 과 coverage stall을 분리해 R4를 더 정확하게 triage
+- `relevant distance` / `relevant program count` 를 health 판단에 반영
+- workdir 기준 target metadata 복구로 stale target 오염 감소
+- proactive seed 및 R4 seed generation 추가
+- seed candidate에 대해 선택/탈락 이유와 decoded netlink shape를 로그로 출력
+- source snippet 기반 target-type 보정으로 stale `target_file` 이 있어도 filter/qdisc 구분 강화
+
+R4 로그에서 확인할 핵심 포인트:
+- `Target metadata: function=... file=...`
+- `Seed selection basis: target_type=... snippet_type=...`
+- `Raw candidate analysis:`
+- `Rejected candidate seeds:` / `Selected candidate seeds:`
 
 ---
 
@@ -145,6 +185,12 @@ run_hunt.py (dataset/new/fuzz) + --agent-rounds N
 git clone https://github.com/whysocscs/syzdirect-research.git
 cd syzdirect-research
 ./scripts/setup.sh          # 전체 환경 자동 구성 (30-60분)
+```
+
+현재 최신 R4/seed 수정이 포함된 브랜치는:
+
+```bash
+git checkout merge-temp
 ```
 
 `setup.sh`가 하는 일:

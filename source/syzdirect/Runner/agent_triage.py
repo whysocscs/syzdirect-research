@@ -21,20 +21,40 @@ def triage_failure(health, manager_log, crash_summary=None, hunt_mode="hybrid"):
     R3 = coverage stagnant — coverage doesn't grow
     R4 = distance stagnant — coverage grows but not getting closer to target
     """
+    def _uniq(items):
+        out = []
+        seen = set()
+        for item in items:
+            if item and item not in seen:
+                out.append(item)
+                seen.add(item)
+        return out
+
     crash_counts = (crash_summary or {}).get("counts", {})
+    evidence = []
+    secondary = []
     if crash_counts.get("target_related", 0) > 0:
-        return "SUCCESS"
+        return {"primary": "SUCCESS", "secondary": [], "evidence": ["target-related crash found"]}
     if hunt_mode != "repro" and crash_counts.get("incidental_unknown", 0) > 0:
-        return "SUCCESS"
+        return {"primary": "SUCCESS", "secondary": [], "evidence": ["new incidental crash found"]}
 
     if health.get("fatal"):
-        return "R1"
+        evidence.append("all target calls disabled")
+        return {"primary": "R1", "secondary": [], "evidence": evidence}
 
     exec_d = health.get("exec_delta", 0)
     cover_d = health.get("cover_delta", 0)
 
-    if exec_d == 0 or health.get("unknown_input_calls", 0) > 0:
-        return "R1"
+    # R1 when no executions, OR when callfile has unknown calls but
+    # fuzzer barely ran (exec_d < 500 means the unknown calls are the
+    # main issue). If exec_d is large, unknown calls are just ignored
+    # by syz-manager and coverage/distance stall is the real problem.
+    unknown_calls = health.get("unknown_input_calls", 0)
+    if unknown_calls > 0:
+        secondary.append("R1")
+        evidence.append(f"unknown input calls={unknown_calls}")
+    if exec_d == 0 or (unknown_calls > 0 and exec_d < 500):
+        return {"primary": "R1", "secondary": _uniq(secondary), "evidence": evidence}
 
     einval_count = 0
     if manager_log and os.path.exists(manager_log):
@@ -43,19 +63,30 @@ def triage_failure(health, manager_log, crash_summary=None, hunt_mode="hybrid"):
             einval_count = log_text.lower().count("einval") + log_text.lower().count("efault")
 
     if einval_count > 50:
-        return "R2"
+        evidence.append(f"einval_or_efault={einval_count}")
+        return {"primary": "R2", "secondary": _uniq(secondary), "evidence": evidence}
 
-    # R4: distance stagnant — coverage grows but not getting closer
-    if health.get("dist_stagnant") and exec_d > 500:
-        return "R4"
+    # R4: distance stagnant — dist_stall_timeout fired OR dist didn't improve
+    if (health.get("dist_stagnant") or health.get("dist_stall_terminated")) and exec_d > 500:
+        evidence.append(
+            f"distance stagnant via {health.get('distance_basis', 'raw')} signal "
+            f"(relevant_progs={health.get('relevant_prog_count', 0)})"
+        )
+        if cover_d == 0:
+            secondary.append("R3")
+        if health.get("relevant_prog_count", 0) == 0:
+            secondary.append("R1")
+        return {"primary": "R4", "secondary": _uniq(secondary), "evidence": evidence}
 
     if cover_d == 0 and exec_d > 100:
-        return "R3"
+        evidence.append("coverage stalled despite executions")
+        return {"primary": "R3", "secondary": _uniq(secondary), "evidence": evidence}
 
     if hunt_mode == "repro" and health.get("target_focus", 0.0) < 0:
-        return "R3"
+        evidence.append("negative target focus in repro mode")
+        return {"primary": "R3", "secondary": _uniq(secondary), "evidence": evidence}
 
-    return "R3"
+    return {"primary": "R3", "secondary": _uniq(secondary), "evidence": evidence}
 
 
 # ──────────────────────────────────────────────────────────────────────────
