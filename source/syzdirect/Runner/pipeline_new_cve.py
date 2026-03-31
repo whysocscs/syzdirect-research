@@ -20,8 +20,8 @@ from paths import (
     _file_is_empty, _file_exists_and_nonempty, ensure_script_dir_on_path,
 )
 from kernel_build import (
-    append_build_config, ensure_kcov_support, relax_kernel_build,
-    write_emit_script, write_makefile_kcov,
+    append_build_config, ensure_kcov_support, find_kconfig_for_file,
+    relax_kernel_build, write_emit_script, write_makefile_kcov,
 )
 from analysis_utils import run_interface_generator_with_retries
 from syscall_scoring import guess_syscalls, narrow_callfile_entries
@@ -37,11 +37,17 @@ from runner_config import RunnerConfig
 # Shared helpers
 # ──────────────────────────────────────────────────────────────────────────
 
+KERNEL_ORG_URL = (
+    "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+)
+
+
 def ensure_commit_available(src_dir, commit, fetch_ref):
     """Fetch a commit if needed and fail early with a clear message if missing.
 
     For relative refs like 'abc123~1', we fetch the base commit with enough
     depth so the parent is available, then resolve the relative ref locally.
+    Tries origin first, then falls back to kernel.org (which allows SHA fetch).
     """
     verify_cmd = ["git", "rev-parse", "--verify", f"{commit}^{{commit}}"]
     if subprocess.run(verify_cmd, cwd=src_dir, check=False,
@@ -63,9 +69,22 @@ def ensure_commit_available(src_dir, commit, fetch_ref):
         # Try deepening further in case the history is too shallow
         if is_relative:
             sh(f"cd {Q(src_dir)} && git fetch --deepen={depth + 5} origin {Q(fetch_ref)}", check=False)
+
+    if subprocess.run(verify_cmd, cwd=src_dir, check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+        return
+
+    # Fallback: GitHub rejects arbitrary SHA fetches; kernel.org allows them.
+    print("  origin fetch failed, trying kernel.org...")
+    sh(f"cd {Q(src_dir)} && git remote add kernelorg {Q(KERNEL_ORG_URL)} 2>/dev/null || true")
+    sh(f"cd {Q(src_dir)} && git fetch --depth={depth} kernelorg {Q(fetch_ref)}", check=False)
+    if subprocess.run(verify_cmd, cwd=src_dir, check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+        if is_relative:
+            sh(f"cd {Q(src_dir)} && git fetch --deepen={depth + 5} kernelorg {Q(fetch_ref)}", check=False)
         if subprocess.run(verify_cmd, cwd=src_dir, check=False,
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
-            sys.exit(f"[1/6] ERROR: commit not found locally or on origin: {commit}")
+            sys.exit(f"[1/6] ERROR: commit not found on origin or kernel.org: {commit}")
 
 
 def ensure_target_function_info(path, function_name, file_path):
@@ -75,6 +94,12 @@ def ensure_target_function_info(path, function_name, file_path):
             for line in f:
                 if line.strip():
                     return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(f"0 {function_name} {file_path}\n")
+
+
+def write_target_function_info(path, function_name, file_path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         f.write(f"0 {function_name} {file_path}\n")
@@ -91,6 +116,67 @@ def load_target_function_map(tfinfo_path):
                 continue
             tfmap[parts[0]] = (parts[1], parts[2])
     return tfmap
+
+
+def _read_multi_pts_function(layout, ci):
+    path = layout.multi_pts(ci)
+    if not os.path.exists(path):
+        return ""
+    try:
+        with open(path) as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    return parts[1]
+    except OSError:
+        return ""
+    return ""
+
+
+def _guess_function_path_from_source(layout, ci, function_name):
+    if not function_name:
+        return ""
+    src_dir = layout.src(ci)
+    if not os.path.isdir(src_dir):
+        return ""
+    pattern = rf"^[a-zA-Z_][^;\n]*\b{re.escape(function_name)}\s*\("
+    try:
+        result = subprocess.run(
+            ["rg", "-n", "-g", "*.c", pattern, src_dir],
+            capture_output=True, text=True, timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if result.returncode not in (0, 1) or not result.stdout.strip():
+        return ""
+    first = result.stdout.strip().splitlines()[0]
+    rel = os.path.relpath(first.split(":", 1)[0], src_dir)
+    return rel
+
+
+def resolve_prebuilt_target(layout, target):
+    """Resolve effective target metadata, preferring workdir-local truth."""
+    resolved = dict(target)
+    ci = target["idx"]
+
+    multi_func = _read_multi_pts_function(layout, ci)
+    tfmap = load_target_function_map(layout.tfinfo(ci))
+    tf_entry = tfmap.get("0")
+
+    function_name = multi_func or (tf_entry[0] if tf_entry else target.get("function", ""))
+    function_path = tf_entry[1] if tf_entry else target.get("func_path", "")
+
+    guessed_path = _guess_function_path_from_source(layout, ci, function_name)
+    if guessed_path:
+        function_path = guessed_path
+
+    if function_name:
+        resolved["function"] = function_name
+    if function_path:
+        resolved["func_path"] = function_path
+    if function_name:
+        resolved["name"] = function_name
+    return resolved
 
 
 def ensure_callfile(path, syscalls):
@@ -266,7 +352,10 @@ class NewCVEPipeline:
 
         config_dst = os.path.join(bc, ".config")
         shutil.copyfile(self.config_path, config_dst)
-        append_build_config(config_dst, boot_profile=self.boot_profile)
+        # Auto-detect CONFIG options needed for the target file
+        target_configs = find_kconfig_for_file(self.layout.src(self.ci), self.file_path)
+        append_build_config(config_dst, boot_profile=self.boot_profile,
+                            target_configs=target_configs)
 
         src_raw = self.layout.src(self.ci)
         src = Q(src_raw)
@@ -274,9 +363,8 @@ class NewCVEPipeline:
         # contains kcov_mark_block markers for target_analyzer (step 4).
         write_makefile_kcov(src_raw, None, self.function)
         sh(f"cd {src} && "
-           f"make clean && make mrproper && "
-           f"make CC={Q(emit)} O={Q(bc)} olddefconfig && "
-           f"make CC={Q(emit)} O={Q(bc)} -j{self.cpus}", big=True)
+           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} olddefconfig && "
+           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} -j{self.cpus}", big=True)
 
         if not os.path.exists(os.path.join(bc, "arch/x86/boot/bzImage")):
             sys.exit("[2/6] ERROR: Bitcode compilation failed!")
@@ -381,7 +469,9 @@ class NewCVEPipeline:
 
         sh(f"cd {Q(src)} && make clean && make mrproper", check=False)
         shutil.copyfile(self.config_path, os.path.join(temp, ".config"))
-        append_build_config(os.path.join(temp, ".config"), boot_profile=self.boot_profile)
+        target_configs = find_kconfig_for_file(src, self.file_path)
+        append_build_config(os.path.join(temp, ".config"), boot_profile=self.boot_profile,
+                            target_configs=target_configs)
 
         sh(f"cd {Q(src)} && "
            f"make ARCH=x86_64 CC={Q(CLANG_PATH)} O={Q(temp)} olddefconfig && "
@@ -417,6 +507,8 @@ class NewCVEPipeline:
                     known_crash_db=self.known_crash_db,
                     allow_boot_fallback=(not self.boot_fallback_used),
                     stall_timeout=getattr(self.args, "stall_timeout", 1800),
+                    dist_stall_timeout=getattr(self.args, "dist_stall_timeout", 600),
+                    proactive_seed=getattr(self.args, "proactive_seed", False),
                 )
                 try:
                     agent.run()
@@ -568,7 +660,9 @@ class NewCVEPipeline:
 
 def setup_prebuilt(layout, targets, hunt_mode="hybrid"):
     """Symlink pre-built instrumented kernels and write callfiles."""
-    for t in targets:
+    for i, target in enumerate(targets):
+        t = resolve_prebuilt_target(layout, target)
+        targets[i].update(t)
         ci, name = t["idx"], t["name"]
         hunt = os.path.join(RUNTIME_BASE, f"new_hunt_{name}", "instrumented")
 
@@ -580,8 +674,10 @@ def setup_prebuilt(layout, targets, hunt_mode="hybrid"):
                 os.symlink(src, dst)
 
         os.makedirs(layout.tpa(ci), exist_ok=True)
-        with open(layout.tfinfo(ci), "w") as f:
-            f.write(f"0 {t['function']} {t['func_path']}\n")
+        current_tfmap = load_target_function_map(layout.tfinfo(ci))
+        current_tf = current_tfmap.get("0")
+        if current_tf != (t["function"], t["func_path"]):
+            write_target_function_info(layout.tfinfo(ci), t["function"], t["func_path"])
 
         os.makedirs(layout.fuzzinps(ci), exist_ok=True)
         syscalls = narrow_callfile_entries(
