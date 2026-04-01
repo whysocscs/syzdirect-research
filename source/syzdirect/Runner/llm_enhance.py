@@ -18,6 +18,29 @@ import re
 from syscall_normalize import load_syzkaller_call_names, normalize_syscall_name
 
 
+def _edit_distance(a, b):
+    """Simple Levenshtein distance."""
+    if len(a) < len(b):
+        return _edit_distance(b, a)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            curr.append(min(prev[j + 1] + 1, curr[j] + 1, prev[j] + (ca != cb)))
+        prev = curr
+    return prev[-1]
+
+
+def _fuzzy_kind_match(target_kind, all_kinds):
+    """Find a kind in all_kinds within edit distance 2 of target_kind."""
+    for k in all_kinds:
+        if _edit_distance(k, target_kind) <= 2:
+            return target_kind  # target_kind is the canonical name
+    return None
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # LLM backend — OpenAI via opencode
 # ──────────────────────────────────────────────────────────────────────────
@@ -350,6 +373,16 @@ def _nlattr_bytes(attr_type, data):
     return struct.pack("<HH", nla_len, attr_type) + padded
 
 
+def _prio_qdisc_options():
+    """Build TCA_OPTIONS for prio qdisc (required or prio_tune returns -EINVAL).
+
+    struct tc_prio_qopt { int bands; __u8 priomap[TC_PRIO_MAX+1]; }
+    3 bands, standard priomap.
+    """
+    prio_qopt = struct.pack('<I', 3) + bytes([1,2,2,2,1,2,0,0,1,1,1,1,1,1,1,1])
+    return _nlattr_bytes(2, prio_qopt)
+
+
 def _build_netlink_tc_seed(kind, msg_type, ifindex=1, parent=0xffff0000,
                            handle=0, info=0, extra_attrs=b""):
     """Build a valid RTM_NEWQDISC or RTM_NEWTFILTER netlink message bytes.
@@ -360,6 +393,10 @@ def _build_netlink_tc_seed(kind, msg_type, ifindex=1, parent=0xffff0000,
     """
     kind_bytes = kind.encode() + b'\x00'
     tca_kind = _nlattr_bytes(1, kind_bytes)  # TCA_KIND
+
+    # Auto-add required TCA_OPTIONS for qdiscs that need them
+    if msg_type == 0x24 and kind == "prio" and not extra_attrs:
+        extra_attrs = _prio_qdisc_options()
 
     # tcmsg: family(1) + pad(3) + ifindex(4le) + handle(4le) + parent(4le) + info(4le)
     tcmsg = struct.pack('<BBBBIIII', 0, 0, 0, 0, ifindex, handle, parent, info)
@@ -788,7 +825,14 @@ def _reject_reason_for_seed(prog, requirements):
         if target_kind and target_kind in qdisc_msg["kinds"]:
             return "target_kind_used_as_qdisc"
         if target_kind and target_kind not in all_kinds:
-            return "target_kind_missing"
+            # Fuzzy match: fix LLM typos (edit distance ≤ 2)
+            corrected = _fuzzy_kind_match(target_kind, all_kinds)
+            if not corrected:
+                return "target_kind_missing"
+            # Patch kind lists in-place so downstream checks work
+            for msg in messages:
+                msg["kinds"] = [corrected if _edit_distance(k, target_kind) <= 2 else k for k in msg["kinds"]]
+            all_kinds = {k for m in messages for k in m["kinds"]}
         kind_filters = [m for m in messages if m["nl_type"] == 0x2C and (not target_kind or target_kind in m["kinds"])]
         if not kind_filters:
             return "target_filter_message_missing"
@@ -872,8 +916,8 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
 
     try:
         if target_type == "filter":
-            hex_prio   = _build_netlink_tc_seed("prio", 0x24)   # common classful parent
-            hex_pfifo  = _build_netlink_tc_seed("pfifo", 0x24)  # generic fallback parent
+            hex_prio   = _build_netlink_tc_seed("prio", 0x24, handle=0x00010000)
+            hex_pfifo  = _build_netlink_tc_seed("pfifo", 0x24, handle=0x00010000)
             hex_filter = _build_netlink_tc_seed(kind, 0x2c)     # RTM_NEWTFILTER kind
             prog1 = ("r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
                      + _make_msg(hex_prio, 0) + _make_msg(hex_filter, 1))
@@ -904,65 +948,6 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
             ]
     except Exception:
         return []
-
-
-def _generate_tcindex_seed_programs():
-    """Deterministic tcindex seeds for route-netlink/tc filter targets."""
-    hex_prio = _build_netlink_tc_seed("prio", 0x24, ifindex=1)
-    hex_filter_a = _build_tcindex_filter_seed(
-        ifindex=1, parent=0x00010000, handle=1,
-        hash_size=0x10, mask=0x000f, shift=0, fall_through=1, classid=0x10001,
-    )
-    hex_filter_b = _build_tcindex_filter_seed(
-        ifindex=1, parent=0x00010000, handle=1,
-        hash_size=0x20, mask=0x001f, shift=0, fall_through=1, classid=0x10001,
-    )
-    hex_filter_c = _build_tcindex_filter_seed(
-        ifindex=1, parent=0x00010000, handle=2,
-        hash_size=0x08, mask=0x0007, shift=0, fall_through=1, classid=0x10001,
-    )
-    hex_filter_d = _build_tcindex_filter_seed(
-        ifindex=1, parent=0x00010000, handle=2,
-        hash_size=0x10, mask=0x000f, shift=0, fall_through=1, classid=0x10001,
-    )
-
-    def _prog(name, filter_hex, base_hdr):
-        return {
-            "name": name,
-            "text": (
-                "r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
-                f"sendmsg$nl_route_sched(r0, &(0x{base_hdr:x})={{0x0, 0x0, &(0x{base_hdr - 0xfc0:x})="
-                f"[{{&(0x{base_hdr - 0xf80:x})=ANY=[@ANYBLOB=\"{hex_prio}\"], 0x{len(bytes.fromhex(hex_prio)):x}}}], "
-                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
-                f"sendmsg$nl_route_sched(r0, &(0x{base_hdr + 0x2000:x})={{0x0, 0x0, &(0x{base_hdr + 0x1040:x})="
-                f"[{{&(0x{base_hdr + 0x1080:x})=ANY=[@ANYBLOB=\"{filter_hex}\"], 0x{len(bytes.fromhex(filter_hex)):x}}}], "
-                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
-            ),
-        }
-
-    def _prog_update(name, first_hex, second_hex, base_hdr):
-        return {
-            "name": name,
-            "text": (
-                "r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
-                f"sendmsg$nl_route_sched(r0, &(0x{base_hdr:x})={{0x0, 0x0, &(0x{base_hdr - 0xfc0:x})="
-                f"[{{&(0x{base_hdr - 0xf80:x})=ANY=[@ANYBLOB=\"{hex_prio}\"], 0x{len(bytes.fromhex(hex_prio)):x}}}], "
-                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
-                f"sendmsg$nl_route_sched(r0, &(0x{base_hdr + 0x2000:x})={{0x0, 0x0, &(0x{base_hdr + 0x1040:x})="
-                f"[{{&(0x{base_hdr + 0x1080:x})=ANY=[@ANYBLOB=\"{first_hex}\"], 0x{len(bytes.fromhex(first_hex)):x}}}], "
-                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
-                f"sendmsg$nl_route_sched(r0, &(0x{base_hdr + 0x4000:x})={{0x0, 0x0, &(0x{base_hdr + 0x3040:x})="
-                f"[{{&(0x{base_hdr + 0x3080:x})=ANY=[@ANYBLOB=\"{second_hex}\"], 0x{len(bytes.fromhex(second_hex)):x}}}], "
-                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
-            ),
-        }
-
-    return [
-        _prog("tcindex_perfect_hash_16", hex_filter_a, 0x7f0000001000),
-        _prog("tcindex_perfect_hash_8_handle2", hex_filter_c, 0x7f0000005000),
-        _prog_update("tcindex_update_hash_16_to_32", hex_filter_a, hex_filter_b, 0x7f0000009000),
-        _prog_update("tcindex_update_hash_8_to_16_handle2", hex_filter_c, hex_filter_d, 0x7f000000d000),
-    ]
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -1016,13 +1001,17 @@ def llm_generate_seed_program(roadmap, source_snippets, target_function, target_
             f"{target_file} → {target_function}."
         )
 
+    snippets_section = ""
+    if source_snippets:
+        snippets_section = f"\nKERNEL SOURCE (key functions on path to target):\n{source_snippets}\n"
+
     prompt = f"""You are a Linux kernel fuzzing expert. Generate syzkaller seed programs.
 
 TARGET: {target_function} in {target_file}
 CURRENT DIST: {current_dist} (stuck)
 
 {roadmap_section}
-
+{snippets_section}
 Generate 2 syzkaller programs that trigger the kernel path to {target_function}.
 
 PREREQUISITE RULES (kernel will silently drop messages without these):

@@ -26,9 +26,12 @@ from syscall_scoring import collect_target_context
 from llm_enhance import (
     extract_distance_roadmap, llm_enhance_callfile_for_distance,
     llm_generate_seed_program, read_stepping_stone_sources,
+    _call_llm,
 )
+from semantic_seed import run_semantic_pipeline, validate_seed
 from pipeline_new_cve import (
     ensure_target_function_info, load_target_function_map, resolve_prebuilt_target,
+    write_target_function_info,
 )
 from runner_config import RunnerConfig
 
@@ -82,6 +85,7 @@ class AgentLoop:
         self.proactive_seed = proactive_seed
         self.best_dist_min_ever = None
         self.dist_history = []
+        self.last_semantic_plan = None
         self._sync_target_metadata()
 
     def _relevant_repeat_threshold(self):
@@ -128,12 +132,11 @@ class AgentLoop:
         if target_l in current_targets:
             return True
         target_base = target_l.split("$", 1)[0]
-        # Do not broaden from a specific current variant to a generic base call
-        # during R4 unless that exact generic call is already grounded in the roadmap.
-        if "$" not in target_l:
-            for existing in current_targets:
-                if "$" in existing and existing.split("$", 1)[0] == target_base:
-                    return False
+        # R4 is primarily a state/shape recovery path. If a syscall family is
+        # already present, do not widen to sibling or generic variants here.
+        for existing in current_targets:
+            if existing != target_l and existing.split("$", 1)[0] == target_base:
+                return False
         allowed = self._roadmap_allowed_targets(roadmap, current_callfile)
         return target_l in allowed
 
@@ -144,7 +147,7 @@ class AgentLoop:
         func = self.target.get("function", "")
         func_path = self.target.get("func_path", "")
         if func and func_path:
-            ensure_target_function_info(tfinfo_path, func, func_path)
+            write_target_function_info(tfinfo_path, func, func_path)
         self.target_context = collect_target_context(
             self.target.get("func_path", ""),
             self.target.get("function", ""),
@@ -412,10 +415,10 @@ class AgentLoop:
 
         elif failure_class == "R4":
             enhanced_templates = self._enhance_for_distance_stall(
-                current_callfile, round_dir, round_num,
+                current_callfile, round_dir, round_num, triage_result=triage_result,
             )
             # R4 failed → fallback to R1 (related syscall discovery)
-            if not enhanced_templates:
+            if not enhanced_templates and "R1" in set(triage_result.get("secondary", [])):
                 print("  [R4] LLM roadmap failed, falling back to R1 (related syscalls)")
                 failure_class = "R1"
                 agent_input["failure_class"] = "R1"
@@ -559,6 +562,15 @@ class AgentLoop:
         syz_db_path = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
         seed_out_dir = self.layout.fuzzres_xidx(ci)
 
+        # ── Try semantic pipeline first ────────────────────────────────
+        semantic_seeds = self._run_semantic_seeds(None, "proactive")
+        if semantic_seeds:
+            corpus = self._pack_seeds_to_corpus(semantic_seeds, "proactive")
+            if corpus and self._seed_matches_target(corpus):
+                print(f"  [proactive] Semantic seed corpus ready: {corpus}")
+                self.seed_corpus = corpus
+                return  # semantic seeds are better, skip generic LLM path
+
         print("  [proactive] Querying LLM for seed programs...")
         seed_db = llm_generate_seed_program(
             roadmap=roadmap,
@@ -577,10 +589,82 @@ class AgentLoop:
         else:
             print("  [proactive] Seed generation failed, Round 1 starts with empty corpus")
 
+    # ── Semantic seed pipeline ─────────────────────────────────────────
+
+    def _run_semantic_seeds(self, round_dir, label="R4"):
+        """Run the semantic analysis pipeline to generate validated seeds.
+
+        Returns list of seed programs or empty list.
+        """
+        ci = self.ci
+        src_dir = self.layout.src(ci)
+        target_func = self.target.get("function", "")
+        target_file = self.target.get("func_path", "")
+
+        if not os.path.isdir(src_dir):
+            print(f"  [{label}] No kernel source at {src_dir}, skipping semantic pipeline")
+            return []
+
+        plan, seeds = run_semantic_pipeline(
+            src_dir, target_func, target_file, llm_call_fn=_call_llm,
+        )
+        self.last_semantic_plan = plan
+
+        if not seeds:
+            print(f"  [{label}] Semantic pipeline produced no valid seeds")
+            return []
+
+        print(f"  [{label}] Semantic pipeline produced {len(seeds)} validated seeds")
+        return seeds
+
+    def _pack_seeds_to_corpus(self, seeds, label="R4"):
+        """Pack seed program dicts into a corpus.db, return path or None."""
+        import shutil as _shutil
+        import tempfile as _tempfile
+
+        rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+        Cfg = rcfg.apply_to_legacy_config()
+        syz_db = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
+        if not os.path.exists(syz_db):
+            syz_db = _shutil.which("syz-db")
+        if not syz_db or not os.path.exists(syz_db):
+            print(f"  [{label}] syz-db not found, cannot pack seeds")
+            return None
+
+        prog_dir = _tempfile.mkdtemp(prefix="sem_seed_")
+        try:
+            for i, seed in enumerate(seeds):
+                text = (seed.get("text") or "").strip()
+                name = (seed.get("name") or f"prog{i}").replace("/", "_")
+                if not text:
+                    continue
+                with open(os.path.join(prog_dir, f"{i:04d}_{name}"), "w") as f:
+                    f.write(text + "\n")
+
+            ci = self.ci
+            out_dir = self.layout.fuzzres_xidx(ci)
+            os.makedirs(out_dir, exist_ok=True)
+            target_func = self.target.get("function", "")
+            corpus_db = os.path.join(out_dir, f"semantic_seed_{target_func}.db")
+
+            import subprocess as _sp
+            pack = _sp.run(
+                [syz_db, "pack", prog_dir, corpus_db],
+                capture_output=True, text=True, timeout=30,
+            )
+            if pack.returncode != 0:
+                print(f"  [{label}] syz-db pack failed: {pack.stderr[:200]}")
+                return None
+
+            print(f"  [{label}] Packed {len(seeds)} semantic seeds → {corpus_db}")
+            return corpus_db
+        finally:
+            _shutil.rmtree(prog_dir, ignore_errors=True)
+
     # ── Distance-stall enhancement ──────────────────────────────────────
 
-    def _enhance_for_distance_stall(self, current_callfile, round_dir, round_num):
-        """Use LLM with distance roadmap to suggest better syscalls (R4)."""
+    def _enhance_for_distance_stall(self, current_callfile, round_dir, round_num, triage_result=None):
+        """Use semantic analysis + LLM with distance roadmap (R4)."""
         ci = self.ci
         self._sync_target_metadata()
         dist_dir = self.layout.dist_dir(ci, 0)
@@ -589,11 +673,24 @@ class AgentLoop:
         target_func = self.target.get("function", "")
         target_file = self.target.get("func_path", "")
         current_dist = self.best_dist_min_ever
+        secondary = set((triage_result or {}).get("secondary", []))
         print(f"  [R4] Target metadata: function={target_func} file={target_file}")
+        if secondary:
+            print(f"  [R4] Recovery routing via secondary signals: {sorted(secondary)}")
 
         if not current_dist or current_dist <= 0:
             print("  [R4] No valid distance data, skipping LLM enhancement")
             return None
+
+        # ── Try semantic pipeline first (generic analysis) ───────────
+        semantic_seeds = self._run_semantic_seeds(round_dir, "R4")
+        if semantic_seeds:
+            corpus = self._pack_seeds_to_corpus(semantic_seeds, "R4")
+            if corpus and self._seed_matches_target(corpus):
+                print(f"  [R4] Semantic seed corpus ready: {corpus}")
+                self.seed_corpus = corpus
+            elif corpus:
+                print(f"  [R4] Rejecting inconsistent semantic corpus")
 
         print(f"  [R4] Distance stagnant at {current_dist}, building roadmap...")
 
@@ -621,12 +718,19 @@ class AgentLoop:
                 "total_functions_in_range": 0,
             }
 
-        print(f"  [R4] Querying LLM for syscall suggestions...")
-        new_entries = llm_enhance_callfile_for_distance(
-            current_callfile, roadmap,
-            target_func, target_file,
-            source_snippets=snippets,
-        )
+        # Treat R4 as a symptom. When secondary signals imply prerequisite/state
+        # or shape problems, prioritize seed/state recovery over syscall broadening.
+        should_query_syscalls = "R1" in secondary
+        if should_query_syscalls:
+            print(f"  [R4] Querying LLM for syscall suggestions...")
+            new_entries = llm_enhance_callfile_for_distance(
+                current_callfile, roadmap,
+                target_func, target_file,
+                source_snippets=snippets,
+            )
+        else:
+            print("  [R4] Skipping syscall broadening; prioritizing prerequisite/shape recovery")
+            new_entries = []
 
         if new_entries:
             filtered = []
