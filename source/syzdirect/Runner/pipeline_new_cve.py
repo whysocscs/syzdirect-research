@@ -12,6 +12,21 @@ import shutil
 import subprocess
 import sys
 
+
+def _rg_bin():
+    """Resolve the ripgrep binary path, falling back to known locations."""
+    path = shutil.which("rg")
+    if path:
+        return path
+    for candidate in (
+        "/usr/local/lib/node_modules/@github/copilot/ripgrep/bin/linux-x64/rg",
+        "/usr/local/lib/node_modules/@openai/codex/bin/rg",
+        "/usr/bin/rg",
+    ):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return "rg"
+
 from paths import (
     BIGCONFIG, CLANG_PATH, FUZZER_BIN, FUZZER_DIR, INTERFACE_GENERATOR,
     KCOV_PATCH, KNOWN_CRASH_DB, PIPELINE_STAGES, RESOURCE_ROOT,
@@ -142,7 +157,7 @@ def _guess_function_path_from_source(layout, ci, function_name):
     pattern = rf"^[a-zA-Z_][^;\n]*\b{re.escape(function_name)}\s*\("
     try:
         result = subprocess.run(
-            ["rg", "-n", "-g", "*.c", pattern, src_dir],
+            [_rg_bin(), "-n", "-g", "*.c", pattern, src_dir],
             capture_output=True, text=True, timeout=20,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -152,6 +167,24 @@ def _guess_function_path_from_source(layout, ci, function_name):
     first = result.stdout.strip().splitlines()[0]
     rel = os.path.relpath(first.split(":", 1)[0], src_dir)
     return rel
+
+
+def function_exists_in_file(layout, ci, function_name, file_path):
+    """Return True if file_path in the case source tree contains function_name."""
+    if not function_name or not file_path:
+        return False
+    full_path = os.path.join(layout.src(ci), file_path)
+    if not os.path.exists(full_path):
+        return False
+    pattern = rf"\b{re.escape(function_name)}\s*\("
+    try:
+        result = subprocess.run(
+            [_rg_bin(), "-n", pattern, full_path],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and bool(result.stdout.strip())
 
 
 def resolve_prebuilt_target(layout, target):
@@ -165,6 +198,9 @@ def resolve_prebuilt_target(layout, target):
 
     function_name = multi_func or (tf_entry[0] if tf_entry else target.get("function", ""))
     function_path = tf_entry[1] if tf_entry else target.get("func_path", "")
+
+    if function_name and function_path and not function_exists_in_file(layout, ci, function_name, function_path):
+        function_path = ""
 
     guessed_path = _guess_function_path_from_source(layout, ci, function_name)
     if guessed_path:

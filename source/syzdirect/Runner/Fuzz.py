@@ -139,11 +139,15 @@ def MultirunFuzzer():
             future.result()
 
 
-def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0):
+def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0,
+              dist_stall_timeout=600, seed_corpus=None):
     """Run syz-manager. If log_dir is given, capture output to manager.log + metrics.jsonl.
 
     stall_timeout: seconds of zero coverage growth before early termination (0=disabled).
-                   Only active when log_dir is set (agent-loop mode).
+    dist_stall_timeout: seconds of no distance improvement before early termination
+                        (default 600s=10min). Set 0 to disable.
+    seed_corpus: path to a corpus.db file to pre-populate the workdir before fuzzing.
+    Only active when log_dir is set (agent-loop mode).
     """
     command = f"{fuzzerFile} -config={configPath} -callfile={callFile} -uptime={Config.FuzzUptime}"
     Config.logging.info(f"Start running {command}")
@@ -154,6 +158,20 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0):
         if rc != 0:
             raise RuntimeError(f"syz-manager exited with status {rc}: {command}")
         return None, None
+
+    # Pre-populate workdir with seed corpus if provided
+    if seed_corpus and os.path.exists(seed_corpus):
+        try:
+            with open(configPath) as f:
+                cfg = json.load(f)
+            workdir = cfg.get("workdir", "")
+            if workdir:
+                os.makedirs(workdir, exist_ok=True)
+                dest = os.path.join(workdir, "corpus.db")
+                shutil.copy2(seed_corpus, dest)
+                Config.logging.info(f"Seeded corpus: {seed_corpus} -> {dest}")
+        except Exception as e:
+            Config.logging.warning(f"Failed to seed corpus: {e}")
 
     os.makedirs(log_dir, exist_ok=True)
     manager_log = os.path.join(log_dir, "manager.log")
@@ -173,6 +191,8 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0):
         stall_terminated = False
         last_cover_growth_ts = time.time()
         peak_cover = 0
+        best_dist_min = None
+        last_dist_improvement_ts = time.time()
         for line in proc.stdout:
             sys.stdout.write(line)
             sys.stdout.flush()
@@ -199,6 +219,28 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0):
                         Config.logging.info(msg.strip())
                         proc.terminate()
                         break
+                # distance stall detection (skip when dist=0: target reached)
+                cur_dist = metric.get("dist_min")
+                if cur_dist is not None:
+                    # Skip initial dist=0 before real fuzzing starts (best_dist_min not yet set)
+                    if cur_dist == 0 and best_dist_min is None:
+                        pass  # ignore default 0 emitted before any exec
+                    elif best_dist_min is None or cur_dist < best_dist_min:
+                        best_dist_min = cur_dist
+                        last_dist_improvement_ts = time.time()
+                    elif dist_stall_timeout > 0 and best_dist_min is not None and best_dist_min > 0:
+                        dist_stall_secs = time.time() - last_dist_improvement_ts
+                        if dist_stall_secs >= dist_stall_timeout:
+                            stall_terminated = True
+                            msg = (f"DIST_STALL_TIMEOUT: dist_min stuck at "
+                                   f"{best_dist_min} for {int(dist_stall_secs)}s "
+                                   f"(limit={dist_stall_timeout}s), "
+                                   f"terminating early\n")
+                            log_f.write(msg)
+                            log_f.flush()
+                            Config.logging.info(msg.strip())
+                            proc.terminate()
+                            break
             if "failed to create instance: failed to read from qemu: EOF" in line:
                 qemu_eof_count += 1
                 if not saw_metric and qemu_eof_count >= 6:

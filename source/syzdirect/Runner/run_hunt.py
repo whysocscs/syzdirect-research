@@ -125,6 +125,13 @@ Available dataset actions:
         p.add_argument("--stall-timeout", type=int, default=1800, dest="stall_timeout",
                        help="Seconds of zero coverage growth before early round termination "
                             "(default: 1800=30min, 0=disabled)")
+        p.add_argument("--dist-stall-timeout", type=int, default=600,
+                       dest="dist_stall_timeout",
+                       help="Seconds of no dist_min improvement before early round termination "
+                            "(default: 600=10min, 0=disabled)")
+        p.add_argument("--proactive-seed", action="store_true", default=False,
+                       dest="proactive_seed",
+                       help="LLM generates seed corpus from static dist analysis before Round 1")
 
     args = parser.parse_args()
     if not args.mode:
@@ -183,6 +190,8 @@ Available dataset actions:
                     hunt_mode=args.hunt_mode,
                     known_crash_db=args.known_crash_db,
                     stall_timeout=args.stall_timeout,
+                    dist_stall_timeout=args.dist_stall_timeout,
+                    proactive_seed=args.proactive_seed,
                 )
                 agent.run()
         else:

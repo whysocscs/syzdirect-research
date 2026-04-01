@@ -68,11 +68,17 @@ def _read_text_if_exists(path):
 
 def target_relevance(text, target_info, target_context, target_call_names):
     """Check if crash text is related to the fuzzing target."""
+    import re
     lowered = (text or "").lower()
     if target_info.get("function", "").lower() in lowered:
         return True
     for token in target_context.get("strong_tokens", set()):
-        if token in lowered:
+        if len(token) < 5:
+            # Short tokens need word-boundary matching to avoid false positives
+            # e.g. "add" matching "addition" in unrelated crash reports
+            if re.search(r'\b' + re.escape(token) + r'\b', lowered):
+                return True
+        elif token in lowered:
             return True
     for call_name in target_call_names:
         if len(call_name) >= 4 and call_name in lowered:

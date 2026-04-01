@@ -147,7 +147,7 @@ def ensure_kcov_support(src_dir):
         if "void notrace kcov_mark_block(u32 i)" not in updated:
             updated, count = re.subn(
                 r"void notrace __sanitizer_cov_trace_pc\(void\)\n\{.*?\n\}\nEXPORT_SYMBOL\(__sanitizer_cov_trace_pc\);\n",
-                """void notrace __sanitizer_cov_trace_pc(void)
+                """void notrace __sanitizer_cov_trace_pc(u32 dt)
 {
 \tstruct task_struct *t;
 \tunsigned long *area;
@@ -160,6 +160,8 @@ def ensure_kcov_support(src_dir):
 \t\treturn;
 
 \tdt_area = (u32 *)t->kcov_area;
+\tif (dt < READ_ONCE(dt_area[0]))
+\t\tWRITE_ONCE(dt_area[0], dt);
 \tarea = (unsigned long *)(dt_area + DISTBLOCKSIZE);
 \t/* The first 64-bit word is the number of subsequent PCs. */
 \tpos = READ_ONCE(area[0]) + 1;
@@ -274,7 +276,81 @@ def _append_unique_kconfig(config_path, lines):
             f.write(f"{line}\n")
 
 
-def append_build_config(config_path, boot_profile="default"):
+def find_kconfig_for_file(src_dir, target_file):
+    """Find CONFIG_* options needed to compile target_file.
+
+    Walks from the target file's directory upward, parsing Makefile/Kbuild
+    to find which CONFIG_* symbol gates the target object file.
+    Returns a list of 'CONFIG_XXX=y' strings.
+    """
+    configs = []
+    # target_file e.g. "drivers/video/fbdev/smscufx.c"
+    obj_name = os.path.basename(target_file).replace(".c", ".o")
+    search_dir = os.path.dirname(target_file)
+
+    # Search Makefile/Kbuild in the target directory and parent directories
+    for _ in range(5):  # up to 5 levels
+        if not search_dir:
+            break
+        for mf_name in ("Makefile", "Kbuild"):
+            mf_path = os.path.join(src_dir, search_dir, mf_name)
+            if not os.path.exists(mf_path):
+                continue
+            try:
+                with open(mf_path) as f:
+                    mf_text = f.read()
+            except OSError:
+                continue
+            # Match: obj-$(CONFIG_FOO) += bar.o  or  obj-$(CONFIG_FOO) := bar.o
+            for m in re.finditer(
+                r'obj-\$\((CONFIG_\w+)\)\s*[+:]?=\s*(.*)', mf_text
+            ):
+                config_sym = m.group(1)
+                objects = m.group(2).strip().split()
+                if obj_name in objects:
+                    configs.append(f"{config_sym}=y")
+                    print(f"  [kconfig] {target_file} requires {config_sym}")
+                # Also check if target is part of a composite module:
+                # foo-y += bar.o  (where foo.o is gated by CONFIG_FOO)
+                # First find module names gated by this config
+                for obj in objects:
+                    mod_name = obj.replace(".o", "")
+                    # Look for: mod_name-y += ... obj_name ...
+                    mod_pattern = re.compile(
+                        rf'{re.escape(mod_name)}-[yobjs]+\s*[+:]?=\s*(.*)')
+                    for mm in mod_pattern.finditer(mf_text):
+                        sub_objs = mm.group(1).strip().split()
+                        if obj_name in sub_objs:
+                            configs.append(f"{config_sym}=y")
+                            print(f"  [kconfig] {target_file} requires "
+                                  f"{config_sym} (via {mod_name})")
+        # Check for directory-level gating:
+        # obj-$(CONFIG_FOO) += subdir/
+        parent_dir = os.path.dirname(search_dir)
+        dir_name = os.path.basename(search_dir) + "/"
+        for mf_name in ("Makefile", "Kbuild"):
+            mf_path = os.path.join(src_dir, parent_dir, mf_name) if parent_dir else None
+            if not mf_path or not os.path.exists(mf_path):
+                continue
+            try:
+                with open(mf_path) as f:
+                    mf_text = f.read()
+            except OSError:
+                continue
+            for m in re.finditer(
+                r'obj-\$\((CONFIG_\w+)\)\s*[+:]?=\s*(.*)', mf_text
+            ):
+                dirs = m.group(2).strip().split()
+                if dir_name in dirs:
+                    configs.append(f"{m.group(1)}=y")
+                    print(f"  [kconfig] {search_dir}/ requires {m.group(1)}")
+        search_dir = parent_dir
+
+    # Deduplicate
+    return list(dict.fromkeys(configs))
+
+
+def append_build_config(config_path, boot_profile="default", target_configs=None):
     """Disable sanitizers/debug-info and enable KCOV in a kernel .config."""
     disabled = [
         "CONFIG_KASAN", "CONFIG_KCSAN", "CONFIG_UBSAN",
@@ -283,6 +359,8 @@ def append_build_config(config_path, boot_profile="default"):
         "CONFIG_DEBUG_INFO_SPLIT", "CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT",
         "CONFIG_DEBUG_INFO_DWARF4", "CONFIG_DEBUG_INFO_DWARF5",
         "CONFIG_GDB_SCRIPTS",
+        # clang 18 rejects 1E6L long-double literals in drivers/usb/dwc2/hcd_queue.c
+        "CONFIG_USB_DWC2",
     ]
     lines = [f"{c}=n" for c in disabled]
     lines.extend([
@@ -291,9 +369,12 @@ def append_build_config(config_path, boot_profile="default"):
         "CONFIG_KCOV=y",
         "CONFIG_KCOV_ENABLE_COMPARISONS=y",
         "CONFIG_IP_VS=n",
+        "CONFIG_COMPILE_TEST=y",
     ])
     if boot_profile == "boot_safe_x86":
         lines.extend(BOOT_SAFE_X86_OVERRIDES)
+    if target_configs:
+        lines.extend([""] + target_configs)
     _append_unique_kconfig(config_path, lines)
 
 

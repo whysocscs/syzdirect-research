@@ -36,7 +36,9 @@ def triage_failure(health, manager_log, crash_summary=None, hunt_mode="hybrid"):
     if crash_counts.get("target_related", 0) > 0:
         return {"primary": "SUCCESS", "secondary": [], "evidence": ["target-related crash found"]}
     if hunt_mode != "repro" and crash_counts.get("incidental_unknown", 0) > 0:
-        return {"primary": "SUCCESS", "secondary": [], "evidence": ["new incidental crash found"]}
+        # Log incidental crashes but do NOT stop — keep fuzzing toward the target.
+        secondary.append("incidental_crash_found")
+        evidence.append("new incidental crash found (not target-related, continuing)")
 
     if health.get("fatal"):
         evidence.append("all target calls disabled")
@@ -62,8 +64,11 @@ def triage_failure(health, manager_log, crash_summary=None, hunt_mode="hybrid"):
             log_text = f.read()
             einval_count = log_text.lower().count("einval") + log_text.lower().count("efault")
 
-    if einval_count > 50:
+    if einval_count > 0:
+        secondary.append("R2")
         evidence.append(f"einval_or_efault={einval_count}")
+
+    if einval_count > 50:
         return {"primary": "R2", "secondary": _uniq(secondary), "evidence": evidence}
 
     # R4: distance stagnant — dist_stall_timeout fired OR dist didn't improve

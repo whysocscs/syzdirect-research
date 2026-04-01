@@ -26,6 +26,30 @@ from runner_config import RunnerConfig
 from pipeline_new_cve import ensure_commit_available as _ensure_commit_available
 
 
+def _patch_subcmd_util_h(src_dir):
+    """Suppress gcc 13 -Wuse-after-free error in objtool host-tool build."""
+    path = os.path.join(src_dir, "tools", "lib", "subcmd", "subcmd-util.h")
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        txt = f.read()
+    if "pragma GCC diagnostic" in txt:
+        return
+    old = "static inline void *xrealloc(void *ptr, size_t size)"
+    if old not in txt:
+        return
+    txt = txt.replace(old,
+        '#pragma GCC diagnostic push\n'
+        '#pragma GCC diagnostic ignored "-Wuse-after-free"\n'
+        + old)
+    txt = txt.replace(
+        "}\nstatic inline void *xstrdup",
+        "}\n#pragma GCC diagnostic pop\nstatic inline void *xstrdup",
+        1)
+    with open(path, "w") as f:
+        f.write(txt)
+
+
 class DatasetPipeline:
     """Run the original SyzDirect pipeline on all datapoints in a dataset.xlsx file."""
 
@@ -109,16 +133,25 @@ class DatasetPipeline:
                f"cmake --build build -j {self.cpus}", big=True)
         assert os.path.exists(CLANG_PATH), "Failed to build customized LLVM (clang)"
 
-        print("[build] Building interface_generator...")
-        sh(f"cd {Q(FUNCTION_MODEL_DIR)} && make clean && make LLVM_BUILD={Q(LLVM_BUILD)}", big=True)
+        if not os.path.exists(INTERFACE_GENERATOR):
+            print("[build] Building interface_generator...")
+            sh(f"cd {Q(FUNCTION_MODEL_DIR)} && make clean && make LLVM_BUILD={Q(LLVM_BUILD)}", big=True)
+        else:
+            print(f"[build] interface_generator already exists, skipping.")
         assert os.path.exists(INTERFACE_GENERATOR), "Failed to build interface_generator"
 
-        print("[build] Building target_analyzer...")
-        sh(f"cd {Q(KERNEL_ANALYSIS_DIR)} && make clean && make LLVM_BUILD={Q(LLVM_BUILD)}", big=True)
+        if not os.path.exists(TARGET_ANALYZER):
+            print("[build] Building target_analyzer...")
+            sh(f"cd {Q(KERNEL_ANALYSIS_DIR)} && make clean && make LLVM_BUILD={Q(LLVM_BUILD)}", big=True)
+        else:
+            print(f"[build] target_analyzer already exists, skipping.")
         assert os.path.exists(TARGET_ANALYZER), "Failed to build target_analyzer"
 
-        print("[build] Building fuzzer...")
-        sh(f"cd {Q(FUZZER_DIR)} && make", big=True)
+        if not os.path.exists(os.path.join(FUZZER_DIR, "bin", "syz-manager")):
+            print("[build] Building fuzzer...")
+            sh(f"cd {Q(FUZZER_DIR)} && make", big=True)
+        else:
+            print(f"[build] fuzzer already exists, skipping.")
         assert os.path.exists(os.path.join(FUZZER_DIR, "bin")), "Failed to build fuzzer"
 
     # ── stages ───────────────────────────────────────────────────────────
@@ -176,17 +209,20 @@ class DatasetPipeline:
                 continue
 
             if os.path.exists(bc):
-                shutil.rmtree(bc, ignore_errors=True)
+                # Use shell rm -rf to reliably remove deep directory trees (shutil.rmtree
+                # can leave directories behind in WSL2 when subdirs are not empty)
+                subprocess.run(f"rm -rf {Q(bc)}", shell=True)
 
             os.makedirs(bc, exist_ok=True)
             shutil.copyfile(config_path, os.path.join(bc, ".config"))
             append_build_config(os.path.join(bc, ".config"))
 
             src = self.layout.src(ci)
+            # Fix gcc 13 treating -Wuse-after-free as error in objtool build
+            _patch_subcmd_util_h(src)
             sh(f"cd {Q(src)} && git checkout -- scripts/Makefile.kcov 2>/dev/null; "
-               f"make clean && make mrproper && "
-               f"make CC={Q(emit)} O={Q(bc)} olddefconfig && "
-               f"make CC={Q(emit)} O={Q(bc)} -j{self.cpus}", big=True)
+               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} olddefconfig && "
+               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} -j{self.cpus}", big=True)
 
             if os.path.exists(os.path.join(bc, "arch/x86/boot/bzImage")):
                 print(f"  [case {ci}] Bitcode compiled successfully")
