@@ -21,11 +21,13 @@ from crash_triage import collect_crashes, load_known_crash_db
 from agent_health import assess_round_health
 from agent_triage import (
     triage_failure, callfile_to_templates, templates_to_callfile,
+    classify_r4_cause,
 )
 from syscall_scoring import collect_target_context
 from llm_enhance import (
     extract_distance_roadmap, llm_enhance_callfile_for_distance,
     llm_generate_seed_program, read_stepping_stone_sources,
+    extract_closest_program, reverse_trace_bottleneck,
     _call_llm,
 )
 from semantic_seed import run_semantic_pipeline, validate_seed
@@ -131,14 +133,19 @@ class AgentLoop:
         target_l = target.lower()
         if target_l in current_targets:
             return True
-        target_base = target_l.split("$", 1)[0]
-        # R4 is primarily a state/shape recovery path. If a syscall family is
-        # already present, do not widen to sibling or generic variants here.
-        for existing in current_targets:
-            if existing != target_l and existing.split("$", 1)[0] == target_base:
-                return False
+        # Allow novel syscalls suggested by LLM — the LLM's subsystem
+        # reasoning is often the only signal for non-TC targets where
+        # roadmap reachable_via data is sparse.
         allowed = self._roadmap_allowed_targets(roadmap, current_callfile)
-        return target_l in allowed
+        if target_l in allowed:
+            return True
+        # Accept any new target that isn't a generic widening of an
+        # existing family (e.g. don't add sendmsg if sendmsg$variant exists)
+        target_base = target_l.split("$", 1)[0]
+        for existing in current_targets:
+            if existing.split("$", 1)[0] == target_base and "$" in existing and "$" not in target_l:
+                return False
+        return True
 
     def _sync_target_metadata(self):
         resolved = resolve_prebuilt_target(self.layout, self.target)
@@ -181,7 +188,9 @@ class AgentLoop:
             os.makedirs(round_dir, exist_ok=True)
 
             # ── A. Fuzz ──────────────────────────────────────────────
-            manager_log, metrics_jsonl, detail_corpus = self._run_fuzz_round(round_dir, round_num)
+            manager_log, metrics_jsonl, detail_corpus, sub_workdir = self._run_fuzz_round(round_dir, round_num)
+            self._last_sub_workdir = sub_workdir
+            self._last_detail_corpus = detail_corpus
             crash_summary = self._collect_crashes(round_dir, round_num)
 
             # ── B. Early success (repro mode only) ───────────────────
@@ -251,6 +260,7 @@ class AgentLoop:
                 break
 
             # ── E. Enhance callfile ──────────────────────────────────
+            self._last_health = health
             if round_num < self.max_rounds:
                 enhanced = self._enhance_callfile(triage_result, round_dir, round_num)
                 if enhanced:
@@ -277,13 +287,21 @@ class AgentLoop:
         syzdirect_path = Cfg.FuzzerDir
         tfmap = Cfg.ParseTargetFunctionsInfoFile(ci)
         if not tfmap:
-            ensure_target_function_info(
-                self.layout.tfinfo(ci),
-                self.target["function"],
-                self.target["func_path"],
-            )
-            tfmap = Cfg.ParseTargetFunctionsInfoFile(ci)
-        assert tfmap, f"target function map missing for case {ci}: {self.layout.tfinfo(ci)}"
+            # For dataset mode, target function may not be known
+            target_func = self.target.get("function", "")
+            target_func_path = self.target.get("func_path", "")
+            
+            if target_func and target_func_path:
+                ensure_target_function_info(
+                    self.layout.tfinfo(ci),
+                    target_func,
+                    target_func_path,
+                )
+                tfmap = Cfg.ParseTargetFunctionsInfoFile(ci)
+        
+        if not tfmap:
+            print(f"  [WARNING] No target function map for case {ci}, skipping agent loop")
+            return None, None, None
 
         last_log, last_metrics = None, None
 
@@ -323,7 +341,7 @@ class AgentLoop:
             )
 
         detail_corpus = os.path.join(sub_workdir, "detailCorpus.txt")
-        return last_log, last_metrics, detail_corpus
+        return last_log, last_metrics, detail_corpus, sub_workdir
 
     # ── Crash detection ──────────────────────────────────────────────────
 
@@ -700,6 +718,7 @@ class AgentLoop:
         )
 
         snippets = ""
+        rev_trace = ""
         if roadmap and roadmap.get("stepping_stones"):
             stones = roadmap["stepping_stones"]
             print(f"  [R4] Roadmap: {len(stones)} stepping stones, "
@@ -708,9 +727,16 @@ class AgentLoop:
             snippets = read_stepping_stone_sources(src_dir, roadmap)
             if snippets:
                 print(f"  [R4] Read {snippets.count('---') + 1} source snippets")
+            # Reverse trace the bottleneck function (#2)
+            bottleneck = stones[0]["function"]
+            rev_trace = reverse_trace_bottleneck(
+                src_dir, bottleneck,
+                k2s_path=k2s_path if os.path.exists(k2s_path) else None,
+            )
+            if rev_trace:
+                print(f"  [R4] Reverse trace for {bottleneck}:\n{rev_trace}")
         else:
             print("  [R4] No stepping stones, will query LLM with CVE context only")
-            # Build minimal roadmap so LLM still gets context
             roadmap = {
                 "target_function": target_func,
                 "current_dist_min": current_dist,
@@ -718,19 +744,56 @@ class AgentLoop:
                 "total_functions_in_range": 0,
             }
 
-        # Treat R4 as a symptom. When secondary signals imply prerequisite/state
-        # or shape problems, prioritize seed/state recovery over syscall broadening.
-        should_query_syscalls = "R1" in secondary
-        if should_query_syscalls:
-            print(f"  [R4] Querying LLM for syscall suggestions...")
+        # Extract closest program from corpus (#1)
+        closest_prog, closest_dist = None, None
+        sub_workdir = getattr(self, "_last_sub_workdir", None)
+        detail_corpus = getattr(self, "_last_detail_corpus", None)
+        if sub_workdir:
+            rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+            Cfg = rcfg.apply_to_legacy_config()
+            syz_db = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
+            closest_prog, closest_dist = extract_closest_program(
+                sub_workdir, syz_db, detail_corpus_path=detail_corpus,
+            )
+            if closest_prog:
+                print(f"  [R4] Closest corpus program (dist={closest_dist}):\n"
+                      f"    {closest_prog[:200]}...")
+
+        # Classify R4 sub-cause (#6)
+        health = getattr(self, "_last_health", {})
+        r4_cause, r4_evidence = classify_r4_cause(
+            health, roadmap, self.dist_history, current_callfile,
+        )
+        print(f"  [R4] Sub-classification: {r4_cause}")
+        for ev in r4_evidence:
+            print(f"    · {ev}")
+
+        # Dispatch based on R4 sub-cause
+        new_entries = []
+        if r4_cause == "R4-WRONG":
+            # Wrong syscall family — must query LLM for completely new syscalls
+            print(f"  [R4-WRONG] Querying LLM for different syscall family...")
             new_entries = llm_enhance_callfile_for_distance(
                 current_callfile, roadmap,
                 target_func, target_file,
                 source_snippets=snippets,
+                closest_program=closest_prog, closest_dist=closest_dist,
+                reverse_trace=rev_trace,
             )
-        else:
-            print("  [R4] Skipping syscall broadening; prioritizing prerequisite/shape recovery")
-            new_entries = []
+        elif r4_cause == "R4-ARG":
+            # Right subsystem but wrong arguments — prioritize seed generation with
+            # concrete argument values, skip broad callfile changes
+            print(f"  [R4-ARG] Close to target, prioritizing seed with concrete arguments...")
+        elif r4_cause == "R4-STATE":
+            # Right syscalls but missing prerequisites — query for setup sequences
+            print(f"  [R4-STATE] Missing prerequisites, querying LLM for setup sequences...")
+            new_entries = llm_enhance_callfile_for_distance(
+                current_callfile, roadmap,
+                target_func, target_file,
+                source_snippets=snippets,
+                closest_program=closest_prog, closest_dist=closest_dist,
+                reverse_trace=rev_trace,
+            )
 
         if new_entries:
             filtered = []
@@ -752,9 +815,12 @@ class AgentLoop:
 
         # ── Also generate seed corpus via LLM ────────────────────────────
         print(f"  [R4] Generating LLM seed programs for next round...")
-        rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
-        Cfg = rcfg.apply_to_legacy_config()
-        syz_db_path = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
+        if not hasattr(self, '_r4_syz_db_path'):
+            rcfg2 = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+            Cfg2 = rcfg2.apply_to_legacy_config()
+            syz_db_path = os.path.join(Cfg2.FuzzerDir, "bin", "syz-db")
+        else:
+            syz_db_path = self._r4_syz_db_path
         seed_out_dir = self.layout.fuzzres_xidx(ci)
 
         seed_db = llm_generate_seed_program(
@@ -765,6 +831,8 @@ class AgentLoop:
             current_callfile=current_callfile,
             syz_db_path=syz_db_path,
             output_dir=seed_out_dir,
+            closest_program=closest_prog, closest_dist=closest_dist,
+            reverse_trace=rev_trace,
         )
         if seed_db and self._seed_matches_target(seed_db):
             print(f"  [R4] Seed corpus generated: {seed_db}")

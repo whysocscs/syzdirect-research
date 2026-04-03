@@ -128,12 +128,18 @@ def MultirunFuzzer():
 
                 fuzzer_file = manager_path if syzkaller_path == syzdirect_path else os.path.join(
                     syzkaller_path, "bin", "syz-manager")
-                run_items.append((fuzzer_file, config_path, callfile))
+                log_dir = os.path.join(work_root_dir, f"logs{i}")
+                run_items.append((fuzzer_file, config_path, callfile, log_dir))
 
     with ThreadPoolExecutor(max_workers=75) as executor:
         futures = []
         for run_arg in run_items:
-            futures.append(executor.submit(runFuzzer, *run_arg))
+            fuzzer_file, config_path, callfile, log_dir = run_arg
+            futures.append(executor.submit(
+                runFuzzer, fuzzer_file, config_path, callfile,
+                log_dir=log_dir,
+                dist_stall_timeout=600,
+            ))
             time.sleep(5)
         for future in concurrent.futures.as_completed(futures):
             future.result()
@@ -189,7 +195,9 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0,
         qemu_eof_count = 0
         early_boot_failure = False
         stall_terminated = False
+        target_reached = False
         last_cover_growth_ts = time.time()
+        fuzz_start_ts = time.time()
         peak_cover = 0
         best_dist_min = None
         last_dist_improvement_ts = time.time()
@@ -219,12 +227,23 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0,
                         Config.logging.info(msg.strip())
                         proc.terminate()
                         break
-                # distance stall detection (skip when dist=0: target reached)
+                # distance tracking: stop immediately when target reached (dist=0)
                 cur_dist = metric.get("dist_min")
                 if cur_dist is not None:
                     # Skip initial dist=0 before real fuzzing starts (best_dist_min not yet set)
                     if cur_dist == 0 and best_dist_min is None:
                         pass  # ignore default 0 emitted before any exec
+                    elif cur_dist == 0 and best_dist_min is not None:
+                        # Target reached — record time and terminate immediately
+                        elapsed = time.time() - fuzz_start_ts
+                        msg = (f"TARGET_REACHED: dist_min=0 after {elapsed:.1f}s "
+                               f"({elapsed/60:.1f}min)\n")
+                        log_f.write(msg)
+                        log_f.flush()
+                        Config.logging.info(msg.strip())
+                        target_reached = True
+                        proc.terminate()
+                        break
                     elif best_dist_min is None or cur_dist < best_dist_min:
                         best_dist_min = cur_dist
                         last_dist_improvement_ts = time.time()
@@ -252,6 +271,6 @@ def runFuzzer(fuzzerFile, configPath, callFile, log_dir=None, stall_timeout=0,
         proc.wait()
 
     Config.logging.info(f"Finish running {command} (exit={proc.returncode})")
-    if proc.returncode != 0 and not early_boot_failure and not stall_terminated:
+    if proc.returncode != 0 and not early_boot_failure and not stall_terminated and not target_reached:
         raise RuntimeError(f"syz-manager exited with status {proc.returncode}: {command}")
     return manager_log, metrics_jsonl

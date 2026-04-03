@@ -118,6 +118,76 @@ _NOISE_PREFIXES = (
 )
 
 
+def extract_closest_program(workdir, syz_db_path, detail_corpus_path=None):
+    """Extract the program that achieved the minimum distance from corpus.db.
+
+    Parses detailCorpus.txt (if available) to find the program with the
+    lowest distance, then unpacks corpus.db and returns that program's text.
+    If detailCorpus.txt is not available, returns the first unpacked program.
+
+    Returns: (program_text, distance) or (None, None) if extraction fails.
+    """
+    corpus_db = os.path.join(workdir, "corpus.db")
+    if not os.path.exists(corpus_db):
+        return None, None
+
+    syz_db = syz_db_path if (syz_db_path and os.path.exists(syz_db_path)) else shutil.which("syz-db")
+    if not syz_db:
+        return None, None
+
+    # Parse detailCorpus.txt to find program with minimum distance
+    best_prog_sig = None
+    best_dist = None
+    if detail_corpus_path and os.path.exists(detail_corpus_path):
+        try:
+            with open(detail_corpus_path) as f:
+                for line in f:
+                    # Format: <sig> <dist> <other fields...>
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        try:
+                            sig = parts[0]
+                            dist = int(parts[1])
+                            if dist > 0 and (best_dist is None or dist < best_dist):
+                                best_dist = dist
+                                best_prog_sig = sig
+                        except ValueError:
+                            continue
+        except OSError:
+            pass
+
+    # Unpack corpus.db
+    unpack_dir = tempfile.mkdtemp(prefix="syz_corpus_")
+    try:
+        result = subprocess.run(
+            [syz_db, "unpack", corpus_db, unpack_dir],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            return None, None
+
+        prog_files = os.listdir(unpack_dir)
+        if not prog_files:
+            return None, None
+
+        # Try to match by signature from detailCorpus.txt
+        if best_prog_sig:
+            for pf in prog_files:
+                if best_prog_sig in pf:
+                    prog_path = os.path.join(unpack_dir, pf)
+                    with open(prog_path) as f:
+                        return f.read().strip(), best_dist
+
+        # Fallback: return the first program
+        prog_path = os.path.join(unpack_dir, prog_files[0])
+        with open(prog_path) as f:
+            return f.read().strip(), best_dist
+    except Exception:
+        return None, None
+    finally:
+        shutil.rmtree(unpack_dir, ignore_errors=True)
+
+
 def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
                              k2s_path=None, max_stones=12):
     """Build a stepping-stone roadmap from .dist files.
@@ -201,6 +271,124 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
 # Kernel source reading for stepping stones
 # ──────────────────────────────────────────────────────────────────────────
 
+def reverse_trace_bottleneck(src_dir, bottleneck_func, k2s_path=None, max_depth=2):
+    """Trace callers of the bottleneck function to find syscall entry points.
+
+    Searches kernel source for functions that call bottleneck_func,
+    then traces their callers (up to max_depth levels), and maps
+    to syscalls via k2s if available.
+
+    Returns a text summary like:
+      "To reach bottleneck_func:
+       ← called by caller_A (in net/foo.c:123)
+         ← called by caller_B (in net/foo.c:456)
+           ← reachable via: socket$inet_tcp, setsockopt$..."
+    """
+    if not os.path.isdir(src_dir):
+        return ""
+
+    k2s = {}
+    if k2s_path and os.path.exists(k2s_path):
+        try:
+            with open(k2s_path) as f:
+                k2s = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    def _find_callers(func_name):
+        """Find functions that call func_name in the kernel source."""
+        try:
+            result = subprocess.run(
+                ["grep", "-rn", f"\\b{func_name}\\s*(", "--include=*.c", src_dir],
+                capture_output=True, text=True, timeout=15,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            return []
+
+        callers = []
+        seen = set()
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            # Skip the function's own definition
+            if f"{func_name}(" in line and (
+                line.strip().startswith("static") or
+                line.strip().startswith("int") or
+                line.strip().startswith("void") or
+                line.strip().startswith("struct") or
+                line.strip().startswith("long") or
+                line.strip().startswith("unsigned") or
+                line.strip().startswith("bool") or
+                line.strip().startswith("ssize_t") or
+                line.strip().startswith("__")
+            ):
+                # Likely a definition, try to extract the defining function name
+                # but we want callers, not definitions — skip lines that look
+                # like function signatures (return_type func_name(...)
+                parts = line.split(":")
+                if len(parts) >= 3:
+                    code = ":".join(parts[2:]).strip()
+                    # If the function name IS at the start, it's a definition
+                    tokens = code.split()
+                    if len(tokens) >= 2 and func_name in tokens[1]:
+                        continue
+
+            # Extract caller file:line
+            parts = line.split(":")
+            if len(parts) < 3:
+                continue
+            filepath = parts[0]
+            try:
+                lineno = int(parts[1])
+            except ValueError:
+                continue
+
+            # Try to find the enclosing function name
+            try:
+                with open(filepath) as f:
+                    lines = f.readlines()
+                # Search backward for function definition
+                for i in range(lineno - 1, max(0, lineno - 50), -1):
+                    l = lines[i]
+                    # Simple heuristic: line starting with non-space, contains '('
+                    if l and not l[0].isspace() and '(' in l and '{' in l:
+                        caller_name = l.split('(')[0].split()[-1] if l.split('(')[0].split() else None
+                        if caller_name and caller_name != func_name and caller_name not in seen:
+                            seen.add(caller_name)
+                            rel_path = os.path.relpath(filepath, src_dir)
+                            callers.append({
+                                "function": caller_name,
+                                "file": rel_path,
+                                "line": lineno,
+                            })
+                        break
+            except OSError:
+                continue
+
+            if len(callers) >= 5:
+                break
+        return callers
+
+    lines = [f"Reverse trace for bottleneck: {bottleneck_func}"]
+    current_funcs = [bottleneck_func]
+
+    for depth in range(max_depth):
+        next_funcs = []
+        for func in current_funcs:
+            callers = _find_callers(func)
+            for caller in callers:
+                prefix = "  " * (depth + 1)
+                syscalls = k2s.get(caller["function"], [])
+                line = f"{prefix}← {caller['function']} ({caller['file']}:{caller['line']})"
+                if syscalls:
+                    line += f"  [reachable via: {', '.join(syscalls[:5])}]"
+                lines.append(line)
+                next_funcs.append(caller["function"])
+        current_funcs = next_funcs[:3]  # limit branching
+
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
 def read_stepping_stone_sources(src_dir, roadmap, max_funcs=5, max_lines=40):
     """Read kernel source snippets for stepping-stone functions.
 
@@ -266,7 +454,9 @@ def read_stepping_stone_sources(src_dir, roadmap, max_funcs=5, max_lines=40):
 
 def llm_enhance_callfile_for_distance(current_callfile, roadmap,
                                        target_function, target_file,
-                                       source_snippets=""):
+                                       source_snippets="",
+                                       closest_program=None, closest_dist=None,
+                                       reverse_trace=""):
     """Ask the LLM to suggest better syscalls based on distance roadmap."""
     if not roadmap:
         return None
@@ -295,6 +485,24 @@ There are {roadmap['total_functions_in_range']} functions between current positi
             "name and file path to suggest syscalls."
         )
 
+    # Build closest program section
+    corpus_section = ""
+    if closest_program:
+        corpus_section = f"""
+CLOSEST PROGRAM IN CORPUS (achieved dist={closest_dist}):
+{closest_program}
+
+This is the best program the fuzzer found so far. Analyze what it does and what's missing to reach the target."""
+
+    # Build reverse trace section
+    trace_section = ""
+    if reverse_trace:
+        trace_section = f"""
+CALL CHAIN ANALYSIS (how to reach the bottleneck function):
+{reverse_trace}
+
+Use this call chain to identify which syscalls trigger the path to the target."""
+
     prompt = f"""You are a Linux kernel security researcher helping a distance-guided fuzzer.
 
 TARGET FUNCTION: {target_function} in {target_file} (distance=0)
@@ -306,6 +514,8 @@ CURRENT CALLFILE (syscalls being fuzzed):
 {roadmap_section}
 
 {('KERNEL SOURCE (showing how stepping-stone functions are called):' + chr(10) + source_snippets) if source_snippets else ''}
+{corpus_section}
+{trace_section}
 
 The fuzzer needs syscall sequences that execute kernel code paths leading to {target_function}.
 
@@ -315,6 +525,7 @@ Analyze the target function name, file path, and current syscalls. Think about:
 3. What setup syscalls are needed (device open, socket creation, mount, etc.)?
 4. What sequence of operations would reach {target_function}?
 5. Are the current syscalls even in the right subsystem? If not, suggest completely different ones.
+6. If a closest program is provided, what specific changes would get it closer to the target?
 
 Return ONLY valid JSON:
 {{"syscalls": [{{"Target": "name$variant", "Relate": ["setup1", "setup2", ...]}}], "reasoning": "brief explanation"}}
@@ -523,63 +734,74 @@ def _roadmap_allowed_calls(roadmap):
 
 
 def _validate_r4_entries(entries, current_callfile, roadmap):
-    """Keep only entries that are supported by current state or roadmap evidence."""
+    """Validate LLM-suggested R4 entries.
+
+    For entries whose Target already exists in the callfile or roadmap,
+    keep them as-is.  For *novel* targets (LLM suggesting a completely
+    new syscall family), accept them but keep their Relate list as
+    provided — the LLM's subsystem reasoning is the best signal we have
+    for non-TC targets where roadmap reachable_via is sparse.
+    """
     current_targets, current_related = _callfile_targets_and_related(current_callfile)
     roadmap_calls = _roadmap_allowed_calls(roadmap)
+    known = current_targets | current_related | roadmap_calls
     validated = []
     for entry in entries or []:
         target = (entry.get("Target") or "").strip()
         if not target:
             continue
-        target_l = target.lower()
-        if target_l not in current_targets:
-            if target_l not in current_related and target_l not in roadmap_calls:
-                continue
         relates = []
         for relate in entry.get("Relate", []) or []:
             r = (relate or "").strip()
-            if not r or r == target:
-                continue
-            r_l = r.lower()
-            r_base = r_l.split("$", 1)[0]
-            if r_l in current_targets or r_base in current_targets:
-                relates.append(r)
-                continue
-            if r_l in current_related or r_base in current_related:
-                relates.append(r)
-                continue
-            if r_l in roadmap_calls or r_base in roadmap_calls:
+            if r and r != target:
                 relates.append(r)
         validated.append({"Target": target, "Relate": relates})
     return validated
 
 
 def _validate_seed_programs(programs, target_file, current_callfile, source_snippets=""):
-    """Filter seed programs using generic structural checks."""
+    """Filter seed programs using structural checks.
+
+    For TC targets (net/sched/*), apply the original TC-specific checks
+    (requires socket$nl_route, sendmsg counts, etc.).
+    For non-TC targets, accept any non-empty program that contains at
+    least one syscall.
+    """
     if not programs:
         return []
-    current_targets, _ = _callfile_targets_and_related(current_callfile)
-    target_type = _detect_tc_target_type(target_file)
-    snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
-    if snippet_type and snippet_type != target_type:
-        target_type = snippet_type
+
+    is_tc = "net/sched" in (target_file or "")
+
+    if is_tc:
+        current_targets, _ = _callfile_targets_and_related(current_callfile)
+        target_type = _detect_tc_target_type(target_file)
+        snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
+        if snippet_type and snippet_type != target_type:
+            target_type = snippet_type
+
     validated = []
     for prog in programs:
         text = (prog.get("text") or "").strip()
         if not text:
             continue
-        text_l = text.lower()
-        if "socket$nl_route" not in text_l:
-            continue
-        sendmsg_count = text_l.count("sendmsg$nl_route_sched")
-        if target_type in {"filter", "action"} and sendmsg_count < 2:
-            continue
-        if target_type == "qdisc" and sendmsg_count < 1:
-            continue
-        if current_targets and not any(name in text_l for name in current_targets):
-            # Accept route-sched programs that at least preserve the current target base.
-            if "sendmsg$nl_route_sched" not in text_l:
+
+        if is_tc:
+            text_l = text.lower()
+            if "socket$nl_route" not in text_l:
                 continue
+            sendmsg_count = text_l.count("sendmsg$nl_route_sched")
+            if target_type in {"filter", "action"} and sendmsg_count < 2:
+                continue
+            if target_type == "qdisc" and sendmsg_count < 1:
+                continue
+            if current_targets and not any(name in text_l for name in current_targets):
+                if "sendmsg$nl_route_sched" not in text_l:
+                    continue
+        else:
+            # Generic: accept any program with at least one syscall-like call
+            if "(" not in text:
+                continue
+
         validated.append(prog)
     return validated
 
@@ -656,8 +878,19 @@ def _seed_requirements(roadmap, target_function, target_file, source_snippets=""
     target_type = _detect_tc_target_type(target_file)
     snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
     if snippet_type and snippet_type != target_type:
-        # Prefer concrete stepping-stone source evidence when target metadata is stale.
         target_type = snippet_type
+
+    # For non-TC targets, return minimal generic requirements
+    if target_type == "unknown":
+        return {
+            "target_type": "unknown",
+            "target_kind": None,
+            "prefer_multi_stage": False,
+            "avoid_ops": set(),
+            "prefer_explicit_handle": False,
+            "snippet_type": None,
+        }
+
     target_kind = _infer_tc_kind_from_roadmap(roadmap, target_function)
     prefer_multi_stage = False
     terms = [target_function.lower()]
@@ -669,7 +902,7 @@ def _seed_requirements(roadmap, target_function, target_file, source_snippets=""
         "target_type": target_type,
         "target_kind": target_kind,
         "prefer_multi_stage": prefer_multi_stage,
-        "avoid_ops": {0x29, 0x2d},  # generic get/delete tc ops are weak default seeds
+        "avoid_ops": {0x29, 0x2d},
         "prefer_explicit_handle": target_type in {"filter", "action"},
         "snippet_type": snippet_type,
     }
@@ -695,6 +928,23 @@ def _score_seed_program(prog, requirements):
     analysis = _analyze_seed_program(text)
     score = 0
     reasons = []
+
+    # For non-TC targets, use generic scoring
+    target_type = requirements.get("target_type")
+    if target_type == "unknown":
+        # Generic: score based on program complexity
+        score = 1
+        reasons.append("generic_program")
+        line_count = len(text.strip().splitlines())
+        if line_count >= 3:
+            score += 1
+            reasons.append("multi_step")
+        return {
+            "program": prog,
+            "score": score,
+            "reasons": reasons,
+            "analysis": analysis,
+        }
 
     if not analysis["has_route_socket"]:
         return None
@@ -798,12 +1048,16 @@ def _reject_reason_for_seed(prog, requirements):
     text = (prog.get("text") or "").strip()
     if not text:
         return "empty_program"
+
+    target_type = requirements.get("target_type")
+    if target_type == "unknown":
+        return "filtered_by_score"
+
     analysis = _analyze_seed_program(text)
     if not analysis["has_route_socket"]:
         return "missing_route_socket"
 
     messages = analysis["messages"]
-    target_type = requirements.get("target_type")
     target_kind = requirements.get("target_kind")
     nl_types = [m["nl_type"] for m in messages]
     all_kinds = [kind for m in messages for kind in m["kinds"]]
@@ -888,6 +1142,92 @@ def _select_seed_programs(programs, roadmap, target_function, target_file, sourc
     return scored[:limit], rejected, requirements, examined
 
 
+def _generate_generic_seed_programs(roadmap, target_function, target_file, source_snippets=""):
+    """Generate deterministic seed programs for non-TC targets based on subsystem heuristics."""
+    programs = []
+    tf = (target_file or "").lower()
+
+    if "net/bluetooth" in tf:
+        # Bluetooth subsystem: socket + bind + connect
+        for proto, sock_type, variant in [
+            ("0x1f", "0x5", "bt_sco"),    # SCO
+            ("0x1f", "0x1", "bt_l2cap"),  # L2CAP
+            ("0x1f", "0x2", "bt_hci"),    # HCI
+        ]:
+            programs.append({
+                "name": f"bt_{variant}_setup",
+                "text": (
+                    f"r0 = socket${variant}({proto}, {sock_type}, 0x0)\n"
+                    f"bind${variant}(r0, &(0x7f0000000000)={{{proto}}}, 0x1e)\n"
+                    f"connect${variant}(r0, &(0x7f0000001000)={{{proto}}}, 0x1e)\n"
+                    f"setsockopt${variant}(r0, 0x112, 0x1, &(0x7f0000002000)=0x1, 0x4)\n"
+                ),
+            })
+
+    elif "mm/" in tf:
+        # Memory management subsystem: mmap + mremap + madvise
+        programs.append({
+            "name": "mm_mmap_mremap",
+            "text": (
+                "r0 = mmap(&(0x7f0000ff0000/0x4000)=nil, 0x4000, 0x3, 0x32, 0xffffffffffffffff, 0x0)\n"
+                "mremap(r0, 0x4000, 0x8000, 0x3, &(0x7f0000fe0000/0x8000)=nil)\n"
+            ),
+        })
+        programs.append({
+            "name": "mm_mmap_madvise",
+            "text": (
+                "r0 = mmap(&(0x7f0000ff0000/0x4000)=nil, 0x4000, 0x3, 0x32, 0xffffffffffffffff, 0x0)\n"
+                "madvise(r0, 0x4000, 0x4)\n"
+                "munmap(r0, 0x4000)\n"
+            ),
+        })
+
+    elif "net/ipv4" in tf or "net/ipv6" in tf or "net/tcp" in tf:
+        # TCP/IP subsystem
+        programs.append({
+            "name": "tcp_socket_ops",
+            "text": (
+                "r0 = socket$inet_tcp(0x2, 0x1, 0x0)\n"
+                "bind$inet(r0, &(0x7f0000000000)={0x2, 0x0, @local}, 0x10)\n"
+                "listen(r0, 0x5)\n"
+                "setsockopt$inet_tcp_int(r0, 0x6, 0x1, &(0x7f0000001000)=0x1, 0x4)\n"
+            ),
+        })
+        programs.append({
+            "name": "udp_socket_ops",
+            "text": (
+                "r0 = socket$inet_udp(0x2, 0x2, 0x0)\n"
+                "bind$inet(r0, &(0x7f0000000000)={0x2, 0x0, @local}, 0x10)\n"
+                "sendto$inet(r0, &(0x7f0000001000)=\"aabb\", 0x2, 0x0, "
+                "&(0x7f0000002000)={0x2, 0x0, @remote}, 0x10)\n"
+            ),
+        })
+
+    elif "net/netfilter" in tf or "net/netlink" in tf:
+        programs.append({
+            "name": "netlink_route",
+            "text": (
+                "r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
+                "sendmsg$nl_route(r0, &(0x7f0000001000)={0x0, 0x0, "
+                "&(0x7f0000000040)=[{&(0x7f0000000080)=\"140000001000050100000000000000000000000000000000\", 0x2c}], "
+                "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
+            ),
+        })
+
+    elif "drivers/" in tf:
+        # Device driver: open + ioctl
+        programs.append({
+            "name": "dev_open_ioctl",
+            "text": (
+                "r0 = openat(0xffffffffffffff9c, &(0x7f0000000000)='/dev/null\\x00', 0x2, 0x0)\n"
+                "ioctl(r0, 0x1, 0x0)\n"
+                "close(r0)\n"
+            ),
+        })
+
+    return programs
+
+
 def _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets=""):
     """Generate TC seed programs with generic prerequisite sequences."""
     if "net/sched" not in target_file:
@@ -955,7 +1295,9 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
 # ──────────────────────────────────────────────────────────────────────────
 
 def llm_generate_seed_program(roadmap, source_snippets, target_function, target_file,
-                               current_callfile, syz_db_path=None, output_dir=None):
+                               current_callfile, syz_db_path=None, output_dir=None,
+                               closest_program=None, closest_dist=None,
+                               reverse_trace=""):
     """Ask the LLM to generate syzkaller seed programs based on the distance roadmap.
 
     Generates concrete syzkaller program text that exercises kernel paths leading
@@ -1005,16 +1347,10 @@ def llm_generate_seed_program(roadmap, source_snippets, target_function, target_
     if source_snippets:
         snippets_section = f"\nKERNEL SOURCE (key functions on path to target):\n{source_snippets}\n"
 
-    prompt = f"""You are a Linux kernel fuzzing expert. Generate syzkaller seed programs.
+    is_tc = "net/sched" in (target_file or "")
 
-TARGET: {target_function} in {target_file}
-CURRENT DIST: {current_dist} (stuck)
-
-{roadmap_section}
-{snippets_section}
-Generate 2 syzkaller programs that trigger the kernel path to {target_function}.
-
-PREREQUISITE RULES (kernel will silently drop messages without these):
+    if is_tc:
+        subsystem_instructions = f"""PREREQUISITE RULES (kernel will silently drop messages without these):
   - cls_*.c (filter target): MUST send RTM_NEWQDISC first, then RTM_NEWTFILTER
   - act_*.c (action target): MUST send RTM_NEWQDISC + RTM_NEWTFILTER first, then action
   - sch_*.c (qdisc target):  RTM_NEWQDISC alone is sufficient (IS the entry point)
@@ -1042,7 +1378,52 @@ Key constants:
   TCA_KIND type=1, e.g. "pfifo\\0"=70 66 69 66 6f 00, "tcindex\\0"=74 63 69 6e 64 65 78 00
 
 Compute the hex bytes step by step, then put the full hex string in ANYBLOB.
-The second argument to sendmsg is a msghdr: {{iov_ptr, iov_len, name_ptr, name_len, ctrl_ptr, ctrl_len, flags}}.
+The second argument to sendmsg is a msghdr: {{iov_ptr, iov_len, name_ptr, name_len, ctrl_ptr, ctrl_len, flags}}."""
+    else:
+        subsystem_instructions = f"""Target file: {target_file}
+
+Generate syzkaller programs using the correct syscall variants for this subsystem.
+Think step by step:
+1. What Linux subsystem does {target_file} belong to?
+2. What syscalls reach {target_function}? (e.g. socket, ioctl, mmap, open, setsockopt, connect, sendmsg, etc.)
+3. What setup steps are needed? (e.g. socket creation, device open, mmap, etc.)
+4. Write the program using syzkaller syntax with proper $variant names.
+
+Use syzkaller syntax. Each syscall on its own line:
+  r0 = socket$inet_tcp(0x2, 0x1, 0x0)
+  setsockopt$inet_tcp_congestion(r0, 0x6, 0xd, &(0x7f0000000000)='cubic\\x00', 0x6)
+
+Use $variant names where possible (e.g. socket$inet_tcp, ioctl$KVM_RUN, mmap$IOMMU).
+Use different memory addresses for each argument (increment by 0x1000)."""
+
+    # Build closest program section
+    corpus_section = ""
+    if closest_program:
+        corpus_section = f"""
+CLOSEST PROGRAM IN CORPUS (achieved dist={closest_dist}):
+{closest_program}
+
+This program got closest to the target. Improve upon it — add missing setup steps or fix arguments."""
+
+    # Build reverse trace section
+    trace_section = ""
+    if reverse_trace:
+        trace_section = f"""
+CALL CHAIN ANALYSIS:
+{reverse_trace}
+"""
+
+    prompt = f"""You are a Linux kernel fuzzing expert. Generate syzkaller seed programs.
+
+TARGET: {target_function} in {target_file}
+CURRENT DIST: {current_dist} (stuck)
+
+{roadmap_section}
+{snippets_section}{corpus_section}
+{trace_section}
+Generate 2 syzkaller programs that trigger the kernel path to {target_function}.
+
+{subsystem_instructions}
 
 Return ONLY JSON (no markdown):
 {{"programs": [{{"name": "short_name", "text": "complete program text"}}], "reasoning": "one sentence"}}"""
@@ -1069,6 +1450,8 @@ Return ONLY JSON (no markdown):
     deterministic = []
     if "net/sched" in (target_file or ""):
         deterministic = _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets)
+    else:
+        deterministic = _generate_generic_seed_programs(roadmap, target_function, target_file, source_snippets)
 
     merged_candidates = []
     if deterministic or programs:
@@ -1125,7 +1508,10 @@ Return ONLY JSON (no markdown):
 
     if not programs:
         print("  [LLM-seed] LLM returned no programs, trying Python fallback")
-        programs = deterministic or _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets)
+        if "net/sched" in (target_file or ""):
+            programs = deterministic or _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets)
+        else:
+            programs = deterministic or _generate_generic_seed_programs(roadmap, target_function, target_file, source_snippets)
         programs = _validate_seed_programs(programs, target_file, current_callfile, source_snippets)
         selected, rejected, requirements, examined = _select_seed_programs(
             programs, roadmap, target_function, target_file, source_snippets
@@ -1214,7 +1600,10 @@ Return ONLY JSON (no markdown):
 
         if valid_count == 0:
             print(f"  [LLM-seed] All {written} program(s) rejected by syz-db, trying Python fallback")
-            fallback = _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets)
+            if "net/sched" in (target_file or ""):
+                fallback = _generate_tc_seed_programs(roadmap, target_function, target_file, source_snippets)
+            else:
+                fallback = _generate_generic_seed_programs(roadmap, target_function, target_file, source_snippets)
             fallback = _validate_seed_programs(fallback, target_file, current_callfile, source_snippets)
             selected, rejected, _requirements, _examined = _select_seed_programs(
                 fallback, roadmap, target_function, target_file, source_snippets
