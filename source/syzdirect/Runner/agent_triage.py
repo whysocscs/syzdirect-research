@@ -94,6 +94,75 @@ def triage_failure(health, manager_log, crash_summary=None, hunt_mode="hybrid"):
     return {"primary": "R3", "secondary": _uniq(secondary), "evidence": evidence}
 
 
+def classify_r4_cause(health, roadmap, dist_history, current_callfile):
+    """Sub-classify an R4 (distance stagnant) failure into cause categories.
+
+    Returns one of:
+      R4-WRONG  — wrong syscall family entirely; need different syscalls
+      R4-STATE  — right syscalls but missing prerequisite state/setup
+      R4-ARG    — right syscalls+state but specific argument values missing
+
+    The classification drives which enhancement strategy to apply.
+    """
+    stones = (roadmap or {}).get("stepping_stones", [])
+    current_dist = (roadmap or {}).get("current_dist_min", 0)
+    cover_d = health.get("cover_delta", 0)
+    relevant_progs = health.get("relevant_prog_count", 0)
+
+    evidence = []
+
+    # R4-WRONG: No relevant programs found, or all stepping stones are very far
+    # This means the fuzzer's current syscalls don't even reach the right subsystem
+    if relevant_progs == 0:
+        evidence.append("no relevant programs in corpus — likely wrong syscall family")
+        return "R4-WRONG", evidence
+
+    if stones and all(s["distance"] > 5000 for s in stones):
+        evidence.append(f"all stepping stones distant (min={stones[0]['distance']})")
+        # Check if any stone has reachable_via that overlaps with callfile
+        callfile_calls = set()
+        for e in current_callfile:
+            t = e.get("Target", "")
+            if t:
+                callfile_calls.add(t.split("$")[0].lower())
+        stone_calls = set()
+        for s in stones:
+            for c in s.get("reachable_via", []):
+                stone_calls.add(c.split("$")[0].lower())
+        overlap = callfile_calls & stone_calls
+        if not overlap and stone_calls:
+            evidence.append(f"no overlap between callfile and stone reachable_via")
+            return "R4-WRONG", evidence
+
+    # R4-ARG: Close to target (dist < 1000), coverage growing, just can't cross a check
+    if current_dist and current_dist < 1000 and cover_d > 0:
+        evidence.append(f"close to target (dist={current_dist}) with growing coverage")
+        return "R4-ARG", evidence
+
+    # R4-STATE: Distance decreased in past rounds but now stuck
+    # This means the syscalls are right but some state prerequisite is missing
+    if len(dist_history) >= 2:
+        if dist_history[-1] < dist_history[0]:
+            # Distance improved over time but is now stuck
+            evidence.append("distance improved in earlier rounds but now stuck")
+            return "R4-STATE", evidence
+
+    # R4-STATE: Stepping stones show init/alloc pattern (setup functions closer to target)
+    if stones:
+        init_stones = [s for s in stones if any(
+            tok in s["function"].lower()
+            for tok in ("init", "alloc", "create", "setup", "register", "open", "bind")
+        )]
+        if init_stones:
+            evidence.append(f"stepping stones include setup functions: "
+                           f"{[s['function'] for s in init_stones[:3]]}")
+            return "R4-STATE", evidence
+
+    # Default: treat as STATE (most common for stuck fuzzers)
+    evidence.append("default classification — prerequisite/state likely missing")
+    return "R4-STATE", evidence
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Callfile <-> template format converters
 # ──────────────────────────────────────────────────────────────────────────
