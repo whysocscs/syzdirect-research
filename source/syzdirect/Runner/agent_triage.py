@@ -176,23 +176,33 @@ _RESOURCE_HINTS = {
 }
 
 
-def _infer_resource_type(syscall_name):
-    """Infer the resource type (sock, fd, etc.) from a syscall name."""
+def _infer_resource_type(syscall_name, syz_db=None):
+    """Infer the resource type (sock, fd, etc.) from a syscall name.
+
+    First checks hardcoded hints, then queries syzlang DB if provided.
+    """
     base = syscall_name.split("$")[0] if "$" in syscall_name else syscall_name
     for rtype, names in _RESOURCE_HINTS.items():
         if base in names:
             return rtype
+    # syzlang DB fallback
+    if syz_db is not None:
+        sc = syz_db.syscalls.get(syscall_name)
+        if sc and sc.returns:
+            return sc.returns
+        if sc and sc.input_resources:
+            return sc.input_resources[0]
     return None
 
 
-def callfile_to_templates(callfile):
+def callfile_to_templates(callfile, syz_db=None):
     """Convert callfile JSON to template_bundle format for agent APIs."""
     templates = []
     for i, entry in enumerate(callfile):
         target_name = entry.get("Target", "")
         related_names = entry.get("Relate", [])
         base_name = target_name.split("$")[0] if "$" in target_name else target_name
-        rtype = _infer_resource_type(target_name)
+        rtype = _infer_resource_type(target_name, syz_db)
         templates.append({
             "template_id": f"tmpl_{i}_{target_name}",
             "entry_syscall": {
@@ -204,7 +214,7 @@ def callfile_to_templates(callfile):
                 {
                     "name": r.split("$")[0] if "$" in r else r,
                     "syzlang_name": r,
-                    "resource_type": _infer_resource_type(r),
+                    "resource_type": _infer_resource_type(r, syz_db),
                 }
                 for r in related_names
             ],

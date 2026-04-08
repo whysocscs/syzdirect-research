@@ -477,11 +477,43 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	while (CV) {
 		// Step 1: ensure the type hasn't escaped
 #if 1
-		if ((typeEscapeSet.find(typeHash(LayerTy)) != typeEscapeSet.end()) || 
+		if ((typeEscapeSet.find(typeHash(LayerTy)) != typeEscapeSet.end()) ||
 				(typeEscapeSet.find(typeIdxHash(LayerTy, FieldIdx)) !=
 				 typeEscapeSet.end())) {
 
-			break;
+			// [LLVM 18 fix] Before breaking, check if this escape actually
+			// affects narrowing. With opaque pointers, Case 3 in
+			// typeConfineInStore escapes ALL pointer stores (EVTy = nullptr),
+			// including struct pointer fields that have no function entries.
+			// Breaking at these "noise" escapes prevents reaching deeper
+			// layers where real narrowing data exists.
+			//
+			// Proof of safety: if typeFuncsMap has no entries for this field
+			// (and no transit entries), then FS2 = empty, FST = empty,
+			// FS1 stays unchanged — identical to breaking.
+			bool hasFuncData = false;
+			size_t fldHash = typeIdxHash(LayerTy, FieldIdx);
+			auto directIt = typeFuncsMap.find(fldHash);
+			if (directIt != typeFuncsMap.end() && !directIt->second.empty()) {
+				hasFuncData = true;
+			}
+			if (!hasFuncData) {
+				auto transitIt = typeTransitMap.find(typeHash(LayerTy));
+				if (transitIt != typeTransitMap.end()) {
+					for (auto H : transitIt->second) {
+						auto tFuncIt = typeFuncsMap.find(hashIdxHash(H, FieldIdx));
+						if (tFuncIt != typeFuncsMap.end() && !tFuncIt->second.empty()) {
+							hasFuncData = true;
+							break;
+						}
+					}
+				}
+			}
+			if (hasFuncData)
+				break;
+			// else: escape is noise — no narrowing data exists,
+			// so breaking vs continuing produces identical FS1.
+			// Continue to deeper layers where real narrowing may occur.
 		}
 #endif
 
@@ -694,6 +726,69 @@ bool CallGraphPass::doModulePass(Module *M) {
 					}
 					// InlineAsm
 					else {
+					}
+				}
+				// [LLVM 18 fix] Proximity-based callee cap for indirect calls.
+				// With opaque pointers, MLTA may leave thousands of callee
+				// candidates.  Instead of dropping ALL (which creates holes
+				// in the call graph and corrupts distance), keep callees
+				// that share a directory prefix with the caller.
+				if (CS.isIndirectCall() && FS.size() > 50) {
+					// Get caller source path from debug info
+					std::string callerDir;
+					if (DISubprogram *DI = F->getSubprogram()) {
+						std::string callerPath =
+							DI->getDirectory().str() + "/" +
+							DI->getFilename().str();
+						// Extract up to 3 directory components
+						// e.g. "drivers/video/fbdev"
+						size_t slashes = 0, pos = 0;
+						for (size_t i = 0; i < callerPath.size(); ++i) {
+							if (callerPath[i] == '/') {
+								++slashes;
+								if (slashes == 4) { pos = i; break; }
+							}
+							pos = i + 1;
+						}
+						callerDir = callerPath.substr(0, pos);
+					}
+
+					FuncSet filtered;
+					if (!callerDir.empty()) {
+						for (Function *Callee : FS) {
+							if (DISubprogram *CDI = Callee->getSubprogram()) {
+								std::string calleePath =
+									CDI->getDirectory().str() + "/" +
+									CDI->getFilename().str();
+								if (calleePath.find(callerDir) == 0 ||
+								    callerDir.find(
+									calleePath.substr(
+									  0, calleePath.rfind('/'))) != std::string::npos) {
+									filtered.insert(Callee);
+								}
+							}
+						}
+					}
+
+					if (filtered.empty()) {
+						// No proximity matches — fall back to hard cap
+						OP << "WARNING: " << FS.size()
+						   << " callees for indirect call in "
+						   << F->getName()
+						   << ", no proximity matches, clearing\n";
+						FS.clear();
+					} else {
+						OP << "INFO: " << FS.size()
+						   << " -> " << filtered.size()
+						   << " callees (proximity filter) in "
+						   << F->getName() << "\n";
+						FS = filtered;
+						// If still too many after proximity, hard cap
+						if (FS.size() > 200) {
+							OP << "WARNING: still " << FS.size()
+							   << " after proximity, clearing\n";
+							FS.clear();
+						}
 					}
 				}
 				Ctx->Callees[CI] = FS;

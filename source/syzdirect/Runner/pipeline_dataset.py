@@ -284,6 +284,14 @@ class DatasetPipeline:
             compact = self.layout.compact(ci)
             pts = self.layout.multi_pts(ci)
 
+            # Auto-populate multi-pts from xlsx 'function' column if provided
+            func_from_xlsx = dp.get('function') if dp.get('function') and str(dp.get('function', '')).strip() not in ('', 'nan') else None
+            if func_from_xlsx and not os.path.exists(pts):
+                os.makedirs(os.path.dirname(pts), exist_ok=True)
+                with open(pts, 'w') as f:
+                    f.write(f"0 {func_from_xlsx}\n")
+                print(f"  [case {ci}] Auto-set multi-pts from xlsx: 0 {func_from_xlsx}")
+
             if not os.path.exists(compact):
                 sh(f"cd {Q(tpa_dir)} && "
                    f"{Q(TARGET_ANALYZER)} --verbose-level=4 "
@@ -294,10 +302,26 @@ class DatasetPipeline:
 
             dup = self.layout.dup_report(ci)
             if os.path.exists(dup):
-                print(f"  [case {ci}] WARNING: duplicate points detected!")
-                print(f"    Check {dup} and specify multi-pts file")
-                print(f"    Format: '0 function_name' per line")
-                continue
+                if func_from_xlsx:
+                    # xlsx에 function 있으면 dup_report 무시하고 multi-pts 강제 적용 후 재시도
+                    print(f"  [case {ci}] dup_report detected but function specified in xlsx ({func_from_xlsx}), retrying with forced multi-pts")
+                    os.remove(dup)
+                    if os.path.exists(compact):
+                        os.remove(compact)
+                    sh(f"cd {Q(tpa_dir)} && "
+                       f"{Q(TARGET_ANALYZER)} --verbose-level=4 "
+                       f"--distance-output={Q(tpa_dir)} "
+                       f"-kernel-interface-file={Q(k2s)} "
+                       f"-multi-pos-points={Q(pts)} "
+                       f"{Q(bc)} 2>&1 | tee log", big=True)
+                    if os.path.exists(self.layout.dup_report(ci)):
+                        print(f"  [case {ci}] ERROR: still duplicate after retry")
+                        continue
+                else:
+                    print(f"  [case {ci}] WARNING: duplicate points detected!")
+                    print(f"    Check {dup} and specify multi-pts file")
+                    print(f"    Format: '0 function_name' per line")
+                    continue
 
             if not os.path.exists(compact):
                 print(f"  [case {ci}] ERROR: target_analyzer failed!")
@@ -345,8 +369,8 @@ class DatasetPipeline:
                 append_build_config(os.path.join(temp, ".config"))
 
                 sh(f"cd {Q(src)} && "
-                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} O={Q(temp)} olddefconfig && "
-                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} O={Q(temp)} -j{self.cpus}", big=True)
+                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} olddefconfig && "
+                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} -j{self.cpus}", big=True)
 
                 bz_src = os.path.join(temp, "arch/x86/boot/bzImage")
                 if not os.path.exists(bz_src):

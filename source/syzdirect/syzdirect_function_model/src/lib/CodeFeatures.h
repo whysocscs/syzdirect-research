@@ -121,7 +121,7 @@ vector<map<unsigned, ConstBlockMap>> getConstraintsWrapper(Function* F, map<unsi
 
 map<BasicBlock*, vector<map<unsigned, ConstBlockMap>>> getConstraintsWrapperNew(Function* F, map<unsigned, ConstBlockMap>& argConstMap, raw_fd_ostream& outfile);
 
-void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector<BBConstraint*> path, set<vector<BBConstraint*>>& paths, set<BasicBlock*> visited, set<Function*> visitedFuncs, bool flag=false);
+void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector<BBConstraint*> path, set<vector<BBConstraint*>>& paths, set<BasicBlock*> visited, set<Function*> visitedFuncs, bool flag=false, int depth=0);
 
 void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vector<BBConstraint*> path, set<vector<BBConstraint*>>& paths, set<BasicBlock*> visited, set<Function*> visitedFuncs, bool flag=false, int loop=0);
 

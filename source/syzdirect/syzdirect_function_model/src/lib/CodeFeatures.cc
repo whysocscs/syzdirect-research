@@ -1686,11 +1686,24 @@ void getDFSStartBBsBFSFromBasicBlock(BasicBlock* BB, vector<DFSStartBB*>& res, v
         }
         if(calledFunctions.size() > 0)
         {
+            // [LLVM 18 fix] Skip this call site if too many callees —
+            // with opaque pointers, indirect calls can have dozens of
+            // false targets, causing width explosion at each BFS level.
+            if (calledFunctions.size() > 20)
+                calledFunctions.resize(20);
             for(auto item : calledFunctions)
             {
                 vector<CallInst*> newCallList = callList;
                 newCallList.push_back(item.first);
+                // [LLVM 18 fix] Limit inter-function depth to prevent
+                // combinatorial explosion from over-approximated call graphs
+                if (newCallList.size() > MAX_DEPTH * 2)
+                    continue;
                 if(visitedFuncs.count(item.second))
+                    continue;
+                // [LLVM 18 fix] Total explored function budget — prevent
+                // exponential growth across all BFS branches combined.
+                if (visitedFuncs.size() > 500)
                     continue;
                 visitedFuncs.insert(item.second);
                 vector<BasicBlock*> bfsStartBBs = getStartBasicBlocksInFunc(item.second);
@@ -1785,8 +1798,10 @@ set<vector<BBConstraint*>> getBBConstraintsInSubFunc(Function* F)
 map<BasicBlock*, set<vector<BBConstraint*>>> callBlockSubpaths;
 map<BasicBlock*, set<vector<BBConstraint*>>> nopredBlokcSubpaths;
 
-void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector<BBConstraint*> path, set<vector<BBConstraint*>>& paths, set<BasicBlock*> visited, set<Function*> visitedFuncs, bool flag)
+void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector<BBConstraint*> path, set<vector<BBConstraint*>>& paths, set<BasicBlock*> visited, set<Function*> visitedFuncs, bool flag, int depth)
 {
+    // [LLVM 18 fix] Depth guard matching getPathFromBasicBlockDFSNew pattern
+    if (depth > 100) return;
     if(visited.count(BB) > 0)
         return;
     visited.insert(BB);
@@ -1819,6 +1834,9 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
             }
             if(calledFunctions.size() > 0)
             {
+                // [LLVM 18 fix] Width cap — same as BFS side
+                if (calledFunctions.size() > 20)
+                    calledFunctions.resize(20);
                 set<vector<BBConstraint*>> subFuncConstraints;
                 for(auto item : calledFunctions)
                 {
@@ -1848,7 +1866,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                     vector<BBConstraint*> pathFromCallBlock;
                     outs() << "analyze a call block in the path in function " << BB->getParent()->getName() << "\n";
                     outs() << *BB << "\n";
-                    getPathFromBasicBlockDFS(BB, callList, pathFromCallBlock, pathsFromCallBlock, visited, visitedFuncs, true);
+                    getPathFromBasicBlockDFS(BB, callList, pathFromCallBlock, pathsFromCallBlock, visited, visitedFuncs, true, depth+1);
                     outs() << "finish analyze call block in the path\n";
                     outs() << "path length: " << path.size() << "\n";
                     outs() << "paths num in sub functions: " << subFuncConstraints.size() << "\n";
@@ -1928,7 +1946,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                 vector<CallInst*> newCallList(callList.begin(), callList.end() - 1);
                 outs() << "inter function analyze in function " << BB->getParent()->getName() << " parent function " << callInst->getFunction()->getName() << "\n";
                 vector<BBConstraint*> pathInCaller;
-                getPathFromBasicBlockDFS(callInst->getParent(), newCallList, pathInCaller, pathsInCaller, visited, visitedFuncs, true);
+                getPathFromBasicBlockDFS(callInst->getParent(), newCallList, pathInCaller, pathsInCaller, visited, visitedFuncs, true, depth+1);
                 blockResCache[BB] = pathsInCaller;
             }
             if(pathsInCaller.size() != 0)
@@ -1958,7 +1976,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
         {
             if(visited.count(bb))
                 continue;
-            getPathFromBasicBlockDFS(bb, callList, path, paths, visited, visitedFuncs);
+            getPathFromBasicBlockDFS(bb, callList, path, paths, visited, visitedFuncs, false, depth+1);
         }
     }
 }

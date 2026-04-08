@@ -16,6 +16,7 @@ import tempfile
 import re
 
 from syscall_normalize import load_syzkaller_call_names, normalize_syscall_name
+from syzlang_parser import get_db as _get_syzlang_db
 
 
 def _edit_distance(a, b):
@@ -42,41 +43,72 @@ def _fuzzy_kind_match(target_kind, all_kinds):
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# LLM backend — OpenAI via opencode
+# LLM backend — ollama (local) with opencode fallback
 # ──────────────────────────────────────────────────────────────────────────
 
-_OPENCODE_MODEL = os.environ.get("SYZDIRECT_LLM_MODEL", "openai/gpt-5.4-mini")
+_OLLAMA_MODEL = os.environ.get("SYZDIRECT_LLM_MODEL", "qwen2.5-coder:14b")
+_OLLAMA_URL = os.environ.get("SYZDIRECT_OLLAMA_URL", "http://localhost:11434")
 
 
 def _call_llm(prompt, timeout=180):
-    """Call LLM via opencode (OpenAI). Returns response text or None."""
-    opencode = shutil.which("opencode")
-    if opencode:
+    """Call LLM via claude CLI (primary) or ollama (fallback). Returns response text or None."""
+    import urllib.request
+    import urllib.error
+
+    # Try claude CLI first (highest quality)
+    claude_bin = shutil.which("claude")
+    if claude_bin:
         try:
-            r = subprocess.run(
-                [opencode, "run", "--model", _OPENCODE_MODEL, "--format", "json", prompt],
-                capture_output=True, text=True, timeout=timeout,
+            proc = subprocess.Popen(
+                [claude_bin, "--print", "--model", "sonnet"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, start_new_session=True,
             )
-            if r.returncode == 0:
-                text_parts = []
-                for line in r.stdout.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        ev = json.loads(line)
-                        if ev.get("type") == "text":
-                            part_text = ev.get("part", {}).get("text", "")
-                            if part_text:
-                                text_parts.append(part_text)
-                    except json.JSONDecodeError:
-                        pass
-                if text_parts:
-                    return "".join(text_parts)
-            else:
-                print(f"  [LLM] opencode failed: {r.stderr[:200]}")
-        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            print(f"  [LLM] opencode error: {e}")
+            try:
+                stdout, stderr = proc.communicate(input=prompt, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                import signal
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except OSError:
+                    proc.kill()
+                proc.wait(timeout=5)
+                print(f"  [LLM] claude timed out after {timeout}s")
+                stdout = None
+                stderr = None
+            if stdout and stdout.strip():
+                text = stdout.strip()
+                print(f"  [LLM] claude responded ({len(text)} chars)")
+                return text
+            elif proc.returncode != 0:
+                print(f"  [LLM] claude failed (rc={proc.returncode}): {(stderr or '')[:200]}")
+        except (FileNotFoundError, OSError) as e:
+            print(f"  [LLM] claude error: {e}")
+
+    # Fallback to ollama (local)
+    try:
+        req_data = json.dumps({
+            "model": _OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+        }).encode()
+        req = urllib.request.Request(
+            f"{_OLLAMA_URL}/api/generate",
+            data=req_data,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            result = json.loads(resp.read().decode())
+            text = result.get("response", "")
+            if text:
+                print(f"  [LLM] ollama responded ({len(text)} chars)")
+                return text
+    except urllib.error.URLError as e:
+        print(f"  [LLM] ollama unavailable: {e}")
+    except Exception as e:
+        print(f"  [LLM] ollama error: {e}")
+
     return None
 
 
@@ -118,15 +150,59 @@ _NOISE_PREFIXES = (
 )
 
 
+def _parse_detail_corpus(detail_corpus_path):
+    """Parse detailCorpus.txt (JSON format) into list of (program_text, distance).
+
+    detailCorpus.txt contains concatenated JSON objects:
+      {"Uptime": "0s", "Prog": "socket$nl_route(...)\\n", "Dist": 1030}
+      {"Uptime": "0s", "Prog": "close(...)\\n", "Dist": 4010}
+    """
+    results = []
+    if not detail_corpus_path or not os.path.exists(detail_corpus_path):
+        return results
+    try:
+        with open(detail_corpus_path, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        # Split on }{ boundaries (concatenated JSON objects)
+        import re as _re
+        # Find each JSON object
+        decoder = json.JSONDecoder()
+        pos = 0
+        while pos < len(content):
+            # Skip whitespace
+            while pos < len(content) and content[pos] in ' \t\n\r':
+                pos += 1
+            if pos >= len(content):
+                break
+            try:
+                obj, end_pos = decoder.raw_decode(content, pos)
+                prog = obj.get("Prog", "").strip()
+                dist = obj.get("Dist")
+                if prog and dist is not None and isinstance(dist, (int, float)) and dist > 0:
+                    results.append((prog, int(dist)))
+                pos = end_pos
+            except (json.JSONDecodeError, ValueError):
+                pos += 1
+    except OSError:
+        pass
+    return results
+
+
 def extract_closest_program(workdir, syz_db_path, detail_corpus_path=None):
     """Extract the program that achieved the minimum distance from corpus.db.
 
-    Parses detailCorpus.txt (if available) to find the program with the
-    lowest distance, then unpacks corpus.db and returns that program's text.
-    If detailCorpus.txt is not available, returns the first unpacked program.
+    Parses detailCorpus.txt to find the program with the lowest distance.
+    Returns the program text directly from detailCorpus (no unpack needed
+    since detailCorpus already contains program text).
 
     Returns: (program_text, distance) or (None, None) if extraction fails.
     """
+    entries = _parse_detail_corpus(detail_corpus_path)
+    if entries:
+        entries.sort(key=lambda x: x[1])
+        return entries[0]  # (prog_text, dist)
+
+    # Fallback: unpack corpus.db and return first program
     corpus_db = os.path.join(workdir, "corpus.db")
     if not os.path.exists(corpus_db):
         return None, None
@@ -135,28 +211,6 @@ def extract_closest_program(workdir, syz_db_path, detail_corpus_path=None):
     if not syz_db:
         return None, None
 
-    # Parse detailCorpus.txt to find program with minimum distance
-    best_prog_sig = None
-    best_dist = None
-    if detail_corpus_path and os.path.exists(detail_corpus_path):
-        try:
-            with open(detail_corpus_path) as f:
-                for line in f:
-                    # Format: <sig> <dist> <other fields...>
-                    parts = line.strip().split()
-                    if len(parts) >= 2:
-                        try:
-                            sig = parts[0]
-                            dist = int(parts[1])
-                            if dist > 0 and (best_dist is None or dist < best_dist):
-                                best_dist = dist
-                                best_prog_sig = sig
-                        except ValueError:
-                            continue
-        except OSError:
-            pass
-
-    # Unpack corpus.db
     unpack_dir = tempfile.mkdtemp(prefix="syz_corpus_")
     try:
         result = subprocess.run(
@@ -165,31 +219,78 @@ def extract_closest_program(workdir, syz_db_path, detail_corpus_path=None):
         )
         if result.returncode != 0:
             return None, None
-
         prog_files = os.listdir(unpack_dir)
         if not prog_files:
             return None, None
-
-        # Try to match by signature from detailCorpus.txt
-        if best_prog_sig:
-            for pf in prog_files:
-                if best_prog_sig in pf:
-                    prog_path = os.path.join(unpack_dir, pf)
-                    with open(prog_path) as f:
-                        return f.read().strip(), best_dist
-
-        # Fallback: return the first program
-        prog_path = os.path.join(unpack_dir, prog_files[0])
-        with open(prog_path) as f:
-            return f.read().strip(), best_dist
+        with open(os.path.join(unpack_dir, prog_files[0])) as f:
+            return f.read().strip(), None
     except Exception:
         return None, None
     finally:
         shutil.rmtree(unpack_dir, ignore_errors=True)
 
 
+def extract_closest_programs(workdir, syz_db_path, detail_corpus_path=None,
+                             max_programs=20, dist_threshold=None):
+    """Extract the N closest programs from detailCorpus.txt ordered by distance.
+
+    Returns list of (program_text, distance) tuples, sorted by distance ascending.
+    If dist_threshold is set, only returns programs with dist <= threshold.
+    """
+    entries = _parse_detail_corpus(detail_corpus_path)
+    if not entries:
+        return []
+
+    if dist_threshold is not None:
+        entries = [(p, d) for p, d in entries if d <= dist_threshold]
+
+    # Deduplicate by program text
+    seen = set()
+    unique = []
+    for prog, dist in entries:
+        if prog not in seen:
+            seen.add(prog)
+            unique.append((prog, dist))
+    entries = unique
+
+    entries.sort(key=lambda x: x[1])
+    return entries[:max_programs]
+
+
+def pack_programs_to_corpus(programs_text_list, syz_db_path, output_path):
+    """Pack a list of program text strings into a corpus.db file.
+
+    Args:
+        programs_text_list: list of syzkaller program text strings
+        syz_db_path: path to syz-db binary
+        output_path: path for the output corpus.db
+
+    Returns: output_path on success, None on failure.
+    """
+    if not programs_text_list or not syz_db_path:
+        return None
+
+    pack_dir = tempfile.mkdtemp(prefix="syz_pack_")
+    try:
+        for i, prog in enumerate(programs_text_list):
+            with open(os.path.join(pack_dir, f"prog_{i:04d}"), "w") as f:
+                f.write(prog)
+
+        result = subprocess.run(
+            [syz_db_path, "pack", pack_dir, output_path],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0 and os.path.exists(output_path):
+            return output_path
+        return None
+    except Exception:
+        return None
+    finally:
+        shutil.rmtree(pack_dir, ignore_errors=True)
+
+
 def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
-                             k2s_path=None, max_stones=12):
+                             k2s_path=None, max_stones=12, src_dir=None):
     """Build a stepping-stone roadmap from .dist files.
 
     Returns a dict with target info and a list of intermediate functions
@@ -217,10 +318,14 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
         except (OSError, ValueError):
             continue
 
-    # Filter to stepping stones: 0 < dist < current_dist_min
+    # Filter to stepping stones: 0 < dist <= current_dist_min
+    # Using <= instead of < so that functions at the SAME distance as
+    # current best (i.e., the actual callers of the target) are included.
+    # This is critical for cross-file call chains where the caller lives
+    # in a different .dist file (e.g., tbf_change calls fifo_set_limit).
     stones = []
     for fn, d in func_min_dist.items():
-        if 0 < d < current_dist_min and fn != target_function:
+        if 0 < d <= current_dist_min and fn != target_function:
             stones.append({"function": fn, "distance": d})
 
     # Filter out noise
@@ -228,14 +333,90 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
         s["function"].startswith(p) for p in _NOISE_PREFIXES
     )]
 
-    # Sort: prioritize functions related to target (same prefix), then by distance
+    # Find actual callers of the target function in kernel source.
+    # Functions that directly call the target are the most important
+    # stepping stones, regardless of which .dist file they live in.
+    actual_callers = set()
+    # Determine source directory
+    _src_candidates = []
+    if src_dir:
+        _src_candidates.append(src_dir)
+    _src_candidates.append(os.path.join(os.path.dirname(dist_dir), "..", "srcs",
+                                         os.path.basename(os.path.dirname(dist_dir))))
+    _src_candidates.append(os.path.join(os.path.dirname(os.path.dirname(dist_dir)), "srcs",
+                                         os.path.basename(os.path.dirname(dist_dir))))
+    for _try_src in _src_candidates:
+        if os.path.isdir(_try_src):
+            try:
+                result = subprocess.run(
+                    ["grep", "-rn", f"\\b{target_function}\\b", "--include=*.c",
+                     _try_src],
+                    capture_output=True, text=True, timeout=15,
+                )
+                if result.stdout:
+                    for line in result.stdout.strip().split("\n"):
+                        # Lines calling the function (not defining it)
+                        # Heuristic: contains target_function( and is not a definition
+                        if f"{target_function}(" in line and not line.strip().startswith(("//", "*", "/*")):
+                            # Extract the containing function name from the file
+                            # by finding what function scope this line is in
+                            parts = line.split(":")
+                            if len(parts) >= 3:
+                                filepath = parts[0]
+                                lineno = int(parts[1])
+                                # Read surrounding lines to find enclosing function
+                                try:
+                                    with open(filepath) as _f:
+                                        all_lines = _f.readlines()
+                                    # Scan backwards for function definition
+                                    import re
+                                    for back in range(lineno - 2, max(0, lineno - 120), -1):
+                                        l = all_lines[back]
+                                        # Match C function definitions, handling
+                                        # qualifiers like static/inline/etc:
+                                        #   static int foo(
+                                        #   void *bar(
+                                        #   static noinline int baz(
+                                        m = re.match(
+                                            r'^(?:static\s+|inline\s+|noinline\s+|__always_inline\s+)*'
+                                            r'(?:\w+\s+\**)*?(\w+)\s*\(',
+                                            l,
+                                        )
+                                        if m:
+                                            caller_fn = m.group(1)
+                                            _skip = ('if', 'while', 'for', 'switch',
+                                                     'return', 'sizeof', 'typeof',
+                                                     'EXPORT_SYMBOL', 'EXPORT_SYMBOL_GPL')
+                                            if caller_fn in _skip or caller_fn == target_function:
+                                                break
+                                            if caller_fn in func_min_dist:
+                                                actual_callers.add(caller_fn)
+                                            else:
+                                                # Intermediate static function not in .dist;
+                                                # record it anyway as it's still a caller
+                                                actual_callers.add(caller_fn)
+                                            break
+                                except (OSError, ValueError):
+                                    pass
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+            break  # found src dir
+
+    # Sort: prioritize actual callers > same-prefix functions > by distance
     target_prefix = target_function.split("_")[0] if "_" in target_function else ""
 
     def _stone_sort_key(s):
         fn = s["function"]
+        is_caller = 0 if fn in actual_callers else 1
         related = 0 if (target_prefix and target_prefix in fn) else 1
-        return (related, s["distance"])
+        return (is_caller, related, s["distance"])
     stones.sort(key=_stone_sort_key)
+
+    if actual_callers:
+        # Tag caller stones
+        for s in stones:
+            if s["function"] in actual_callers:
+                s["is_caller"] = True
 
     # Sample: keep closest stones + evenly spaced rest
     if len(stones) > max_stones:
@@ -256,13 +437,75 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
         except (OSError, json.JSONDecodeError):
             pass
 
+    # Identify likely direct callers: functions whose min dist is close to
+    # current_dist_min (within one callgraph hop = 1000) and that appear in
+    # a DIFFERENT .dist file than the target.  These are cross-file callers
+    # that the stepping stone sort might deprioritize.
+    target_dist_file = None
+    for fname in os.listdir(dist_dir):
+        if not fname.endswith(".dist"):
+            continue
+        fpath = os.path.join(dist_dir, fname)
+        try:
+            with open(fpath) as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[0] == target_function:
+                        target_dist_file = fname
+                        break
+        except OSError:
+            continue
+        if target_dist_file:
+            break
+
+    cross_file_callers = []
+    if target_dist_file:
+        for fname in os.listdir(dist_dir):
+            if not fname.endswith(".dist") or fname == target_dist_file:
+                continue
+            fpath = os.path.join(dist_dir, fname)
+            try:
+                file_funcs = {}
+                with open(fpath) as f:
+                    for line in f:
+                        parts = line.split()
+                        if len(parts) < 3:
+                            continue
+                        fn, d = parts[0], int(parts[2])
+                        if fn not in file_funcs or d < file_funcs[fn]:
+                            file_funcs[fn] = d
+                # A cross-file caller has dist close to target's dist
+                # (within ~1 hop = typically 10-1000)
+                for fn, d in file_funcs.items():
+                    if 0 < d <= current_dist_min and fn != target_function:
+                        cross_file_callers.append({
+                            "function": fn, "distance": d,
+                            "dist_file": fname,
+                        })
+            except (OSError, ValueError):
+                continue
+        # Sort by distance, keep closest
+        cross_file_callers.sort(key=lambda x: x["distance"])
+        cross_file_callers = cross_file_callers[:5]
+
+    # Ensure cross-file callers are in stones (they may have been filtered)
+    stone_names = {s["function"] for s in stones}
+    for caller in cross_file_callers:
+        if caller["function"] not in stone_names:
+            stones.insert(0, {
+                "function": caller["function"],
+                "distance": caller["distance"],
+            })
+
     return {
         "target_function": target_function,
         "current_dist_min": current_dist_min,
         "stepping_stones": stones,
+        "cross_file_callers": cross_file_callers,
+        "actual_callers": sorted(actual_callers) if actual_callers else [],
         "total_functions_in_range": len([
             fn for fn, d in func_min_dist.items()
-            if 0 < d < current_dist_min
+            if 0 < d <= current_dist_min
         ]),
     }
 
@@ -389,10 +632,109 @@ def reverse_trace_bottleneck(src_dir, bottleneck_func, k2s_path=None, max_depth=
     return "\n".join(lines) if len(lines) > 1 else ""
 
 
-def read_stepping_stone_sources(src_dir, roadmap, max_funcs=5, max_lines=40):
+_DEFINITION_PREFIXES = (
+    "static", "int", "void", "struct", "long", "unsigned", "bool",
+    "ssize_t", "__", "noinline", "inline", "const", "char", "u8", "u16",
+    "u32", "u64", "s32", "s64", "size_t",
+)
+
+_CONDITION_RE = re.compile(r'^\s*(if|switch|while|for)\s*\(')
+
+
+def _extract_caller_conditions(src_dir, func_name, max_callers=3, look_back=30):
+    """Find callers of func_name and extract pre-call condition blocks.
+
+    For each caller site, scans up to look_back lines before the call and
+    extracts if/switch/while/for blocks that guard the call.
+
+    Returns:
+        list of {"caller_file": str, "caller_line": int, "conditions": [str]}
+    """
+    if not os.path.isdir(src_dir):
+        return []
+
+    try:
+        result = subprocess.run(
+            ["grep", "-rn", f"\\b{func_name}\\s*(", "--include=*.c", src_dir],
+            capture_output=True, text=True, timeout=15,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return []
+
+    caller_results = []
+    seen_files = set()
+
+    for line in result.stdout.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split(":")
+        if len(parts) < 3:
+            continue
+        filepath = parts[0]
+        try:
+            lineno = int(parts[1])
+        except ValueError:
+            continue
+
+        # Skip definition lines
+        code = ":".join(parts[2:]).strip()
+        if code.startswith(_DEFINITION_PREFIXES):
+            tokens = code.split()
+            if len(tokens) >= 2 and func_name in tokens[1]:
+                continue
+
+        if filepath in seen_files:
+            continue
+        seen_files.add(filepath)
+
+        try:
+            with open(filepath) as f:
+                file_lines = f.readlines()
+        except OSError:
+            continue
+
+        rel_path = os.path.relpath(filepath, src_dir)
+        conditions = []
+        seen_conds = set()
+
+        # Scan backwards from call site
+        scan_start = max(0, lineno - look_back - 1)
+        for i in range(lineno - 2, scan_start, -1):
+            raw = file_lines[i]
+            if not _CONDITION_RE.match(raw):
+                continue
+            # Collect condition block (until braces balance or max 10 lines)
+            block_lines = [raw.rstrip()]
+            depth = raw.count("{") - raw.count("}")
+            j = i + 1
+            while depth > 0 and j < lineno - 1 and (j - i) < 10:
+                block_lines.append(file_lines[j].rstrip())
+                depth += file_lines[j].count("{") - file_lines[j].count("}")
+                j += 1
+            block_text = "\n".join(block_lines)
+            if block_text not in seen_conds:
+                seen_conds.add(block_text)
+                conditions.append(block_text)
+
+        if conditions:
+            caller_results.append({
+                "caller_file": rel_path,
+                "caller_line": lineno,
+                "conditions": conditions,
+            })
+
+        if len(caller_results) >= max_callers:
+            break
+
+    return caller_results
+
+
+def read_stepping_stone_sources(src_dir, roadmap, max_funcs=5, max_lines=40,
+                                 include_caller_conditions=True):
     """Read kernel source snippets for stepping-stone functions.
 
-    Returns a string with annotated source excerpts.
+    Returns a string with annotated source excerpts, optionally including
+    condition blocks from callers immediately before each call site.
     """
     if not roadmap or not roadmap.get("stepping_stones"):
         return ""
@@ -441,6 +783,22 @@ def read_stepping_stone_sources(src_dir, roadmap, max_funcs=5, max_lines=40):
             rel_path = os.path.relpath(src_file, src_dir)
             snippet = f"// {rel_path}:{lineno} (distance={dist})\n"
             snippet += "".join(lines[start:end])
+
+            # Append caller condition blocks
+            if include_caller_conditions:
+                caller_conds = _extract_caller_conditions(
+                    src_dir, fn, max_callers=3, look_back=30
+                )
+                cond_parts = []
+                for cc in caller_conds:
+                    if cc["conditions"]:
+                        header = f"  // caller: {cc['caller_file']}:{cc['caller_line']}"
+                        cond_parts.append(
+                            header + "\n" + "\n".join(cc["conditions"])
+                        )
+                if cond_parts:
+                    snippet += "\n// CONDITIONS BEFORE CALL:\n" + "\n---\n".join(cond_parts)
+
             snippets.append(snippet)
         except OSError:
             continue
@@ -461,76 +819,37 @@ def llm_enhance_callfile_for_distance(current_callfile, roadmap,
     if not roadmap:
         return None
 
-    stones = roadmap.get("stepping_stones", [])
     current_dist = roadmap["current_dist_min"]
 
-    if stones:
-        stones_text = "\n".join(
-            f"  dist={s['distance']:>6}  {s['function']}"
-            + (f"  (reachable via: {', '.join(s['reachable_via'])})"
-               if s.get('reachable_via') else "")
-            for s in stones
+    # ── Build compact plan ──────────────────────────────────────────────
+    try:
+        from seed_planner import build_compact_plan
+        compact_plan = build_compact_plan(
+            roadmap=roadmap,
+            source_snippets=source_snippets,
+            target_function=target_function,
+            target_file=target_file,
+            closest_program=closest_program,
+            closest_dist=closest_dist,
+            current_dist=current_dist,
         )
-        closest = stones[0]
-        roadmap_section = f"""DISTANCE ROADMAP (intermediate functions between fuzzer and target):
-{stones_text}
-
-The closest reachable stepping stone is {closest['function']} at distance={closest['distance']}.
-There are {roadmap['total_functions_in_range']} functions between current position and target."""
-    else:
-        roadmap_section = (
-            "No stepping-stone functions were found in the distance files. "
-            "The fuzzer may not be reaching any functions close to the target. "
-            "You must reason about the kernel subsystem from the target function "
-            "name and file path to suggest syscalls."
-        )
-
-    # Build closest program section
-    corpus_section = ""
-    if closest_program:
-        corpus_section = f"""
-CLOSEST PROGRAM IN CORPUS (achieved dist={closest_dist}):
-{closest_program}
-
-This is the best program the fuzzer found so far. Analyze what it does and what's missing to reach the target."""
-
-    # Build reverse trace section
-    trace_section = ""
-    if reverse_trace:
-        trace_section = f"""
-CALL CHAIN ANALYSIS (how to reach the bottleneck function):
-{reverse_trace}
-
-Use this call chain to identify which syscalls trigger the path to the target."""
+    except Exception as e:
+        print(f"  [LLM-dist] seed_planner failed ({e}), falling back")
+        compact_plan = f"TARGET: {target_function} in {target_file}\nCURRENT DISTANCE: {current_dist}"
 
     prompt = f"""You are a Linux kernel security researcher helping a distance-guided fuzzer.
 
-TARGET FUNCTION: {target_function} in {target_file} (distance=0)
-CURRENT STATE: Fuzzer's minimum distance is {current_dist}. It has been stuck here.
+{compact_plan}
 
 CURRENT CALLFILE (syscalls being fuzzed):
 {json.dumps(current_callfile, indent=2)}
 
-{roadmap_section}
-
-{('KERNEL SOURCE (showing how stepping-stone functions are called):' + chr(10) + source_snippets) if source_snippets else ''}
-{corpus_section}
-{trace_section}
-
-The fuzzer needs syscall sequences that execute kernel code paths leading to {target_function}.
-
-Analyze the target function name, file path, and current syscalls. Think about:
-1. What Linux subsystem does {target_file} belong to?
-2. What syscalls trigger code paths in that subsystem?
-3. What setup syscalls are needed (device open, socket creation, mount, etc.)?
-4. What sequence of operations would reach {target_function}?
-5. Are the current syscalls even in the right subsystem? If not, suggest completely different ones.
-6. If a closest program is provided, what specific changes would get it closer to the target?
+Suggest better syscalls to reach {target_function}. Follow the SYSCALL SEQUENCE above.
 
 Return ONLY valid JSON:
 {{"syscalls": [{{"Target": "name$variant", "Relate": ["setup1", "setup2", ...]}}], "reasoning": "brief explanation"}}
 
-Use exact syzkaller naming (e.g. sendmsg$nl_route_sched, setsockopt$packet_fanout, bpf$PROG_LOAD, connect$vsock_stream, ioctl$KVM_RUN).
+Use exact syzkaller naming (e.g. sendmsg$nl_route_sched, setsockopt$packet_fanout, bpf$PROG_LOAD).
 Provide 1-4 Target entries with 3-6 Relate syscalls each."""
 
     try:
@@ -683,8 +1002,12 @@ def _detect_tc_target_type(target_file):
     - cls_*.c  → filter  (needs parent qdisc before RTM_NEWTFILTER)
     - act_*.c  → action  (needs qdisc + filter chain before action)
     - sch_*.c  → qdisc   (RTM_NEWQDISC is the entry point itself)
+    - *_api.c  → "unknown" (common code, any kind works)
     """
     basename = os.path.basename(target_file)
+    # Common/API files should not force a specific kind
+    if basename.endswith("_api.c"):
+        return "unknown"
     if basename.startswith("cls_"):
         return "filter"
     if basename.startswith("act_"):
@@ -979,8 +1302,12 @@ def _score_seed_program(prog, requirements):
 
     if target_kind:
         if target_kind not in all_kinds:
-            return None
-        score += 2
+            fuzzy = _fuzzy_kind_match(target_kind, all_kinds)
+            if not fuzzy:
+                return None
+            score += 1  # partial credit for fuzzy match
+        else:
+            score += 2
         reasons.append(f"kind={target_kind}")
 
     if target_type == "filter":
@@ -1297,7 +1624,7 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
 def llm_generate_seed_program(roadmap, source_snippets, target_function, target_file,
                                current_callfile, syz_db_path=None, output_dir=None,
                                closest_program=None, closest_dist=None,
-                               reverse_trace=""):
+                               reverse_trace="", syz_resource_chain=""):
     """Ask the LLM to generate syzkaller seed programs based on the distance roadmap.
 
     Generates concrete syzkaller program text that exercises kernel paths leading
@@ -1326,110 +1653,44 @@ def llm_generate_seed_program(roadmap, source_snippets, target_function, target_
         print("  [LLM-seed] syz-db not found, cannot pack corpus")
         return None
 
-    # ── Build prompt ─────────────────────────────────────────────────────
-    stones = roadmap.get("stepping_stones", [])
+    # ── Build compact plan ─────────────────────────────────────────────
     current_dist = roadmap.get("current_dist_min", 0)
 
-    if stones:
-        stones_text = "\n".join(
-            f"  dist={s['distance']:>6}  {s['function']}"
-            + (f"  (via: {', '.join(s['reachable_via'])})" if s.get("reachable_via") else "")
-            for s in stones[:6]
+    try:
+        from seed_planner import build_compact_plan
+        compact_plan = build_compact_plan(
+            roadmap=roadmap,
+            source_snippets=source_snippets,
+            target_function=target_function,
+            target_file=target_file,
+            closest_program=closest_program,
+            closest_dist=closest_dist,
+            current_dist=current_dist,
         )
-        roadmap_section = f"DISTANCE ROADMAP (closest stepping stones):\n{stones_text}"
-    else:
-        roadmap_section = (
-            f"No stepping-stone data. Reason from subsystem: "
-            f"{target_file} → {target_function}."
-        )
-
-    snippets_section = ""
-    if source_snippets:
-        snippets_section = f"\nKERNEL SOURCE (key functions on path to target):\n{source_snippets}\n"
-
-    is_tc = "net/sched" in (target_file or "")
-
-    if is_tc:
-        subsystem_instructions = f"""PREREQUISITE RULES (kernel will silently drop messages without these):
-  - cls_*.c (filter target): MUST send RTM_NEWQDISC first, then RTM_NEWTFILTER
-  - act_*.c (action target): MUST send RTM_NEWQDISC + RTM_NEWTFILTER first, then action
-  - sch_*.c (qdisc target):  RTM_NEWQDISC alone is sufficient (IS the entry point)
-Current target file: {target_file}
-
-REQUIRED FORMAT — use multiple sendmsg calls in one program if prerequisites needed.
-Each sendmsg must use DIFFERENT memory addresses (increment base by 0x2000 per call):
-  r0 = socket$nl_route(0x10, 0x3, 0x0)
-  sendmsg$nl_route_sched(r0, &(0x7f0000001000)={{0x0, 0x0, &(0x7f0000000040)=[{{&(0x7f0000000080)=ANY=[@ANYBLOB="HEXBYTES_1"], LEN_1}}], 0x1, 0x0, 0x0, 0x0}}, 0x0)
-  sendmsg$nl_route_sched(r0, &(0x7f0000003000)={{0x0, 0x0, &(0x7f0000002040)=[{{&(0x7f0000002080)=ANY=[@ANYBLOB="HEXBYTES_2"], LEN_2}}], 0x1, 0x0, 0x0, 0x0}}, 0x0)
-
-MSG_LEN is the byte length of the netlink message as a hex number (e.g. 0x30 for 48 bytes).
-
-HEXBYTES is a single lowercase hex string (no spaces) encoding the netlink message.
-Netlink message layout (little-endian):
-  nlmsghdr (16B): [len:4le][type:2le][flags:2le][seq:4le][pid:4le]
-  tcmsg    (20B): [family:1][pad:3][ifindex:4le][handle:4le][parent:4le][info:4le]
-  rtattrs: [nla_len:2le][nla_type:2le][data...]
-
-Key constants:
-  RTM_NEWQDISC=0x24, RTM_NEWTFILTER=0x2c, RTM_SETLINK=0x13
-  NLM_F_REQUEST|ACK|CREATE = flags=0x0405
-  ifindex 1 = lo (loopback)
-  TC_H_ROOT parent = 0xffff0000 → bytes: 00 00 ff ff
-  TCA_KIND type=1, e.g. "pfifo\\0"=70 66 69 66 6f 00, "tcindex\\0"=74 63 69 6e 64 65 78 00
-
-Compute the hex bytes step by step, then put the full hex string in ANYBLOB.
-The second argument to sendmsg is a msghdr: {{iov_ptr, iov_len, name_ptr, name_len, ctrl_ptr, ctrl_len, flags}}."""
-    else:
-        subsystem_instructions = f"""Target file: {target_file}
-
-Generate syzkaller programs using the correct syscall variants for this subsystem.
-Think step by step:
-1. What Linux subsystem does {target_file} belong to?
-2. What syscalls reach {target_function}? (e.g. socket, ioctl, mmap, open, setsockopt, connect, sendmsg, etc.)
-3. What setup steps are needed? (e.g. socket creation, device open, mmap, etc.)
-4. Write the program using syzkaller syntax with proper $variant names.
-
-Use syzkaller syntax. Each syscall on its own line:
-  r0 = socket$inet_tcp(0x2, 0x1, 0x0)
-  setsockopt$inet_tcp_congestion(r0, 0x6, 0xd, &(0x7f0000000000)='cubic\\x00', 0x6)
-
-Use $variant names where possible (e.g. socket$inet_tcp, ioctl$KVM_RUN, mmap$IOMMU).
-Use different memory addresses for each argument (increment by 0x1000)."""
-
-    # Build closest program section
-    corpus_section = ""
-    if closest_program:
-        corpus_section = f"""
-CLOSEST PROGRAM IN CORPUS (achieved dist={closest_dist}):
-{closest_program}
-
-This program got closest to the target. Improve upon it — add missing setup steps or fix arguments."""
-
-    # Build reverse trace section
-    trace_section = ""
-    if reverse_trace:
-        trace_section = f"""
-CALL CHAIN ANALYSIS:
-{reverse_trace}
-"""
+    except Exception as e:
+        print(f"  [LLM-seed] seed_planner failed ({e}), falling back to minimal plan")
+        compact_plan = f"TARGET: {target_function} in {target_file}\nCURRENT DISTANCE: {current_dist}"
 
     prompt = f"""You are a Linux kernel fuzzing expert. Generate syzkaller seed programs.
 
-TARGET: {target_function} in {target_file}
-CURRENT DIST: {current_dist} (stuck)
+{compact_plan}
 
-{roadmap_section}
-{snippets_section}{corpus_section}
-{trace_section}
 Generate 2 syzkaller programs that trigger the kernel path to {target_function}.
+Follow the SYSCALL SEQUENCE above. Each program should be a complete sequence.
 
-{subsystem_instructions}
+Use syzkaller syntax. Each syscall on its own line:
+  r0 = socket$nl_route(0x10, 0x3, 0x0)
+  sendmsg$nl_route_sched(r0, &(0x7f0000001000)={{0x0, 0x0, &(0x7f0000000040)=[{{&(0x7f0000000080)=ANY=[@ANYBLOB="HEXBYTES"], LEN}}], 0x1, 0x0, 0x0, 0x0}}, 0x0)
+
+Use $variant names (e.g. socket$inet_tcp, ioctl$KVM_RUN).
+Use different memory addresses for each argument (increment by 0x1000).
 
 Return ONLY JSON (no markdown):
 {{"programs": [{{"name": "short_name", "text": "complete program text"}}], "reasoning": "one sentence"}}"""
 
+    print(f"  [LLM-seed] Compact plan: {len(compact_plan)} chars")
     try:
-        text = _call_llm(prompt, timeout=600)
+        text = _call_llm(prompt, timeout=120)
         if not text:
             print("  [LLM-seed] No response from LLM")
             return None
@@ -1647,3 +1908,244 @@ Return ONLY JSON (no markdown):
         return corpus_db
     finally:
         shutil.rmtree(prog_dir, ignore_errors=True)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# LLM Code-Gen Seed Generator (V4)
+# ──────────────────────────────────────────────────────────────────────────
+
+def llm_generate_seed_via_codegen(roadmap, source_snippets, target_function, target_file,
+                                   current_callfile, syz_db_path=None, output_dir=None,
+                                   closest_program=None, closest_dist=None,
+                                   reverse_trace="", syz_resource_chain="",
+                                   current_dist=None, semantic_context=""):
+    """Generate syzkaller seeds by having LLM write a Python script, then executing it.
+
+    Instead of asking the LLM to produce hex bytes directly (which it gets wrong),
+    we ask it to write a Python script that uses struct.pack() to build correct
+    binary payloads and outputs syzkaller program text to stdout.
+
+    On script execution failure, retries once with the error message fed back to LLM.
+
+    Returns:
+        Absolute path to generated corpus.db, or None if failed.
+    """
+    if not roadmap:
+        return None
+
+    # ── Find syz-db ──────────────────────────────────────────────────────
+    syz_db = syz_db_path if (syz_db_path and os.path.exists(syz_db_path)) else None
+    if not syz_db:
+        syz_db = shutil.which("syz-db")
+    if not syz_db or not os.path.exists(syz_db):
+        print("  [codegen] syz-db not found, cannot pack corpus")
+        return None
+
+    dist = current_dist or roadmap.get("current_dist_min", 0)
+
+    # ── Build compact plan via seed_planner (replaces raw source + syzlang) ──
+    try:
+        from seed_planner import build_compact_plan
+        compact_plan = build_compact_plan(
+            roadmap=roadmap,
+            source_snippets=source_snippets,
+            target_function=target_function,
+            target_file=target_file,
+            semantic_context=semantic_context,
+            closest_program=closest_program,
+            closest_dist=closest_dist,
+            current_dist=dist,
+        )
+    except Exception as e:
+        print(f"  [codegen] seed_planner failed ({e}), falling back to minimal plan")
+        compact_plan = f"TARGET: {target_function} in {target_file}\nCURRENT DISTANCE: {dist}"
+
+    close_distance_hint = ""
+    if dist and dist < 100:
+        close_distance_hint = f"\nCRITICAL: Distance is only {dist}. Your payload must satisfy the exact branch condition blocking entry."
+
+    # ── Build codegen prompt (compact) ───────────────────────────────────
+    prompt = f"""You are a Linux kernel fuzzing expert. Write a Python 3 script that generates syzkaller seed programs.
+
+{compact_plan}
+{close_distance_hint}
+
+Write a Python script that:
+1. Uses struct.pack() to build binary payloads (netlink messages, ioctl args, setsockopt buffers, etc.)
+2. Computes all lengths, offsets, and padding correctly in code (do NOT hardcode hex strings)
+3. Prints complete syzkaller program text to stdout
+4. Separates multiple programs with a line containing only "---"
+
+Syzkaller program format example:
+  r0 = socket$nl_route(0x10, 0x3, 0x0)
+  sendmsg$nl_route_sched(r0, &(0x7f0000001000)={{{{0x0, 0x0, &(0x7f0000000040)=[{{{{&(0x7f0000000080)=ANY=[@ANYBLOB="HEXBYTES"], 0xLEN}}}}], 0x1, 0x0, 0x0, 0x0}}}}, 0x0)
+
+Where HEXBYTES is the lowercase hex encoding of the binary payload, and 0xLEN is its byte length.
+Use different memory addresses for each sendmsg call (increment base by 0x2000).
+
+The script must be self-contained. Only use Python stdlib (struct, socket, etc.).
+Generate 2-4 programs following the SYSCALL SEQUENCE above.
+Put MULTIPLE sendmsg calls in a SINGLE program when stateful setup is needed.
+
+Output ONLY the Python script. No markdown fences, no explanation."""
+
+    print(f"  [codegen] Querying LLM for Python seed generator script...")
+    print(f"  [codegen] Compact plan: {len(compact_plan)} chars (was ~12000+)")
+    script_text = _call_llm(prompt, timeout=120)
+    if not script_text:
+        print("  [codegen] No response from LLM")
+        return None
+
+    # Strip markdown fences if present
+    script_text = _strip_markdown_fences(script_text)
+
+    # ── Execute script (with retry on failure) ───────────────────────────
+    programs_text = _execute_codegen_script(script_text)
+    if programs_text is None:
+        # Retry: feed error back to LLM
+        print("  [codegen] First attempt failed, retrying with error feedback...")
+        programs_text = _retry_codegen_script(script_text, prompt)
+
+    if not programs_text or not programs_text.strip():
+        print("  [codegen] Script produced no output")
+        return None
+
+    # ── Parse programs from stdout ───────────────────────────────────────
+    raw_programs = [p.strip() for p in programs_text.split("---") if p.strip()]
+    if not raw_programs:
+        # Try treating whole output as single program
+        raw_programs = [programs_text.strip()]
+
+    programs = []
+    for i, prog_text in enumerate(raw_programs):
+        # Basic validation: must contain at least one syscall-like line
+        if not any(c in prog_text for c in ("socket", "open", "ioctl", "sendmsg",
+                                              "setsockopt", "mmap", "connect", "write")):
+            print(f"  [codegen] Program {i} has no recognizable syscalls, skipping")
+            continue
+        programs.append({"name": f"codegen_{i}", "text": prog_text})
+
+    print(f"  [codegen] Parsed {len(programs)} programs from script output")
+    if not programs:
+        return None
+
+    # ── Pack into corpus.db ──────────────────────────────────────────────
+    prog_dir = tempfile.mkdtemp(prefix="syz_codegen_")
+    try:
+        written = 0
+        for i, prog in enumerate(programs):
+            prog_text = prog["text"].strip()
+            if not prog_text:
+                continue
+            with open(os.path.join(prog_dir, f"{i:04d}_{prog['name']}"), "w") as f:
+                f.write(prog_text + "\n")
+            written += 1
+
+        if written == 0:
+            return None
+
+        dest_dir = output_dir or tempfile.gettempdir()
+        os.makedirs(dest_dir, exist_ok=True)
+        corpus_db = os.path.join(dest_dir, f"codegen_seed_{target_function}.db")
+
+        pack = subprocess.run(
+            [syz_db, "pack", prog_dir, corpus_db],
+            capture_output=True, text=True, timeout=30,
+        )
+        if pack.returncode != 0:
+            print(f"  [codegen] syz-db pack failed: {pack.stderr[:300]}")
+            return None
+
+        # Verify
+        verify_dir = tempfile.mkdtemp(prefix="syz_codegen_verify_")
+        try:
+            subprocess.run([syz_db, "unpack", corpus_db, verify_dir],
+                           capture_output=True, timeout=10)
+            valid_count = len(os.listdir(verify_dir))
+        except Exception:
+            valid_count = written
+        finally:
+            shutil.rmtree(verify_dir, ignore_errors=True)
+
+        if valid_count == 0:
+            print(f"  [codegen] All programs rejected by syz-db")
+            return None
+
+        print(f"  [codegen] Packed {valid_count}/{written} program(s) → {corpus_db}")
+        return corpus_db
+    finally:
+        shutil.rmtree(prog_dir, ignore_errors=True)
+
+
+def _strip_markdown_fences(text):
+    """Remove ```python ... ``` fences from LLM output."""
+    lines = text.split("\n")
+    out = []
+    in_fence = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
+def _execute_codegen_script(script_text):
+    """Execute a Python script in a sandbox and return its stdout, or None on failure."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="codegen_",
+                                      delete=False) as f:
+        f.write(script_text)
+        script_path = f.name
+    try:
+        r = subprocess.run(
+            ["python3", script_path],
+            capture_output=True, text=True, timeout=15,
+            cwd="/tmp",
+        )
+        if r.returncode != 0:
+            print(f"  [codegen] Script failed (rc={r.returncode}): {r.stderr[:500]}")
+            return None
+        return r.stdout
+    except subprocess.TimeoutExpired:
+        print("  [codegen] Script timed out (15s)")
+        return None
+    finally:
+        os.unlink(script_path)
+
+
+def _retry_codegen_script(failed_script, original_prompt):
+    """Retry by sending the error back to LLM for a fixed script."""
+    # Re-run to capture the error
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="codegen_retry_",
+                                      delete=False) as f:
+        f.write(failed_script)
+        script_path = f.name
+    try:
+        r = subprocess.run(
+            ["python3", script_path],
+            capture_output=True, text=True, timeout=15,
+            cwd="/tmp",
+        )
+        error_msg = r.stderr[:1000] if r.stderr else "Script produced no output"
+    except subprocess.TimeoutExpired:
+        error_msg = "Script timed out after 15 seconds"
+    finally:
+        os.unlink(script_path)
+
+    retry_prompt = f"""Your previous Python script had an error:
+
+ERROR:
+{error_msg}
+
+ORIGINAL SCRIPT:
+{failed_script[:3000]}
+
+Fix the script. Output ONLY the corrected Python script, no markdown fences."""
+
+    print(f"  [codegen] Asking LLM to fix script...")
+    fixed_script = _call_llm(retry_prompt, timeout=300)
+    if not fixed_script:
+        return None
+    fixed_script = _strip_markdown_fences(fixed_script)
+    return _execute_codegen_script(fixed_script)

@@ -109,8 +109,8 @@ Available dataset actions:
     _add_common_args(p_fuzz)
     p_fuzz.add_argument("--targets", nargs="*", type=int, default=None)
 
-    # Agent loop options (shared by new + fuzz modes)
-    for p in [p_new, p_fuzz]:
+    # Agent loop options (shared by dataset + new + fuzz modes)
+    for p in [p_ds, p_new, p_fuzz]:
         p.add_argument("--agent-rounds", type=int, default=0, dest="agent_rounds",
                         help="Agent loop iterations (0=off, >0=auto triage+enhance)")
         p.add_argument("--agent-window", type=int, default=300, dest="agent_window",
@@ -139,7 +139,37 @@ Available dataset actions:
         sys.exit(1)
 
     if args.mode == "dataset":
-        DatasetPipeline(args).run()
+        pipeline = DatasetPipeline(args)
+        pipeline.run()
+
+        # If agent loop enabled and fuzz action requested, run agent loop per case
+        if getattr(args, "agent_rounds", 0) > 0 and "fuzz" in args.actions:
+            print(f"\n{'='*60}")
+            print(f"Agent Loop: {args.agent_rounds} rounds per case")
+            print(f"{'='*60}\n")
+            for dp in pipeline.datapoints:
+                ci = dp["idx"]
+                # Build target_info from dataset row
+                target_info = {
+                    "idx": ci,
+                    "name": dp.get("repro bug title", f"case_{ci}"),
+                    "commit": dp.get("kernel commit", ""),
+                }
+                agent = AgentLoop(
+                    layout=pipeline.layout,
+                    target_info=target_info,
+                    max_rounds=args.agent_rounds,
+                    window_seconds=args.agent_window,
+                    uptime_per_round=args.agent_uptime or args.uptime,
+                    cpus=args.j,
+                    fuzz_rounds=args.fuzz_rounds,
+                    hunt_mode=args.hunt_mode,
+                    known_crash_db=args.known_crash_db,
+                    stall_timeout=args.stall_timeout,
+                    dist_stall_timeout=args.dist_stall_timeout,
+                    proactive_seed=args.proactive_seed,
+                )
+                agent.run()
 
     elif args.mode == "new":
         # Auto-resolve missing --commit/--function/--file from CVE ID
