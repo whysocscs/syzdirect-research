@@ -116,7 +116,7 @@ def _make_version_workdir(case_id: int, version: str, config: V123Config) -> Pat
     for item in SYMLINK_ITEMS:
         s = src / item
         if s.exists():
-            (dst / item).symlink_to(s)
+            (dst / item).symlink_to(s.resolve())
 
     # fuzzinps → 복사 (callfile은 버전마다 독립적으로 수정 가능)
     src_fuzzinps = src / "fuzzinps"

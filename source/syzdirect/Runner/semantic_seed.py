@@ -754,10 +754,15 @@ class TCNetlinkEncoder(DomainEncoder):
                 continue
             # If LLM provided hash/mask/shift combos, add as variants
             if any(k in vals for k in ("hash", "mask", "shift")):
+                def _to_int(v, default):
+                    try:
+                        return int(v, 0) if isinstance(v, str) else int(v)
+                    except (ValueError, TypeError):
+                        return default
                 variant = {
-                    "hash": vals.get("hash", 0x10),
-                    "mask": vals.get("mask", 0x000f),
-                    "shift": vals.get("shift", 0),
+                    "hash": _to_int(vals.get("hash", 0x10), 0x10),
+                    "mask": _to_int(vals.get("mask", 0x000f), 0x000f),
+                    "shift": _to_int(vals.get("shift", 0), 0),
                 }
                 existing = attr_values.get("hash_variants", [])
                 if variant not in existing:
@@ -1678,7 +1683,6 @@ def llm_semantic_analysis(plan, llm_call_fn):
 
     cond_text = "\n".join(
         f"  - {c['expression']}"
-        + (f"\n    context: {c['context']}" if c.get('context') else "")
         for c in plan.get("branch_conditions", [])
     )
 
@@ -1686,10 +1690,6 @@ def llm_semantic_analysis(plan, llm_call_fn):
         f"  - {name}: index={s.get('index','?')}, type={s.get('nla_type','?')}, size={s.get('size','?')}B"
         for name, s in plan.get("attribute_specs", {}).items()
     )
-
-    snippets_text = ""
-    for fn, snippet in list(plan.get("source_snippets", {}).items())[:5]:
-        snippets_text += f"\n// {fn}:\n{snippet}\n---\n"
 
     prompt = f"""You are a Linux kernel expert analyzing code paths for a directed fuzzer.
 
@@ -1710,17 +1710,11 @@ BRANCH CONDITIONS gating target:
 NLA POLICY attributes:
 {attr_text or '  (none extracted)'}
 
-SOURCE SNIPPETS:
-{snippets_text or '  (none available)'}
-
 TASKS:
 1. Verify the call chain. Add any missing intermediate functions.
-2. List ALL prerequisites needed before the target can be reached.
-   For each, specify: what object/state is needed, and how to create it (which syscall/message).
-3. For each branch condition, provide CONCRETE VALUES that satisfy it.
-   Be precise: give exact integer values for attributes.
-4. Check the attribute type indices. Are they correct? (Common error: off-by-one in enum values)
-5. What is the MINIMUM syscall sequence to reach {plan['target_function']}?
+2. For each branch condition, provide CONCRETE VALUES that satisfy it.
+3. Check the attribute type indices. Are they correct?
+4. What is the MINIMUM syscall sequence to reach {plan['target_function']}?
 
 Return ONLY JSON:
 {{

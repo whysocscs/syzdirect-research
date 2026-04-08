@@ -27,6 +27,8 @@ KERNEL_CMDLINE_EXTRA="${KERNEL_CMDLINE_EXTRA:-maxcpus=1 net.ifnames=0 biosdevnam
 AGENT_CHECK_INTERVAL="${AGENT_CHECK_INTERVAL:-300}"
 AGENT_MAX_INTERVENTIONS="${AGENT_MAX_INTERVENTIONS:-5}"
 LLM_DECISION_CMD="${LLM_DECISION_CMD:-}"
+CLANG_PATH="${CLANG_PATH:-/home/ai/local/llvm-18/bin/clang}"
+CPUS="${CPUS:-$(nproc)}"
 
 mkdir -p "$WORK_DIR"
 
@@ -213,13 +215,14 @@ write_manager_config() {
     local syzkaller_root="$4"
     local include_kernel_src="${5:-false}"
     local include_hitindex="${6:-false}"
+    local custom_kernel_dir="${7:-$KERNEL_BUILD_DIR}"  # Support instrumented kernel
 
     cat > "$config_path" << EOF
 {
     "target": "linux/amd64",
     "http": "$http_addr",
     "workdir": "$workdir",
-    "kernel_obj": "$KERNEL_BUILD_DIR",
+    "kernel_obj": "$custom_kernel_dir",
 EOF
     if [ "$include_kernel_src" = "true" ]; then
         cat >> "$config_path" << EOF
@@ -241,7 +244,7 @@ EOF
     "type": "qemu",
     "vm": {
         "count": 1,
-        "kernel": "$KERNEL_BUILD_DIR/bzImage",
+        "kernel": "$custom_kernel_dir/bzImage",
         "cmdline": "$KERNEL_CMDLINE_EXTRA",
         "qemu_args": "$QEMU_ARGS",
         "cpu": $VM_CPU,
@@ -489,6 +492,89 @@ run_distance_analysis() {
     "${cmd[@]}" 2>&1 | tee "$log_file"
 }
 
+#
+# Build distance-instrumented kernel
+# This is REQUIRED for SyzDirect's distance feedback to work!
+#
+build_distance_instrumented_kernel() {
+    local target_file="$1"
+    local dist_dir="$2"
+    local output_dir="$3"
+    local log_file="$4"
+    local target_func
+    local makefile_kcov
+    local temp_build
+    
+    target_func=$(json_field "$target_file" "function" "")
+    if [ -z "$target_func" ] || [ "$target_func" = "null" ]; then
+        log_warn "No target function in spec; using file:line-based target"
+        target_func="__syzdirect_target__"
+    fi
+    
+    makefile_kcov="$KERNEL_SRC_DIR/scripts/Makefile.kcov"
+    temp_build="$output_dir/temp_build"
+    mkdir -p "$temp_build"
+    
+    log_info "Writing Makefile.kcov with distance instrumentation flags..."
+    cat > "$makefile_kcov" << EOF
+# SPDX-License-Identifier: GPL-2.0-only
+# Distance-instrumented kernel build for SyzDirect
+kcov-flags-y += -fsanitize-coverage=trace-pc,second -fsanitize-coverage-kernel-src-dir=$KERNEL_SRC_DIR -fsanitize-coverage-distance-dir=$dist_dir -fsanitize-coverage-target-function=$target_func
+kcov-flags-\$(CONFIG_KCOV_ENABLE_COMPARISONS)	+= -fsanitize-coverage=trace-cmp
+kcov-flags-\$(CONFIG_GCC_PLUGIN_SANCOV)		+= -fplugin=\$(objtree)/scripts/gcc-plugins/sancov_plugin.so
+
+export CFLAGS_KCOV := \$(kcov-flags-y)
+EOF
+    
+    # Patch subcmd-util.h to fix GCC 13 use-after-free warning
+    local subcmd_file="$KERNEL_SRC_DIR/tools/lib/subcmd/subcmd-util.h"
+    if [ -f "$subcmd_file" ] && ! grep -q "pragma GCC diagnostic" "$subcmd_file"; then
+        log_info "Patching subcmd-util.h for GCC 13 compatibility..."
+        sed -i 's/static inline void \*xrealloc(void \*ptr, size_t size)/#pragma GCC diagnostic push\n#pragma GCC diagnostic ignored "-Wuse-after-free"\nstatic inline void *xrealloc(void *ptr, size_t size)/' "$subcmd_file"
+        sed -i 's/}\nstatic inline void \*xstrdup/}\n#pragma GCC diagnostic pop\nstatic inline void *xstrdup/' "$subcmd_file" 2>/dev/null || true
+    fi
+    
+    log_info "Cleaning kernel source..."
+    (cd "$KERNEL_SRC_DIR" && make clean && make mrproper) 2>&1 | tail -5
+    
+    # Copy existing config
+    if [ -f "$KERNEL_BUILD_DIR/.config" ]; then
+        cp "$KERNEL_BUILD_DIR/.config" "$temp_build/.config"
+    elif [ -f "$KERNEL_SRC_DIR/.config" ]; then
+        cp "$KERNEL_SRC_DIR/.config" "$temp_build/.config"
+    else
+        log_warn "No kernel config found, using defconfig"
+        (cd "$KERNEL_SRC_DIR" && make ARCH=x86_64 O="$temp_build" defconfig)
+    fi
+    
+    # Ensure KCOV is enabled
+    cat >> "$temp_build/.config" << EOF
+CONFIG_UBSAN=n
+CONFIG_KCOV=y
+EOF
+    
+    local clang_path="${CLANG_PATH:-clang}"
+    log_info "Building distance-instrumented kernel with $clang_path..."
+    (
+        cd "$KERNEL_SRC_DIR"
+        make ARCH=x86_64 CC="$clang_path" HOSTCC=gcc HOSTCFLAGS="-Wno-error=use-after-free" O="$temp_build" olddefconfig
+        make ARCH=x86_64 CC="$clang_path" HOSTCC=gcc HOSTCFLAGS="-Wno-error=use-after-free" O="$temp_build" -j"${CPUS:-$(nproc)}"
+    ) 2>&1 | tee "$log_file"
+    
+    local bzimage="$temp_build/arch/x86/boot/bzImage"
+    if [ -f "$bzimage" ]; then
+        mkdir -p "$output_dir"
+        cp "$bzimage" "$output_dir/bzImage"
+        cp "$temp_build/vmlinux" "$output_dir/vmlinux" 2>/dev/null || true
+        log_info "Distance-instrumented kernel built: $output_dir/bzImage"
+        echo "$output_dir"
+        return 0
+    else
+        log_error "Failed to build distance-instrumented kernel!"
+        return 1
+    fi
+}
+
 prepare_syzkaller_runtime() {
     local base_root="$1"
     local runtime_root="$2"
@@ -570,6 +656,7 @@ run_syzdirect() {
     local callfile_arg=()
     local http_port
     local http_addr
+    local instrumented_kernel_dir
     
     syzdirect_root="$(get_syzdirect_root)"
     manager_bin="$(get_syzdirect_manager)"
@@ -580,7 +667,7 @@ run_syzdirect() {
     log_info "Target: $target_file"
     log_info "Budget: ${budget_seconds}s, Output: $run_dir"
     
-    mkdir -p "$run_dir"/{templates,distances,logs,artifacts}
+    mkdir -p "$run_dir"/{templates,distances,logs,artifacts,instrumented_kernel}
     
     activate_python_env
     
@@ -591,6 +678,18 @@ run_syzdirect() {
     # Step 2: Distance Calculation
     log_info "Step 2: Computing distances..."
     run_distance_analysis "$target_file" "$run_dir/distances/distances.json" "$run_dir/logs/distance.log"
+    
+    # Step 2.5: Build distance-instrumented kernel (CRITICAL for distance feedback!)
+    log_info "Step 2.5: Building distance-instrumented kernel..."
+    instrumented_kernel_dir="$run_dir/instrumented_kernel"
+    if ! build_distance_instrumented_kernel \
+        "$target_file" \
+        "$run_dir/distances" \
+        "$instrumented_kernel_dir" \
+        "$run_dir/logs/kernel_build.log"; then
+        log_warn "Failed to build instrumented kernel, falling back to regular kernel"
+        instrumented_kernel_dir="$KERNEL_BUILD_DIR"
+    fi
     
     # Step 3: Template Generation
     log_info "Step 3: Generating templates..."
@@ -609,8 +708,9 @@ run_syzdirect() {
         log_warn "SyzDirect manager binary not found; running without -callfile support"
     fi
     
-    # Step 4: Run directed fuzzing
-    log_info "Step 4: Running directed fuzzing..."
+    # Step 4: Run directed fuzzing with instrumented kernel
+    log_info "Step 4: Running directed fuzzing with instrumented kernel..."
+    log_info "Using kernel: $instrumented_kernel_dir"
     
     write_manager_config \
         "$run_dir/config.cfg" \
@@ -618,7 +718,8 @@ run_syzdirect() {
         "$run_dir/workdir" \
         "$run_dir/artifacts/runtime-syzkaller" \
         true \
-        true
+        true \
+        "$instrumented_kernel_dir"
 
     run_manager_session \
         "$manager_bin" \

@@ -10,6 +10,7 @@ import copy as _copy
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 from paths import (
@@ -26,8 +27,10 @@ from agent_triage import (
 from syscall_scoring import collect_target_context
 from llm_enhance import (
     extract_distance_roadmap, llm_enhance_callfile_for_distance,
-    llm_generate_seed_program, read_stepping_stone_sources,
-    extract_closest_program, reverse_trace_bottleneck,
+    llm_generate_seed_program, llm_generate_seed_via_codegen,
+    read_stepping_stone_sources,
+    extract_closest_program, extract_closest_programs,
+    pack_programs_to_corpus, reverse_trace_bottleneck,
     _call_llm,
 )
 from semantic_seed import run_semantic_pipeline, validate_seed
@@ -36,6 +39,9 @@ from pipeline_new_cve import (
     write_target_function_info,
 )
 from runner_config import RunnerConfig
+from syzlang_parser import get_db as _get_syz_db
+from syzbot_mining import mine_seeds_for_target
+from vm_verify import iterative_deepen
 
 
 # Path to source/agent/ (relative to this repo)
@@ -84,11 +90,112 @@ class AgentLoop:
         self.stall_timeout = stall_timeout
         self.dist_stall_timeout = dist_stall_timeout
         self.seed_corpus = seed_corpus  # path to corpus.db for round 1 seeding
+        self.seed_corpus_list = []  # all seed DBs to merge
         self.proactive_seed = proactive_seed
         self.best_dist_min_ever = None
         self.dist_history = []
         self.last_semantic_plan = None
+        self._syz_db = _get_syz_db()
         self._sync_target_metadata()
+
+    def _add_seed_corpus(self, path):
+        """Register a seed corpus DB. All registered DBs are merged before fuzzing.
+
+        If the same path was already registered (e.g. llm_seed_{func}.db rewritten
+        by a later round), make a timestamped copy so that previous round's programs
+        are not lost when the file is overwritten.
+        """
+        if not path or not os.path.exists(path):
+            return
+        if path in self.seed_corpus_list:
+            # File was already registered — it may have been overwritten with
+            # new content.  Copy to a unique name so merge keeps both versions.
+            import time as _time
+            base, ext = os.path.splitext(path)
+            backup = f"{base}_{int(_time.time())}{ext}"
+            try:
+                shutil.copy2(path, backup)
+                self.seed_corpus_list.append(backup)
+                print(f"  [seed] Backed up overwritten seed: {backup}")
+            except OSError:
+                pass
+        else:
+            self.seed_corpus_list.append(path)
+        self.seed_corpus = path  # also set for backwards compat
+
+    def _merge_seed_corpora(self):
+        """Merge all registered seed DBs into one. Returns merged path or None."""
+        dbs = [p for p in self.seed_corpus_list if os.path.exists(p)]
+        if not dbs:
+            return self.seed_corpus
+        if len(dbs) == 1:
+            return dbs[0]
+        # Find syz-db binary
+        rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+        Cfg = rcfg.apply_to_legacy_config()
+        syz_db_bin = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
+        if not os.path.exists(syz_db_bin):
+            import shutil as _sh
+            syz_db_bin = _sh.which("syz-db")
+        if not syz_db_bin:
+            return dbs[-1]  # fallback to last
+        import tempfile
+        # Unpack all into one dir, then repack
+        merged_dir = tempfile.mkdtemp(prefix="syz_merge_")
+        try:
+            for db in dbs:
+                subprocess.run([syz_db_bin, "unpack", db, merged_dir],
+                               capture_output=True, timeout=30)
+            out_dir = self.layout.fuzzres_xidx(self.ci)
+            os.makedirs(out_dir, exist_ok=True)
+            merged_path = os.path.join(out_dir, "merged_seed.db")
+            pack = subprocess.run([syz_db_bin, "pack", merged_dir, merged_path],
+                                  capture_output=True, text=True, timeout=30)
+            if pack.returncode == 0:
+                prog_count = len([f for f in os.listdir(merged_dir) if os.path.isfile(os.path.join(merged_dir, f))])
+                print(f"  [seed] Merged {len(dbs)} seed DBs → {merged_path} ({prog_count} programs)")
+                return merged_path
+        except Exception as e:
+            print(f"  [seed] Merge failed: {e}")
+        finally:
+            import shutil as _sh
+            _sh.rmtree(merged_dir, ignore_errors=True)
+        return dbs[-1]
+
+    def _preserve_best_corpus(self, detail_corpus, sub_workdir, round_num):
+        """Save the best programs from this round's corpus so they survive overwrites.
+
+        After each fuzz round, extract the top programs by distance from
+        detailCorpus.txt and pack them into a round-specific corpus.db.
+        This prevents later seed generation from overwriting good programs.
+        """
+        if not detail_corpus or not os.path.exists(detail_corpus):
+            return
+        try:
+            from llm_enhance import _parse_detail_corpus
+            entries = _parse_detail_corpus(detail_corpus)
+            if not entries:
+                return
+            # Keep top 20 programs by distance (lowest dist first)
+            entries.sort(key=lambda x: x[1])
+            best = entries[:20]
+            programs = [p[0] for p in best]
+            best_dist = best[0][1]
+
+            rcfg = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+            Cfg = rcfg.apply_to_legacy_config()
+            syz_db_bin = os.path.join(Cfg.FuzzerDir, "bin", "syz-db")
+
+            out_dir = self.layout.fuzzres_xidx(self.ci)
+            os.makedirs(out_dir, exist_ok=True)
+            preserved_path = os.path.join(out_dir, f"best_corpus_r{round_num}.db")
+            result = pack_programs_to_corpus(programs, syz_db_bin, preserved_path)
+            if result:
+                self._add_seed_corpus(result)
+                print(f"  [seed] Preserved {len(programs)} best programs from round {round_num} "
+                      f"(best_dist={best_dist}): {result}")
+        except Exception as e:
+            print(f"  [seed] Failed to preserve best corpus: {e}")
 
     def _relevant_repeat_threshold(self):
         """Tighten relevant-distance frontier for stateful message/config targets."""
@@ -191,6 +298,11 @@ class AgentLoop:
             manager_log, metrics_jsonl, detail_corpus, sub_workdir = self._run_fuzz_round(round_dir, round_num)
             self._last_sub_workdir = sub_workdir
             self._last_detail_corpus = detail_corpus
+
+            # Preserve best corpus programs from this round so they survive
+            # seed overwrites in the enhance phase
+            self._preserve_best_corpus(detail_corpus, sub_workdir, round_num)
+
             crash_summary = self._collect_crashes(round_dir, round_num)
 
             # ── B. Early success (repro mode only) ───────────────────
@@ -333,6 +445,12 @@ class AgentLoop:
                 print(f"  Stall detection: terminate if coverage stuck for {self.stall_timeout}s")
             if self.dist_stall_timeout > 0:
                 print(f"  Dist stall detection: terminate if dist_min stuck for {self.dist_stall_timeout}s")
+            # Merge all registered seed DBs into one before fuzzing
+            if len(self.seed_corpus_list) > 1:
+                merged = self._merge_seed_corpora()
+                if merged:
+                    self.seed_corpus = merged
+
             last_log, last_metrics = runFuzzer(
                 fuzzer_file, config_path, callfile, log_dir=log_dir,
                 stall_timeout=self.stall_timeout,
@@ -357,6 +475,23 @@ class AgentLoop:
         return self.hunt_mode == "repro" and counts.get("target_related", 0) > 0
 
     # ── Callfile management ──────────────────────────────────────────────
+
+    def _build_syz_resource_chain(self, callfile_entries):
+        """Build a syzlang resource dependency description for LLM prompt injection."""
+        if not self._syz_db:
+            return ""
+        parts = []
+        seen = set()
+        for entry in callfile_entries:
+            sc = entry.get("Target", "")
+            if not sc or sc in seen:
+                continue
+            seen.add(sc)
+            if sc in self._syz_db.syscalls:
+                text = self._syz_db.format_for_prompt(sc)
+                if text:
+                    parts.append(text)
+        return "\n\n".join(parts)
 
     def _load_current_call_targets(self):
         call_names = set()
@@ -388,7 +523,7 @@ class AgentLoop:
         with open(callfile_path) as f:
             current_callfile = json.load(f)
 
-        template_data = callfile_to_templates(current_callfile)
+        template_data = callfile_to_templates(current_callfile, syz_db=self._syz_db)
         agent_input = {
             "failure_class": failure_class,
             "evidence": [f"Agent loop round {round_num} triage: {failure_class}"] + triage_result.get("evidence", []),
@@ -549,6 +684,7 @@ class AgentLoop:
         roadmap = extract_distance_roadmap(
             dist_dir, target_func, current_dist_min=99999,
             k2s_path=k2s_path if os.path.exists(k2s_path) else None,
+            src_dir=src_dir if os.path.isdir(src_dir) else None,
         )
 
         if not roadmap:
@@ -586,7 +722,7 @@ class AgentLoop:
             corpus = self._pack_seeds_to_corpus(semantic_seeds, "proactive")
             if corpus and self._seed_matches_target(corpus):
                 print(f"  [proactive] Semantic seed corpus ready: {corpus}")
-                self.seed_corpus = corpus
+                self._add_seed_corpus(corpus)
                 return  # semantic seeds are better, skip generic LLM path
 
         print("  [proactive] Querying LLM for seed programs...")
@@ -598,10 +734,11 @@ class AgentLoop:
             current_callfile=current_callfile,
             syz_db_path=syz_db_path,
             output_dir=seed_out_dir,
+            syz_resource_chain=self._build_syz_resource_chain(current_callfile),
         )
         if seed_db and self._seed_matches_target(seed_db):
             print(f"  [proactive] Seed corpus ready: {seed_db}")
-            self.seed_corpus = seed_db
+            self._add_seed_corpus(seed_db)
         elif seed_db:
             print(f"  [proactive] Rejecting inconsistent seed corpus: {seed_db}")
         else:
@@ -706,7 +843,7 @@ class AgentLoop:
             corpus = self._pack_seeds_to_corpus(semantic_seeds, "R4")
             if corpus and self._seed_matches_target(corpus):
                 print(f"  [R4] Semantic seed corpus ready: {corpus}")
-                self.seed_corpus = corpus
+                self._add_seed_corpus(corpus)
             elif corpus:
                 print(f"  [R4] Rejecting inconsistent semantic corpus")
 
@@ -715,7 +852,17 @@ class AgentLoop:
         roadmap = extract_distance_roadmap(
             dist_dir, target_func, current_dist,
             k2s_path=k2s_path if os.path.exists(k2s_path) else None,
+            src_dir=src_dir if os.path.isdir(src_dir) else None,
         )
+
+        # Log cross-file callers and actual callers if found
+        if roadmap and roadmap.get("cross_file_callers"):
+            callers = roadmap["cross_file_callers"]
+            print(f"  [R4] Cross-file callers of {target_func}: "
+                  f"{[(c['function'], c['distance']) for c in callers[:3]]}")
+        if roadmap and roadmap.get("actual_callers"):
+            print(f"  [R4] Actual callers of {target_func} (from source): "
+                  f"{roadmap['actual_callers']}")
 
         snippets = ""
         rev_trace = ""
@@ -736,13 +883,178 @@ class AgentLoop:
             if rev_trace:
                 print(f"  [R4] Reverse trace for {bottleneck}:\n{rev_trace}")
         else:
-            print("  [R4] No stepping stones, will query LLM with CVE context only")
+            # No stepping stones with narrow threshold — retry with wide threshold
+            # so we at least get source snippets for the LLM
+            print(f"  [R4] No stepping stones at dist<{current_dist}, "
+                  f"retrying with wide threshold...")
+            wide_roadmap = extract_distance_roadmap(
+                dist_dir, target_func, current_dist_min=99999,
+                k2s_path=k2s_path if os.path.exists(k2s_path) else None,
+                src_dir=src_dir if os.path.isdir(src_dir) else None,
+            )
+            if wide_roadmap and wide_roadmap.get("stepping_stones"):
+                stones = wide_roadmap["stepping_stones"]
+                print(f"  [R4] Wide roadmap: {len(stones)} stepping stones, "
+                      f"closest={stones[0]['function']}(dist={stones[0]['distance']})")
+                snippets = read_stepping_stone_sources(src_dir, wide_roadmap)
+                if snippets:
+                    print(f"  [R4] Read {snippets.count('---') + 1} source snippets "
+                          f"(from wide roadmap)")
+                # Use wide roadmap's stones for reverse trace too
+                bottleneck = stones[0]["function"]
+                rev_trace = reverse_trace_bottleneck(
+                    src_dir, bottleneck,
+                    k2s_path=k2s_path if os.path.exists(k2s_path) else None,
+                )
+                if rev_trace:
+                    print(f"  [R4] Reverse trace for {bottleneck}:\n{rev_trace}")
+
+            # Build a minimal roadmap for downstream use
             roadmap = {
                 "target_function": target_func,
                 "current_dist_min": current_dist,
-                "stepping_stones": [],
+                "stepping_stones": (wide_roadmap or {}).get("stepping_stones", []),
                 "total_functions_in_range": 0,
             }
+
+        # Always include target function + caller source as a fallback
+        if not snippets and os.path.isdir(src_dir):
+            from llm_enhance import _extract_caller_conditions
+            print(f"  [R4] Reading target function source directly: {target_func}")
+            # Read target function source
+            try:
+                result = subprocess.run(
+                    ["grep", "-rn", f"\\b{target_func}\\b", "--include=*.c",
+                     "-l", src_dir],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.stdout.strip():
+                    src_file = result.stdout.strip().split("\n")[0]
+                    result2 = subprocess.run(
+                        ["grep", "-n", f"\\b{target_func}\\b", src_file],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    if result2.stdout.strip():
+                        lineno = int(result2.stdout.strip().split("\n")[0].split(":")[0])
+                        with open(src_file) as f:
+                            lines = f.readlines()
+                        start = max(0, lineno - 3)
+                        end = min(len(lines), lineno + 50)
+                        rel_path = os.path.relpath(src_file, src_dir)
+                        snippets = f"// TARGET FUNCTION: {rel_path}:{lineno}\n"
+                        snippets += "".join(lines[start:end])
+                        print(f"  [R4] Read target function source: {rel_path}:{lineno}")
+            except Exception as e:
+                print(f"  [R4] Failed to read target source: {e}")
+
+            # Also get caller conditions for the target function
+            caller_conds = _extract_caller_conditions(src_dir, target_func, max_callers=3)
+            if caller_conds:
+                cond_text = "\n// CALLER CONDITIONS (what must be true to reach "
+                cond_text += f"{target_func}):\n"
+                for cc in caller_conds:
+                    if cc["conditions"]:
+                        cond_text += f"// caller: {cc['caller_file']}:{cc['caller_line']}\n"
+                        cond_text += "\n".join(cc["conditions"]) + "\n---\n"
+                snippets += cond_text
+                print(f"  [R4] Found {len(caller_conds)} caller condition blocks")
+
+        # Read source of actual callers discovered from kernel source grep
+        # This catches callers in different files (e.g., tbf_change calling fifo_set_limit)
+        if roadmap and roadmap.get("actual_callers") and os.path.isdir(src_dir):
+            for caller_fn in roadmap["actual_callers"]:
+                if caller_fn in (snippets or ""):
+                    continue  # already included
+                try:
+                    result = subprocess.run(
+                        ["grep", "-rn", f"\\b{caller_fn}\\b", "--include=*.c",
+                         "-l", src_dir],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if result.stdout.strip():
+                        for src_file in result.stdout.strip().split("\n")[:2]:
+                            result2 = subprocess.run(
+                                ["grep", "-n", f"\\b{caller_fn}\\b", src_file],
+                                capture_output=True, text=True, timeout=5,
+                            )
+                            if result2.stdout.strip():
+                                lineno = int(result2.stdout.strip().split("\n")[0].split(":")[0])
+                                with open(src_file) as f:
+                                    lines = f.readlines()
+                                start = max(0, lineno - 3)
+                                end = min(len(lines), lineno + 60)
+                                rel_path = os.path.relpath(src_file, src_dir)
+                                snippets = (snippets or "") + (
+                                    f"\n// ACTUAL CALLER OF {target_func}: "
+                                    f"{caller_fn} in {rel_path}:{lineno}\n"
+                                    + "".join(lines[start:end]) + "\n---\n"
+                                )
+                                print(f"  [R4] Read actual caller source: {caller_fn} "
+                                      f"in {rel_path}:{lineno}")
+                                break
+                except Exception as e:
+                    print(f"  [R4] Failed to read caller {caller_fn}: {e}")
+
+        # ── Inject semantic pipeline's call chain into snippets ────────
+        semantic_plan = getattr(self, "last_semantic_plan", None) or {}
+        sem_chain = semantic_plan.get("call_chain") or []
+        sem_predicates = semantic_plan.get("branch_conditions") or []
+        sem_prerequisites = semantic_plan.get("prerequisite_sequence") or []
+        semantic_context = ""
+        if sem_chain and len(sem_chain) >= 2:
+            chain_text = " → ".join(
+                f"{c['function']}({c.get('file', '?')})" for c in sem_chain
+            )
+            semantic_context += f"\nSEMANTIC CALL CHAIN (verified by static analysis):\n  {chain_text}\n"
+            # Read caller function source from chain (the function that calls target)
+            caller = sem_chain[-2]  # second to last = direct caller of target
+            caller_func = caller.get("function", "")
+            caller_file = caller.get("file", "")
+            if caller_func and caller_func not in (snippets or ""):
+                # Try to read caller source
+                try:
+                    caller_src_path = None
+                    if caller_file and os.path.isdir(src_dir):
+                        candidate = os.path.join(src_dir, caller_file)
+                        if os.path.isfile(candidate):
+                            caller_src_path = candidate
+                        else:
+                            result = subprocess.run(
+                                ["grep", "-rn", f"\\b{caller_func}\\b", "--include=*.c",
+                                 "-l", src_dir],
+                                capture_output=True, text=True, timeout=10,
+                            )
+                            if result.stdout.strip():
+                                caller_src_path = result.stdout.strip().split("\n")[0]
+                    if caller_src_path:
+                        result2 = subprocess.run(
+                            ["grep", "-n", f"\\b{caller_func}\\b", caller_src_path],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        if result2.stdout.strip():
+                            lineno = int(result2.stdout.strip().split("\n")[0].split(":")[0])
+                            with open(caller_src_path) as f:
+                                lines = f.readlines()
+                            start = max(0, lineno - 3)
+                            end = min(len(lines), lineno + 60)
+                            rel = os.path.relpath(caller_src_path, src_dir) if src_dir else caller_src_path
+                            caller_source = "".join(lines[start:end])
+                            snippets = (snippets or "") + f"\n// CALLER FUNCTION (from semantic chain): {rel}:{lineno}\n{caller_source}\n---\n"
+                            print(f"  [R4] Injected caller source from semantic chain: {caller_func} in {rel}")
+                except Exception as e:
+                    print(f"  [R4] Failed to read semantic caller source: {e}")
+
+            if sem_predicates:
+                semantic_context += "BRANCH CONDITIONS gating target:\n"
+                for p in sem_predicates[:8]:
+                    semantic_context += f"  · if ({p.get('expression', '?')})\n"
+            if sem_prerequisites:
+                semantic_context += "PREREQUISITES (setup steps needed):\n"
+                for pr in sem_prerequisites[:8]:
+                    semantic_context += f"  · {pr.get('action', '?')}: {pr.get('object', '?')} in {pr.get('source_function', '?')}\n"
+            if semantic_context:
+                print(f"  [R4] Injected semantic context: chain={len(sem_chain)} funcs, "
+                      f"{len(sem_predicates)} predicates")
 
         # Extract closest program from corpus (#1)
         closest_prog, closest_dist = None, None
@@ -764,6 +1076,13 @@ class AgentLoop:
         r4_cause, r4_evidence = classify_r4_cause(
             health, roadmap, self.dist_history, current_callfile,
         )
+        # Override R4-ARG → R4-STATE when semantic chain shows multi-step dependency
+        if r4_cause == "R4-ARG" and sem_chain and len(sem_chain) >= 3:
+            r4_cause = "R4-STATE"
+            r4_evidence.append(f"overridden from R4-ARG: semantic chain has {len(sem_chain)} steps, "
+                               f"requires multi-step setup")
+            print(f"  [R4] Reclassified R4-ARG → R4-STATE (semantic chain depth={len(sem_chain)})")
+
         print(f"  [R4] Sub-classification: {r4_cause}")
         for ev in r4_evidence:
             print(f"    · {ev}")
@@ -781,9 +1100,31 @@ class AgentLoop:
                 reverse_trace=rev_trace,
             )
         elif r4_cause == "R4-ARG":
-            # Right subsystem but wrong arguments — prioritize seed generation with
-            # concrete argument values, skip broad callfile changes
-            print(f"  [R4-ARG] Close to target, prioritizing seed with concrete arguments...")
+            # Right subsystem but wrong arguments — re-inject closest corpus programs
+            # as seeds for the next round, plus generate new LLM seeds
+            print(f"  [R4-ARG] Close to target, re-injecting closest corpus programs...")
+            if sub_workdir:
+                dist_threshold = current_dist * 2 if current_dist else None
+                rcfg_r4 = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+                Cfg_r4 = rcfg_r4.apply_to_legacy_config()
+                syz_db_bin = os.path.join(Cfg_r4.FuzzerDir, "bin", "syz-db")
+                closest_progs = extract_closest_programs(
+                    sub_workdir, syz_db_bin,
+                    detail_corpus_path=detail_corpus,
+                    max_programs=20, dist_threshold=dist_threshold,
+                )
+                if closest_progs:
+                    print(f"  [R4-ARG] Found {len(closest_progs)} closest programs "
+                          f"(dist range: {closest_progs[0][1]}-{closest_progs[-1][1]})")
+                    seed_dir = self.layout.fuzzres_xidx(ci)
+                    os.makedirs(seed_dir, exist_ok=True)
+                    reinject_path = os.path.join(seed_dir, "corpus_reinject.db")
+                    packed = pack_programs_to_corpus(
+                        [p[0] for p in closest_progs], syz_db_bin, reinject_path,
+                    )
+                    if packed:
+                        print(f"  [R4-ARG] Re-injected corpus: {packed}")
+                        self._add_seed_corpus(packed)
         elif r4_cause == "R4-STATE":
             # Right syscalls but missing prerequisites — query for setup sequences
             print(f"  [R4-STATE] Missing prerequisites, querying LLM for setup sequences...")
@@ -813,6 +1154,53 @@ class AgentLoop:
         else:
             print(f"  [R4] LLM suggested {len(new_entries)} syscall entries")
 
+        # Merge semantic context into snippets so all downstream LLM calls see it
+        if semantic_context:
+            snippets = semantic_context + "\n" + (snippets or "")
+
+        # ── dist >= 1000: try syzbot mining + iterative deepening ────────
+        if current_dist and current_dist >= 1000:
+            print(f"  [R4] dist={current_dist} >= 1000, trying syzbot mining + iterative deepening...")
+            rcfg_deep = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
+            Cfg_deep = rcfg_deep.apply_to_legacy_config()
+            syz_db_deep = os.path.join(Cfg_deep.FuzzerDir, "bin", "syz-db")
+
+            # 1순위: syzbot reproducer mining
+            try:
+                syzbot_corpus = mine_seeds_for_target(
+                    target_func, syz_db_deep,
+                    self.layout.fuzzres_xidx(ci),
+                )
+                if syzbot_corpus:
+                    print(f"  [R4] syzbot seeds found: {syzbot_corpus}")
+                    self._add_seed_corpus(syzbot_corpus)
+            except Exception as e:
+                print(f"  [R4] syzbot mining failed: {e}")
+
+            # 2순위: VM iterative deepening
+            try:
+                deepened_corpus = iterative_deepen(
+                    target_function=target_func,
+                    target_file=target_file,
+                    layout=self.layout,
+                    ci=ci,
+                    runner_config=rcfg_deep,
+                    current_callfile=current_callfile,
+                    source_snippets=snippets,
+                    roadmap=roadmap,
+                    syz_db_path=syz_db_deep,
+                    max_iterations=4,
+                    initial_seed=closest_prog,
+                    vm_uptime=60,
+                )
+                if deepened_corpus:
+                    print(f"  [R4] Iterative deepening produced: {deepened_corpus}")
+                    self._add_seed_corpus(deepened_corpus)
+            except Exception as e:
+                print(f"  [R4] Iterative deepening failed: {e}")
+                import traceback
+                traceback.print_exc()
+
         # ── Also generate seed corpus via LLM ────────────────────────────
         print(f"  [R4] Generating LLM seed programs for next round...")
         if not hasattr(self, '_r4_syz_db_path'):
@@ -823,6 +1211,7 @@ class AgentLoop:
             syz_db_path = self._r4_syz_db_path
         seed_out_dir = self.layout.fuzzres_xidx(ci)
 
+        # 1차: 기존 llm_generate_seed_program (빠름)
         seed_db = llm_generate_seed_program(
             roadmap=roadmap,
             source_snippets=snippets,
@@ -833,14 +1222,49 @@ class AgentLoop:
             output_dir=seed_out_dir,
             closest_program=closest_prog, closest_dist=closest_dist,
             reverse_trace=rev_trace,
+            syz_resource_chain=self._build_syz_resource_chain(current_callfile),
         )
         if seed_db and self._seed_matches_target(seed_db):
             print(f"  [R4] Seed corpus generated: {seed_db}")
-            self.seed_corpus = seed_db
+            self._add_seed_corpus(seed_db)
         elif seed_db:
             print(f"  [R4] Rejecting inconsistent seed corpus: {seed_db}")
+            seed_db = None
         else:
-            print(f"  [R4] Seed corpus generation failed, continuing without seed")
+            print(f"  [R4] Seed corpus generation failed")
+            seed_db = None
+
+        # 2차: codegen — 기존 seed 없거나, 라운드 2+에서 dist가 안 줄었으면 시도
+        dist_not_improving = (round_num >= 2 and self.best_dist_min_ever == current_dist)
+        if not seed_db or dist_not_improving:
+            print(f"  [R4] Trying codegen fallback (LLM → Python → execute)...")
+            codegen_db = llm_generate_seed_via_codegen(
+                roadmap=roadmap,
+                source_snippets=snippets,
+                target_function=target_func,
+                target_file=target_file,
+                current_callfile=current_callfile,
+                syz_db_path=syz_db_path,
+                output_dir=seed_out_dir,
+                closest_program=closest_prog, closest_dist=closest_dist,
+                reverse_trace=rev_trace,
+                syz_resource_chain=self._build_syz_resource_chain(current_callfile),
+                current_dist=current_dist,
+                semantic_context=semantic_context,
+            )
+            if codegen_db and self._seed_matches_target(codegen_db):
+                print(f"  [R4] Codegen seed corpus generated: {codegen_db}")
+                self._add_seed_corpus(codegen_db)
+            elif codegen_db:
+                print(f"  [R4] Rejecting inconsistent codegen corpus: {codegen_db}")
+            else:
+                print(f"  [R4] Codegen also failed, continuing without seed")
+
+        # dist < 100: boost timeout to give mutation more time on close programs
+        if current_dist and current_dist < 100 and self.dist_stall_timeout < 1800:
+            print(f"  [R4] dist={current_dist} < 100, boosting dist_stall_timeout "
+                  f"{self.dist_stall_timeout} → 1800s")
+            self.dist_stall_timeout = 1800
 
         if not new_entries:
             return None

@@ -1375,6 +1375,20 @@ def run_full_experiment(
     env["KERNEL_BUILD_DIR"] = str(kernel_build_dir)
     env["IMAGE_PATH"] = str(image_path)
     env["SSHKEY_PATH"] = str(ssh_key_path)
+    
+    # Set CLANG_PATH for distance-instrumented kernel build
+    if "CLANG_PATH" not in env:
+        # Try to auto-detect from syzdirect paths
+        syzdirect_clang = repo_root / "source" / "syzdirect" / ".." / "llvm-project-new" / "build" / "bin" / "clang"
+        if syzdirect_clang.exists():
+            env["CLANG_PATH"] = str(syzdirect_clang.resolve())
+        else:
+            # Fallback to system clang
+            import shutil
+            system_clang = shutil.which("clang")
+            if system_clang:
+                env["CLANG_PATH"] = system_clang
+    
     if sudo_password:
         env["SUDO_PASSWORD"] = sudo_password
 

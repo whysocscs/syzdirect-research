@@ -510,8 +510,8 @@ class NewCVEPipeline:
                             target_configs=target_configs)
 
         sh(f"cd {Q(src)} && "
-           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} O={Q(temp)} olddefconfig && "
-           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} O={Q(temp)} -j{self.cpus}", big=True)
+           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} olddefconfig && "
+           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} -j{self.cpus}", big=True)
 
         bz_src = os.path.join(temp, "arch/x86/boot/bzImage")
         if not os.path.exists(bz_src):
