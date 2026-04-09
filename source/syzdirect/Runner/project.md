@@ -1085,3 +1085,79 @@ CONDITIONS to satisfy:
 | 3 | Case 7 재실행 (V4에서 성공했으므로) | case 7 | 낮음 | 높음 |
 | 4 | Case 9 정적 xfrm seed 주입 | case 9 | 중간 | 중간 |
 | 5 | 더 큰 LLM 모델 전환 | 전체 | 높음 | 불확실 |
+
+---
+
+## V6 — CallGraph Proximity Filter Fix (code done, rebuild needed, 2026-04-08)
+
+### 근본 원인 (verified)
+
+`syzdirect_function_model/src/lib/CallGraph.cc` 의 LLVM 18 opaque-pointer 대응용 proximity filter (lines 731–793) 가 ops table 디스패처(`tbf_change`, `tcindex_*`, `nf_tables_*`, `xfrm_*` 등 12,009개 비-tracepoint 함수)의 indirect call edges 를 통째로 비워버린다. 결과적으로 forward `Callees[CI]` 가 비어 있어 `kernel_signature_full` 에 sendmsg → … → tbf_change 같은 경로가 전혀 생성되지 않고, 모든 case 0/2/6/9 의 callfile/distance 가 generic stub 로 떨어진다.
+
+**Verified evidence**:
+- `interfaces/case_2/log` 에 `no proximity matches, clearing` 25,417건, tracepoint 제외 12,009건.
+- 실패 case 의 모든 핵심 함수가 cleared 목록에 존재 (tbf_change, tcindex_bind_class, cls_bpf_change, tc_modify_qdisc, nf_tables_newrule, xfrm_state_find …).
+- `interfaces/case_2/kernel_signature_full` 에 sched/qdisc/netlink_route 경로가 0건 (오직 tcp/udp/sctp/dccp/l2tp/ping/raw/mptcp sendmsg 만 존재).
+- `CodeFeatures.cc` line 526/534/686/693/828/1037/1207/1529/1678/1770/1826/2041 모두 forward 탐색에 `GlobalCtx.Callees[callInst]` 사용 → FS.clear() 가 직접적으로 signature 추출을 끊는다.
+- `CallGraph.cc:794` `Ctx->Callees[CI] = FS;` 가 clear 이후에 실행되므로 forward edge 는 영구적으로 손실.
+
+### proximity filter 의 두 가지 버그
+
+1. **`pos = i + 1` 위치 버그** (line 745–752): `if` 블록 밖에서 매 iteration 마다 `pos` 가 갱신되므로, slashes 가 4 에 도달하지 못하면 `pos` 가 `callerPath.size()` 가 되어 `callerDir` = 전체 경로. 그러면 어떤 callee 도 prefix 매칭에 성공하지 못해 `filtered.empty()` 분기로 빠지고 FS.clear() 발생.
+2. **모든 ops dispatcher 를 noise 로 취급**: 진짜 noise (tracepoint __traceiter_*, perf_trace_*, trace_event_raw_event_*) 와 정상 ops table dispatch 를 구분하지 않고 동일하게 잘라낸다.
+
+### 수정 계획
+
+**Step 1 — pos 계산 버그 수정**
+```cpp
+size_t slashes = 0, pos = 0;
+for (size_t i = 0; i < callerPath.size(); ++i) {
+    if (callerPath[i] == '/') {
+        if (++slashes == 4) { pos = i; break; }
+    }
+}
+if (pos == 0) pos = callerPath.size();   // fallback: 전체 경로
+```
+
+**Step 2 — tracepoint 만 안전하게 제거**
+indirect call 의 caller 이름이 tracepoint 패턴에 매칭될 때만 FS.clear() 를 허용:
+```cpp
+auto callerName = F->getName();
+bool isTracepointNoise =
+    callerName.startswith("__traceiter_") ||
+    callerName.startswith("perf_trace_")  ||
+    callerName.startswith("trace_event_raw_event_") ||
+    callerName.startswith("__bpf_trace_");
+```
+
+**Step 3 — 비-tracepoint 는 보존**
+proximity filter 는 logging/info 만 남기고 FS.clear() 분기를 제거. 200 초과 hard cap 도 비-tracepoint 에 한해 제거 (또는 1000 까지 완화). 이렇게 해야 ops table dispatch 가 살아남아 `kernel_signature_full` 에 sched/qdisc/netfilter/xfrm 경로가 채워진다.
+
+**Step 4 — 동일 변경을 `syzdirect_kernel_analysis/src/lib/CallGraph.cc` 에도 반영** (target_analyzer 도 같은 LLVM pass 사용).
+
+### 검증 절차
+
+1. function_model + kernel_analysis 재빌드.
+2. `interface_generator` 를 case 2 에 대해 재실행.
+3. `interfaces/case_2/kernel_signature_full` 에 다음 grep 결과가 ≥1 건이어야 한다:
+   - `sendmsg.*tbf_change`
+   - `tc_modify_qdisc`
+   - `nf_tables_newrule`
+4. `interfaces/case_2/log` 의 `no proximity matches, clearing` 건수가 12,009 → 0 (tracepoint 만 남으면 OK).
+5. `target_analyzer` 재실행 후 `CompactOutput.json` 에 tbf 관련 BB constraint 존재 확인.
+6. `PrepareForFuzzing` → `inp_0.json` 에 tbf 관련 syscall (`sendmsg$nl_route_sched_qdisc_tbf` 등) 가 자동 등장하는지 확인.
+7. case 2 단독 fuzzing 30 분 실행 후 distance 감소율이 V5.1 (0%) → 양수로 바뀌는지 확인.
+
+### 적용 상태 (2026-04-09)
+
+- **코드 수정 완료**: `syzdirect_function_model/src/lib/CallGraph.cc`, `syzdirect_kernel_analysis/src/lib/CallGraph.cc` 양쪽 모두 V6 패치 적용됨 (git diff 확인).
+  - tracepoint dispatcher (`__traceiter_*`, `perf_trace_*`, `trace_event_raw_event_*`, `__bpf_trace_*`) 만 FS.clear()
+  - 비-tracepoint는 1000 soft cap + proximity filter 유지
+  - `pos = i + 1` 버그 수정됨
+- **빌드 미완료**: `interface_generator`, `target_analyzer` 바이너리가 V6 패치로 재컴파일되지 않은 상태. step3 실행 시 OOM 발생 (2026-04-09) — 패치 미적용 바이너리로 실행했을 가능성 높음.
+- **다음 단계**: function_model + kernel_analysis 재빌드 후 step3 재실행 필요.
+
+### 리스크
+
+- 지나친 callee 보존으로 distance computation 시간/메모리 폭증 가능 → 1000 cap 유지.
+- 일부 기존 case (V1–V5 에서 성공한 case) 의 distance 가 변할 수 있어 회귀 테스트 필요 (case 1, 3, 4, 5, 8 모두 재측정).

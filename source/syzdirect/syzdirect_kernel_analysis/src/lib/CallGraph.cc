@@ -649,47 +649,45 @@ bool CallGraphPass::doModulePass(Module *M) {
 					// Save called values for future uses.
 					Ctx->IndirectCallInsts.push_back(CI);
 
-					// [LLVM 18 fix] Proximity-based callee cap.
+					// [V6] Only clear FS for tracepoint dispatchers.
 					if (FS.size() > 50) {
-						std::string callerDir;
-						if (DISubprogram *DI = F->getSubprogram()) {
-							std::string callerPath =
-								DI->getDirectory().str() + "/" +
-								DI->getFilename().str();
-							size_t slashes = 0, pos = 0;
-							for (size_t i = 0; i < callerPath.size(); ++i) {
-								if (callerPath[i] == '/') {
-									++slashes;
-									if (slashes == 4) { pos = i; break; }
+						StringRef callerName = F->getName();
+						bool isTracepointNoise =
+							callerName.startswith("__traceiter_") ||
+							callerName.startswith("perf_trace_") ||
+							callerName.startswith("trace_event_raw_event_") ||
+							callerName.startswith("__bpf_trace_");
+						if (isTracepointNoise) {
+							FS.clear();
+						} else if (FS.size() > 1000) {
+							std::string callerDir;
+							if (DISubprogram *DI = F->getSubprogram()) {
+								std::string callerPath =
+									DI->getDirectory().str() + "/" +
+									DI->getFilename().str();
+								size_t slashes = 0, pos = 0;
+								for (size_t i = 0; i < callerPath.size(); ++i) {
+									if (callerPath[i] == '/') {
+										if (++slashes == 4) { pos = i; break; }
+									}
 								}
-								pos = i + 1;
+								if (pos == 0) pos = callerPath.size();
+								callerDir = callerPath.substr(0, pos);
 							}
-							callerDir = callerPath.substr(0, pos);
-						}
-
-						FuncSet filtered;
-						if (!callerDir.empty()) {
-							for (Function *Callee : FS) {
-								if (DISubprogram *CDI = Callee->getSubprogram()) {
-									std::string calleePath =
-										CDI->getDirectory().str() + "/" +
-										CDI->getFilename().str();
-									if (calleePath.find(callerDir) == 0 ||
-									    callerDir.find(
-										calleePath.substr(
-										  0, calleePath.rfind('/'))) != std::string::npos) {
-										filtered.insert(Callee);
+							FuncSet filtered;
+							if (!callerDir.empty()) {
+								for (Function *Callee : FS) {
+									if (DISubprogram *CDI = Callee->getSubprogram()) {
+										std::string calleePath =
+											CDI->getDirectory().str() + "/" +
+											CDI->getFilename().str();
+										if (calleePath.find(callerDir) == 0)
+											filtered.insert(Callee);
 									}
 								}
 							}
-						}
-
-						if (!filtered.empty()) {
-							FS = filtered;
-							if (FS.size() > 200)
-								FS.clear();
-						} else {
-							FS.clear();
+							if (!filtered.empty() && filtered.size() < FS.size())
+								FS = filtered;
 						}
 					}
 				}

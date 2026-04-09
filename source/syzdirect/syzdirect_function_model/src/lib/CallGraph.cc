@@ -733,61 +733,61 @@ bool CallGraphPass::doModulePass(Module *M) {
 				// candidates.  Instead of dropping ALL (which creates holes
 				// in the call graph and corrupts distance), keep callees
 				// that share a directory prefix with the caller.
+				// [V6] Only clear FS for tracepoint dispatchers (true noise).
+				// Real ops-table dispatchers (qdisc/cls/nft/xfrm/...) must
+				// keep their callees so signature extraction in CodeFeatures
+				// can reach functions like tbf_change, nf_tables_newrule, etc.
 				if (CS.isIndirectCall() && FS.size() > 50) {
-					// Get caller source path from debug info
-					std::string callerDir;
-					if (DISubprogram *DI = F->getSubprogram()) {
-						std::string callerPath =
-							DI->getDirectory().str() + "/" +
-							DI->getFilename().str();
-						// Extract up to 3 directory components
-						// e.g. "drivers/video/fbdev"
-						size_t slashes = 0, pos = 0;
-						for (size_t i = 0; i < callerPath.size(); ++i) {
-							if (callerPath[i] == '/') {
-								++slashes;
-								if (slashes == 4) { pos = i; break; }
-							}
-							pos = i + 1;
-						}
-						callerDir = callerPath.substr(0, pos);
-					}
+					StringRef callerName = F->getName();
+					bool isTracepointNoise =
+						callerName.startswith("__traceiter_") ||
+						callerName.startswith("perf_trace_") ||
+						callerName.startswith("trace_event_raw_event_") ||
+						callerName.startswith("__bpf_trace_");
 
-					FuncSet filtered;
-					if (!callerDir.empty()) {
-						for (Function *Callee : FS) {
-							if (DISubprogram *CDI = Callee->getSubprogram()) {
-								std::string calleePath =
-									CDI->getDirectory().str() + "/" +
-									CDI->getFilename().str();
-								if (calleePath.find(callerDir) == 0 ||
-								    callerDir.find(
-									calleePath.substr(
-									  0, calleePath.rfind('/'))) != std::string::npos) {
-									filtered.insert(Callee);
+					if (isTracepointNoise) {
+						OP << "INFO: tracepoint dispatcher " << callerName
+						   << " (" << FS.size() << " callees) cleared\n";
+						FS.clear();
+					} else if (FS.size() > 1000) {
+						// Soft cap for non-tracepoint to avoid blowup;
+						// keep proximity-matching callees if possible.
+						std::string callerDir;
+						if (DISubprogram *DI = F->getSubprogram()) {
+							std::string callerPath =
+								DI->getDirectory().str() + "/" +
+								DI->getFilename().str();
+							size_t slashes = 0, pos = 0;
+							for (size_t i = 0; i < callerPath.size(); ++i) {
+								if (callerPath[i] == '/') {
+									if (++slashes == 4) { pos = i; break; }
+								}
+							}
+							if (pos == 0) pos = callerPath.size();
+							callerDir = callerPath.substr(0, pos);
+						}
+						FuncSet filtered;
+						if (!callerDir.empty()) {
+							for (Function *Callee : FS) {
+								if (DISubprogram *CDI = Callee->getSubprogram()) {
+									std::string calleePath =
+										CDI->getDirectory().str() + "/" +
+										CDI->getFilename().str();
+									if (calleePath.find(callerDir) == 0) {
+										filtered.insert(Callee);
+									}
 								}
 							}
 						}
-					}
-
-					if (filtered.empty()) {
-						// No proximity matches — fall back to hard cap
-						OP << "WARNING: " << FS.size()
-						   << " callees for indirect call in "
-						   << F->getName()
-						   << ", no proximity matches, clearing\n";
-						FS.clear();
-					} else {
-						OP << "INFO: " << FS.size()
-						   << " -> " << filtered.size()
-						   << " callees (proximity filter) in "
-						   << F->getName() << "\n";
-						FS = filtered;
-						// If still too many after proximity, hard cap
-						if (FS.size() > 200) {
-							OP << "WARNING: still " << FS.size()
-							   << " after proximity, clearing\n";
-							FS.clear();
+						if (!filtered.empty() && filtered.size() < FS.size()) {
+							OP << "INFO: " << FS.size() << " -> "
+							   << filtered.size()
+							   << " callees (soft cap) in "
+							   << callerName << "\n";
+							FS = filtered;
+						} else {
+							OP << "INFO: keeping " << FS.size()
+							   << " callees in " << callerName << "\n";
 						}
 					}
 				}
