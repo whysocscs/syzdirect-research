@@ -1855,6 +1855,8 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                         funcResCache[F] = constraintsInFunc;
                     }
                     subFuncConstraints.insert(constraintsInFunc.begin(), constraintsInFunc.end());
+                    // [V6 memory guard] Cap sub-function constraint combinations
+                    if (subFuncConstraints.size() > 200) break;
                 }
                 set<vector<BBConstraint*>> pathsFromCallBlock;
                 if(blockResCache.count(BB))
@@ -1886,6 +1888,8 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                                 p.insert(p.begin(), tmp.begin(), tmp.end());
                                 if(p.size() != 0)
                                     paths.insert(p);
+                                // [V6 memory guard] Cap total paths
+                                if (paths.size() > 1000) goto done_old;
                             }
                         }
                         else
@@ -1893,6 +1897,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                             if(tmp.size() != 0)
                                 paths.insert(tmp);
                         }
+                        if (paths.size() > 1000) goto done_old;
                     }
                 }
                 else
@@ -1904,6 +1909,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                             p.insert(p.begin(), path.begin(), path.end());
                             if(p.size() != 0)
                                 paths.insert(p);
+                            if (paths.size() > 1000) break;
                         }
                     }
                     else
@@ -1912,6 +1918,7 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                             paths.insert(path);
                     }
                 }
+                done_old:
                 if(callBlockSubpaths.count(BB) == 0)
                     callBlockSubpaths[BB] = set<vector<BBConstraint*>>();
                 callBlockSubpaths[BB].insert(path);
@@ -1956,6 +1963,8 @@ void getPathFromBasicBlockDFS(BasicBlock* BB, vector<CallInst*> callList, vector
                     p.insert(p.begin(), path.begin(), path.end());
                     if(p.size() != 0)
                         paths.insert(p);
+                    // [V6 memory guard] Cap total paths in caller analysis
+                    if (paths.size() > 1000) break;
                 }
             }
             else
@@ -2049,6 +2058,9 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
             }
             if(calledFunctions.size() > 0)
             {
+                // [V6 memory guard] Width cap for DFSNew
+                if (calledFunctions.size() > 20)
+                    calledFunctions.resize(20);
                 set<vector<BBConstraint*>> subFuncConstraints;
                 if(callBlockPaths.count(BB))
                 {
@@ -2075,6 +2087,8 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
                             funcResCache[F] = constraintsInFunc;
                         }
                         subFuncConstraints.insert(constraintsInFunc.begin(), constraintsInFunc.end());
+                        // [V6 memory guard] Cap sub-function constraint combinations
+                        if (subFuncConstraints.size() > 200) break;
                     }
                     callBlockPaths[BB] = subFuncConstraints;
                 }
@@ -2102,6 +2116,8 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
                                 p.insert(p.begin(), tmp.begin(), tmp.end());
                                 if(p.size() != 0)
                                     paths.insert(p);
+                                // [V6 memory guard] Cap total paths
+                                if (paths.size() > 1000) goto done_new;
                             }
                         }
                         else
@@ -2109,6 +2125,7 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
                             if(tmp.size() != 0)
                                 paths.insert(tmp);
                         }
+                        if (paths.size() > 1000) goto done_new;
                     }
                 }
                 else
@@ -2120,6 +2137,7 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
                             p.insert(p.begin(), path.begin(), path.end());
                             if(p.size() != 0)
                                 paths.insert(p);
+                            if (paths.size() > 1000) break;
                         }
                     }
                     else
@@ -2128,6 +2146,7 @@ void getPathFromBasicBlockDFSNew(BasicBlock* BB, vector<CallInst*> callList, vec
                             paths.insert(path);
                     }
                 }
+                done_new:
                 return;
             }
         }
