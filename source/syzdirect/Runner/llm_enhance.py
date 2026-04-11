@@ -432,7 +432,11 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
             with open(k2s_path) as f:
                 k2s = json.load(f)
             for stone in stones:
-                syscalls = k2s.get(stone["function"], [])
+                raw = k2s.get(stone["function"], [])
+                if isinstance(raw, dict):
+                    syscalls = list({s for bb_syscalls in raw.values() for s in bb_syscalls})
+                else:
+                    syscalls = list(raw)
                 stone["reachable_via"] = syscalls[:5] if syscalls else []
         except (OSError, json.JSONDecodeError):
             pass
@@ -621,7 +625,11 @@ def reverse_trace_bottleneck(src_dir, bottleneck_func, k2s_path=None, max_depth=
             callers = _find_callers(func)
             for caller in callers:
                 prefix = "  " * (depth + 1)
-                syscalls = k2s.get(caller["function"], [])
+                raw = k2s.get(caller["function"], [])
+                if isinstance(raw, dict):
+                    syscalls = list({s for bb_syscalls in raw.values() for s in bb_syscalls})
+                else:
+                    syscalls = list(raw)
                 line = f"{prefix}← {caller['function']} ({caller['file']}:{caller['line']})"
                 if syscalls:
                     line += f"  [reachable via: {', '.join(syscalls[:5])}]"

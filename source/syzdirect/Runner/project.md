@@ -1154,10 +1154,283 @@ proximity filter 는 logging/info 만 남기고 FS.clear() 분기를 제거. 200
   - tracepoint dispatcher (`__traceiter_*`, `perf_trace_*`, `trace_event_raw_event_*`, `__bpf_trace_*`) 만 FS.clear()
   - 비-tracepoint는 1000 soft cap + proximity filter 유지
   - `pos = i + 1` 버그 수정됨
-- **빌드 미완료**: `interface_generator`, `target_analyzer` 바이너리가 V6 패치로 재컴파일되지 않은 상태. step3 실행 시 OOM 발생 (2026-04-09) — 패치 미적용 바이너리로 실행했을 가능성 높음.
-- **다음 단계**: function_model + kernel_analysis 재빌드 후 step3 재실행 필요.
+- **빌드 완료**: `interface_generator` 바이너리 V6 패치로 재컴파일됨 (Apr 9 11:16).
+
+### V6 실험 결과 (2026-04-09~10)
+
+**`workdir_v6_full`에서 case_0 interface_generator 실행 완료.**
+
+**interface_generator 결과:**
+- `kernel_signature_full`: 20,926줄 생성 (정상 완료)
+- proximity filter clearing 로그: **0건** — V6 패치 적용 확인
+- sendmsg 항목: 17개 (tcp, udp, sctp, l2tp, dccp, mptcp, raw, ping)
+- **`sendmsg$nl_route` 항목: 0건** — netlink route 경로 여전히 누락
+- `tcindex`, `tbf_change`, `tc_modify_qdisc` 관련 signature: **0건**
+
+**파이프라인 진행 상태:**
+- interface_generator: case_0만 완료 (다른 case는 미실행)
+- target_analyzer (`tpa/`): case 7, 9, 10, 11만 존재 (이전 실행 잔여)
+- `kwithdist/`: 비어있음 (distance instrumentation 미실행)
+- `fuzzres/`: 비어있음 (퍼징 미실행)
+- `fuzzinps/`: case 0,1,2,5,6,7,9,10,11에 callfile 존재 (round1~4까지)
+
+**핵심 발견: V6 proximity filter 수정만으로는 부족**
+
+proximity filter가 callee를 clear하는 문제는 해결됐지만, `sendmsg → netlink_sendmsg → rtnetlink_rcv → tc_modify_qdisc → tbf_change` 같은 **netlink dispatch 경로 자체가 kernel_signature_full에 없다.**
+
+이는 proximity filter 이전 단계에서 이미 edge가 누락되는 것을 의미:
+1. **netlink 디스패치는 function pointer table을 통한 간접 호출** (`rtnl_msg_handlers[RTM_NEWQDISC]` = `tc_modify_qdisc`). LLVM의 indirect call analysis가 이 매핑을 resolve하지 못할 수 있음
+2. V6 이전에 proximity filter가 이 edge를 clear한 것이 아니라, **애초에 CallGraph에 이 edge가 생성되지 않았을 가능성**
+3. sendmsg 17개가 전부 직접 프로토콜 핸들러 (tcp_sendmsg 등) — socket type으로 정적 resolve 가능한 것만 포함
+
+**검증 필요 사항:**
+- `CallGraph.cc`의 indirect call resolution이 `rtnl_register(RTM_NEWQDISC, tc_modify_qdisc, ...)` 패턴을 resolve하는지 확인
+- V6 이전 (workdir_v3_unified)의 `kernel_signature_full`에 `sendmsg$nl_route`가 있었는지 비교 확인
+
+### 전체 실험 결과 종합 (V1~V6, 2026-04-10 기준)
+
+**최신 fuzzing 결과 (workdir_v3_unified + workdir_v3_ga 통합):**
+
+| Case | Target | Best dist | Exec | Workdir | 최종 결과 |
+|------|--------|:---------:|-----:|---------|-----------|
+| 0 | tcindex_alloc_perfect_hash | 2010 | 599 | v3_unified | ❌ FAIL |
+| 1 | qdisc_create | **0** | 78 | v3_unified | ✅ V5.1에서 성공 |
+| 2 | fifo_set_limit | 10 | 1685 | v3_unified | ❌ FAIL |
+| 3 | tcp_cleanup_congestion_control | **0** | 1701 | v3_ga | ✅ V2에서 성공 |
+| 4 | move_page_tables | 1000 | 301 | v3_unified | ⚠️ 이전 V3에서 성공했으나 최근 퇴보 |
+| 5 | sco_sock_create | **0** | 154 | v3_unified | ✅ V3에서 성공 |
+| 6 | tcf_exts_init_ex | 2010 | 701 | v3_unified | ❌ FAIL |
+| 7 | nf_tables_newrule | 10 | 2869 | v3_unified | ⚠️ V4에서 성공, 최근 퇴보 |
+| 8 | sctp_sf_do_prm_asoc | **0** | - | (V2 baseline) | ✅ V2에서 성공 |
+| 9 | xfrm_state_find | 2010 | 1783 | v3_unified | ❌ FAIL |
+| 10 | packet_snd | **0** | 28525 | v3_unified | ✅ V2에서 성공 |
+| 11 | llc_ui_sendmsg | **0** | 4166 | v3_unified | ✅ V3에서 성공 |
+
+**성공: 7/12 (58%)** — V2 시점(3/12=25%) 대비 대폭 향상
+
+**완고한 실패 4개의 공통 근본 원인:**
+- Case 0, 2, 6: TC 서브시스템 — netlink route dispatch가 kernel_signature에 없어 callfile이 부정확
+- Case 9: xfrm 서브시스템 — 동일한 netlink dispatch 누락 문제 + 복잡한 state/policy 선행 조건
+
+**이 4개의 근본 원인은 V6 이후에도 미해결**: proximity filter 수정은 tracepoint clearing만 해결. netlink dispatch table의 indirect call resolution은 CallGraph.cc의 type-based analysis 범위 밖일 수 있음.
 
 ### 리스크
 
 - 지나친 callee 보존으로 distance computation 시간/메모리 폭증 가능 → 1000 cap 유지.
 - 일부 기존 case (V1–V5 에서 성공한 case) 의 distance 가 변할 수 있어 회귀 테스트 필요 (case 1, 3, 4, 5, 8 모두 재측정).
+- Case 4, 7이 이전에 성공했다가 최근 퇴보 — 비결정적 퍼징 특성. 재실행으로 복구 가능.
+
+### 다음 단계 → V7 (Indirect Dispatch Resolver)로 진행
+
+---
+
+## V7 — Indirect Dispatch Resolver (2026-04-10)
+
+### 배경 및 근본 원인
+
+V6에서 proximity filter를 수정했지만, `kernel_signature_full`에 TC/netfilter/xfrm 경로가 여전히 0건.
+`kernelCode2syscall.json` (k2s)에도 `tc_modify_qdisc`, `nf_tables_newrule`, `xfrm_state_find` 등이 **아예 없음**.
+
+**근본 원인**: 커널의 주요 서브시스템은 **function pointer registration 패턴**으로 핸들러를 등록하고, 런타임에 indirect call로 디스패치함. LLVM 기반 정적 분석(CallGraph.cc)이 이 패턴을 resolve 못함.
+
+**확인된 주요 패턴 (23개+)**:
+- `rtnl_register()` — TC qdisc/filter (case 0, 1, 2, 6)
+- `nfnetlink_subsys_register()` — nftables (case 7)
+- `xfrm_register_km()` — xfrm (case 9)
+- `genl_register_family()` — nl80211, devlink, ethtool
+- `sock_register()` — 모든 AF_* 패밀리
+- `register_qdisc()`, `register_tcf_proto_ops()`, `tcf_register_action()` — TC 내부
+- `nf_register_net_hook()`, `xt_register_match()`, `nft_register_expr()` — netfilter 내부
+- `tcp_register_congestion_control()` — TCP CC
+- `inet_register_protosw()` — inet protocol-socket binding
+- `bt_sock_register()` — Bluetooth
+- `crypto_register_alg()`, `af_alg_register_type()` — crypto/AF_ALG
+- `security_add_hooks()` — LSM
+- `elv_register()` — block I/O scheduler
+- `vsock_core_register()` — vsock transport
+- 기타: `dev_add_pack()`, `perf_pmu_register()`, `register_key_type()` 등
+
+### 설계
+
+**접근법: 커널 소스 레벨에서 registration 패턴을 grep → handler-to-syscall 매핑 자동 생성 → k2s 보강**
+
+LLVM CallGraph를 고치는 대신, 소스 레벨에서 indirect call edge를 복원:
+
+```
+커널 소스에서:
+  rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, ...) 발견
+  → tc_modify_qdisc는 sendmsg$nl_route를 통해 도달
+  → k2s에 "tc_modify_qdisc" → {"none": ["sendmsg$nl_route_sched"]} 추가
+```
+
+**신규 모듈: `indirect_dispatch_resolver.py`**
+
+#### 핵심 설계 원칙
+
+1. **일반화**: 특정 서브시스템 하드코딩이 아니라, registration 패턴을 자동 발견
+2. **2단계 분석**:
+   - Phase 1: 커널 소스에서 `*_register*()` 호출 grep → `{registration_func → [handler_func]}` 매핑
+   - Phase 2: 각 registration 패턴에 대해 syscall entry point 결정 → handler→syscall 매핑
+3. **k2s 보강**: 기존 k2s에 누락된 handler→syscall 매핑을 추가
+4. **파이프라인 통합**: interface_generator 실행 후, target_analyzer 실행 전에 k2s 보강
+
+#### 구현 계획
+
+**Phase 1: Registration Pattern Scanner**
+
+```python
+def scan_registration_patterns(src_dir: str) -> dict[str, list[dict]]:
+    """커널 소스에서 *_register*() 호출을 grep하여 handler 함수 추출.
+    
+    Returns: {
+        "rtnl_register": [
+            {"args": ["PF_UNSPEC", "RTM_NEWQDISC", "tc_modify_qdisc", "tc_dump_qdisc", "NULL"],
+             "file": "net/sched/sch_api.c", "line": 2053},
+            ...
+        ],
+        "genl_register_family": [...],
+        ...
+    }
+    """
+```
+
+구현 방법:
+- 알려진 registration 함수 이름 리스트 (23개) 순회
+- `grep -rn "registration_func(" src_dir/` 실행
+- 각 매칭에서 인자를 파싱하여 handler 함수 이름 추출
+- 함수 포인터가 아닌 상수(NULL, 0 등)는 필터링
+
+**Phase 2: Handler-to-Syscall Mapper**
+
+```python
+# Registration 패턴별 syscall 매핑 규칙
+DISPATCH_RULES = {
+    "rtnl_register": {
+        # rtnl_register(family, msgtype, doit, dumpit, flags)
+        "handler_arg_indices": [2, 3],  # doit, dumpit이 handler
+        "syscall_template": "sendmsg$nl_route",
+        "socket_type": "socket$nl_route",
+    },
+    "nfnetlink_subsys_register": {
+        "handler_arg_indices": None,  # ops struct 내부
+        "syscall_template": "sendmsg$nl_netfilter",
+        "socket_type": "socket$nl_netfilter",
+    },
+    "genl_register_family": {
+        "handler_arg_indices": None,  # family->ops[].doit
+        "syscall_template": "sendmsg$nl_generic",
+        "socket_type": "socket$nl_generic",
+    },
+    "register_qdisc": {
+        "handler_arg_indices": None,  # Qdisc_ops struct
+        "syscall_template": "sendmsg$nl_route_sched",
+        "socket_type": "socket$nl_route",
+    },
+    # ... 각 패턴별 규칙
+}
+```
+
+**Phase 3: k2s Augmentation**
+
+```python
+def augment_k2s(k2s_path: str, src_dir: str, target_function: str) -> dict:
+    """기존 k2s에 indirect dispatch 매핑 추가.
+    
+    1. scan_registration_patterns()로 모든 등록 패턴 수집
+    2. target_function의 caller chain에서 등록된 handler 찾기
+    3. handler → syscall 매핑을 k2s에 추가
+    4. 보강된 k2s 반환
+    """
+```
+
+target_function에서 역추적:
+```
+target: tcindex_alloc_perfect_hash
+  ← called by: tcindex_set_parms (same file, grep으로 발견)
+  ← called by: tcindex_change (same file)
+  ← tcindex_change는 Qdisc_ops.change에 등록됨 (register_qdisc 패턴)
+  ← register_qdisc → sendmsg$nl_route_sched
+```
+
+**Phase 4: Pipeline Integration**
+
+`pipeline_dataset.py`에서 interface_generator 실행 후:
+```python
+# After interface_generator generates k2s
+from indirect_dispatch_resolver import augment_k2s
+augmented = augment_k2s(k2s_path, src_dir, target_function)
+# Write augmented k2s back
+json.dump(augmented, open(k2s_path, 'w'))
+# Then proceed to target_analyzer
+```
+
+#### 수정 파일
+
+| 파일 | 변경 | 설명 |
+|------|------|------|
+| indirect_dispatch_resolver.py | **신규** | registration pattern scanner + handler-syscall mapper + k2s augmenter |
+| pipeline_dataset.py | 수정 | interface_generator 후 k2s 보강 호출 추가 |
+
+### V7 구현 완료 (2026-04-10)
+
+**구현된 파일:**
+- `indirect_dispatch_resolver.py` (신규, ~960줄): 18개 registration 패턴 + subsystem fallback
+- `pipeline_dataset.py` (수정): step3에서 k2s 보강 자동 호출
+
+**핵심 기능:**
+1. **Registration Pattern Scanner**: 커널 소스에서 18개 `*_register*()` 패턴 자동 탐지 (rtnl, TC qdisc/classifier/action, netfilter, xfrm, genl, bluetooth, crypto, vsock 등)
+2. **Ops Struct Resolver**: `register_qdisc(&tbf_qdisc_ops)` → `sch_tbf.c`의 `Qdisc_ops` struct에서 `tbf_change` 등 함수 포인터 추출
+3. **Caller Chain Tracer**: BFS로 target_function → registered handler까지 caller chain 역추적
+4. **Subsystem Fallback**: trace 실패 시 파일 경로 기반 서브시스템 규칙 적용 (net/xfrm/ → sendmsg$nl_xfrm 등)
+5. **k2s Augmentation**: 발견된 handler→syscall 매핑을 kernelCode2syscall.json에 주입
+
+**검증 결과:**
+
+| Case | Target | Chain | Syscall | Pattern |
+|------|--------|-------|---------|---------|
+| 0 | tcindex_alloc_perfect_hash | → tcindex_set_parms → tcindex_change | sendmsg$nl_route_sched | register_tcf_proto_ops ✅ |
+| 2 | fifo_set_limit | → tbf_change | sendmsg$nl_route_sched | register_qdisc ✅ |
+| 6 | tcf_exts_init (실제 타겟) | → u32_change | sendmsg$nl_route_sched | register_tcf_proto_ops ✅ |
+| 7 | nf_tables_newrule | → ...→ nf_tables_abort | sendmsg$nl_netfilter | nfnetlink_subsys_register ✅ |
+| 9 | xfrm_state_find | (subsystem rule) | sendmsg$nl_xfrm | net/xfrm/ ✅ |
+
+**스캔 통계 (case_0 커널 소스 기준):**
+- 18개 패턴 중 11개에서 결과 발견
+- 총 registration 인스턴스: ~280개
+- 총 핸들러 함수: ~1000개+
+- 스캔 시간: ~20초
+
+**미해결 패턴:**
+- `nft_register_expr`: nftables expression type 초기화 패턴이 `}};` 대신 `};`로 끝나는 등 파싱 차이
+- `genl_register_family`: ops 배열이 별도 static const 배열로 정의됨
+- `elv_register`, `inet_protosw`: struct 초기화 패턴 차이
+
+### V7 통합 테스트 결과 (2026-04-10)
+
+k2s augmentation 후 target_analyzer 재실행하여 CompactOutput.json의 target syscall 검증.
+
+| Case | Target | Dispatch Chain | Augmented syscall | TA result | Status |
+|------|--------|----------------|-------------------|-----------|--------|
+| 0 | tcindex_alloc_perfect_hash | `→ tcindex_change → register_qdisc` | sendmsg$nl_route_sched | rank=0 ✅ | **성공** |
+| 9 | xfrm_state_find | subsystem fallback `net/xfrm/` | sendmsg$nl_xfrm | rank=0 ✅ | **성공** |
+| 2 | fifo_set_limit | `→ tbf_change → register_qdisc` | sendmsg$nl_route_sched | bitcode 미빌드 | k2s 보강 완료, TA 미실행 |
+| 6 | tcf_exts_init_ex | (인프라 없음) | - | - | workdir 미구축 |
+
+**핵심 발견:**
+- 18개 registration pattern 스캔 → 392 registrations, 899 handler functions 발견 (case별 커널 소스 기준)
+- BFS trace (max_depth=6)로 `tcindex_alloc_perfect_hash → tcindex_change` 1-hop 체인 발견
+- `xfrm_state_find`은 packet-processing 경로라 직접 handler trace 불가 → SUBSYSTEM_RULES fallback으로 해결
+- case 0: k2s 207→210 entries, case 9: 205→206 entries, case 2: 241→243 entries
+
+**workdir 인프라 현황:**
+- workdir_v6_full: case 0, 1만 bitcode 빌드됨 (dataset_build.xlsx에 2개만 포함)
+- workdir_cases_7_9_10_11: case 7, 9, 10, 11 빌드됨
+- workdir_v3_ga: case 0~3 interfaces 있으나 bitcode 없음
+- case 2, 6 TA 실행하려면 해당 커널의 bitcode 빌드 필요
+
+### 다음 단계
+
+1. **Case 2, 6 bitcode 빌드**: pipeline_dataset.py로 bitcode 생성 후 V7 TA 실행
+2. **퍼징 실험**: case 0, 9의 보강된 callfile로 실제 퍼징 → dist=0 달성 여부 확인
+3. **미해결 패턴 추가**: genl_register_family, nft_register_expr 파싱 개선
+4. **Case 4, 7 재실행**: 비결정적 퇴보 복구

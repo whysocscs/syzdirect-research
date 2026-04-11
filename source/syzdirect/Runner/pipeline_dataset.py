@@ -260,6 +260,25 @@ class DatasetPipeline:
                 with open(k2s, "w") as f:
                     json.dump(result, f, indent="\t")
 
+            # V7: Augment k2s with indirect dispatch resolution
+            src_dir = self.layout.src(ci)
+            target_func = dp.get('function', '')
+            if target_func and str(target_func).strip() not in ('', 'nan') \
+               and os.path.isdir(src_dir):
+                try:
+                    from indirect_dispatch_resolver import augment_k2s
+                    target_file = dp.get('file', None)
+                    augmented = augment_k2s(k2s, src_dir,
+                                            str(target_func).strip(),
+                                            str(target_file).strip()
+                                            if target_file else None)
+                    with open(k2s, "w") as f:
+                        json.dump(augmented, f, indent="\t")
+                    print(f"  [case {ci}] V7: k2s augmented with indirect "
+                          f"dispatch ({len(augmented)} entries)")
+                except Exception as e:
+                    print(f"  [case {ci}] V7: k2s augmentation failed: {e}")
+
             print(f"  [case {ci}] Kernel interface analyzed")
 
     def step4_analyze_target_point(self):

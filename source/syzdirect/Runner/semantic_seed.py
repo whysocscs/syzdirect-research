@@ -685,7 +685,11 @@ def _derive_execution_requirements(plan):
             req["required_option_attrs"] = True
         elif basename.startswith("sch_"):
             req["message_sequence"] = [0x24]
-        if any(any(tok in fn for tok in ("change", "update", "replace", "modify", "alloc")) for fn in call_chain):
+        if any(any(tok in fn for tok in ("change", "update", "replace", "modify", "alloc",
+                                         "set_limit", "set_parms")) for fn in call_chain):
+            req["prefer_update_shape"] = True
+        # Child qdisc files (sch_fifo.c, sch_pfifo.c) always need parent setup
+        if basename in ("sch_fifo.c", "sch_pfifo.c", "sch_pfifo_fast.c"):
             req["prefer_update_shape"] = True
     return req
 
@@ -739,6 +743,14 @@ class TCNetlinkEncoder(DomainEncoder):
         # Infer TC kind from target function name
         kind = self._infer_kind(target_func, plan.get("call_chain", []))
         if not kind:
+            # Generic classifier dispatcher (cls_api.c) — try common kinds
+            if self._is_generic_classifier(target_file):
+                all_programs = []
+                for k in ("flower", "u32", "basic", "matchall"):
+                    all_programs.extend(
+                        self._build_programs(k, "filter", attr_specs, {},
+                                             prefer_update=False))
+                return all_programs
             return []
 
         # Detect target type from file
@@ -774,24 +786,48 @@ class TCNetlinkEncoder(DomainEncoder):
                     attr_values[k] = v
 
         # Generate seed programs with proper prerequisite sequence
-        return self._build_programs(kind, target_type, attr_specs, attr_values)
+        exec_req = plan.get("execution_requirements", {})
+        prefer_update = exec_req.get("prefer_update_shape", False)
+        return self._build_programs(kind, target_type, attr_specs, attr_values,
+                                    prefer_update=prefer_update)
+
+    _KIND_MAP = {
+        "tcindex": "tcindex", "pfifo": "pfifo", "tbf": "tbf",
+        "htb": "htb", "hfsc": "hfsc", "sfq": "sfq",
+        "fq_codel": "fq_codel", "codel": "codel", "netem": "netem",
+        "cbq": "cbq", "qfq": "qfq", "u32": "u32", "cls_u32": "u32",
+        "flower": "flower", "matchall": "matchall", "bpf": "bpf",
+        "red": "red", "choke": "choke", "drr": "drr",
+        "teql": "teql", "ingress": "ingress", "clsact": "clsact",
+        "route": "route4", "fw": "fw",
+    }
+    # TC source convention: short prefix → full kind name
+    _PREFIX_ALIASES = {
+        "fl_": "flower", "mall_": "matchall", "basic_": "basic",
+        "route4_": "route4", "fw_": "fw", "cls_u32": "u32",
+    }
 
     def _infer_kind(self, target_func, call_chain):
-        _KIND_MAP = {
-            "tcindex": "tcindex", "pfifo": "pfifo", "tbf": "tbf",
-            "htb": "htb", "hfsc": "hfsc", "sfq": "sfq",
-            "fq_codel": "fq_codel", "codel": "codel", "netem": "netem",
-            "cbq": "cbq", "qfq": "qfq", "u32": "u32", "cls_u32": "u32",
-            "flower": "flower", "matchall": "matchall", "bpf": "bpf",
-            "red": "red", "choke": "choke", "drr": "drr",
-            "teql": "teql", "ingress": "ingress", "clsact": "clsact",
-            "route": "route4", "fw": "fw",
-        }
         candidates = [target_func] + [c["function"] for c in call_chain]
+        # Pass 1: exact prefix match
         for fn in candidates:
-            for prefix, kind in _KIND_MAP.items():
+            for prefix, kind in self._KIND_MAP.items():
                 if fn.startswith(prefix):
                     return kind
+        # Pass 2: TC short-prefix aliases (fl_ → flower, mall_ → matchall)
+        for fn in candidates:
+            for prefix, kind in self._PREFIX_ALIASES.items():
+                if fn.startswith(prefix):
+                    return kind
+        # Pass 3: infer from source file name (cls_flower.c → flower)
+        for c in call_chain:
+            basename = os.path.basename(c.get("file", ""))
+            m = re.match(r'cls_(\w+)\.c', basename)
+            if m and m.group(1) not in ("api", "route"):
+                return self._KIND_MAP.get(m.group(1), m.group(1))
+            m = re.match(r'sch_(\w+)\.c', basename)
+            if m and m.group(1) not in ("api", "generic"):
+                return self._KIND_MAP.get(m.group(1), m.group(1))
         return None
 
     def _detect_type(self, target_file):
@@ -801,6 +837,12 @@ class TCNetlinkEncoder(DomainEncoder):
         if basename.startswith("act_"):
             return "action"
         return "qdisc"
+
+    @staticmethod
+    def _is_generic_classifier(target_file):
+        """Check if target is a generic TC classifier dispatcher (not kind-specific)."""
+        basename = os.path.basename(target_file or "")
+        return basename in ("cls_api.c", "act_api.c")
 
     def _solve_conditions(self, conditions, attr_specs, kind):
         """Try to solve branch predicates into concrete attribute values.
@@ -840,7 +882,8 @@ class TCNetlinkEncoder(DomainEncoder):
 
         return values
 
-    def _build_programs(self, kind, target_type, attr_specs, attr_values):
+    def _build_programs(self, kind, target_type, attr_specs, attr_values,
+                        prefer_update=False):
         """Generate syzkaller programs from solved conditions."""
         programs = []
 
@@ -895,7 +938,8 @@ class TCNetlinkEncoder(DomainEncoder):
                 )
             else:
                 programs.extend(
-                    self._qdisc_programs(kind, tca_options, vi)
+                    self._qdisc_programs(kind, tca_options, vi,
+                                         prefer_update=prefer_update)
                 )
 
         # Also generate update sequences (create → change with different params)
@@ -968,16 +1012,34 @@ class TCNetlinkEncoder(DomainEncoder):
 
         return progs
 
-    def _qdisc_programs(self, kind, tca_options, idx):
-        hex_new = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options)
+    def _qdisc_programs(self, kind, tca_options, idx, prefer_update=False):
         base = 0x7f0000001000 + idx * 0x10000
-        return [{
+        hex_new = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options)
+        programs = [{
             "name": f"sem_{kind}_qdisc_{idx}",
             "text": (
                 "r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
                 + _make_sendmsg(hex_new, base, 0)
             ),
         }]
+
+        if prefer_update:
+            # Multi-step: create qdisc → change qdisc (triggers child state)
+            # Step 1: create with default opts (e.g. TBF with limit → creates bfifo child)
+            # Step 2: change same qdisc (now child exists, reaches set_limit-like paths)
+            hex_create = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options)
+            hex_change = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options,
+                                            handle=0x00100000)
+            programs.append({
+                "name": f"sem_{kind}_qdisc_update_{idx}",
+                "text": (
+                    "r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
+                    + _make_sendmsg(hex_create, base, 0)
+                    + _make_sendmsg(hex_change, base, 1)
+                ),
+            })
+
+        return programs
 
     def _update_programs(self, kind, target_type, attr_specs, idx_map, variants):
         """Generate create-then-update programs (state transition)."""
