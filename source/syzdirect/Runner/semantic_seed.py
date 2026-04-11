@@ -955,6 +955,15 @@ class TCNetlinkEncoder(DomainEncoder):
         """Generate filter prerequisite programs (qdisc first, then filter)."""
         progs = []
 
+        # Flower and similar classifiers need kind-specific TCA_OPTIONS.
+        # The generic hash/mask options fail because flower's TCA_FLOWER_INDEV
+        # (type=2) expects NLA_STRING but our generic encoder sends u16.
+        if kind == "flower":
+            tca_options = _build_flower_options()
+        elif kind in ("u32", "basic", "matchall"):
+            # These kinds can use the generic hash/mask attrs for now
+            pass
+
         attr_values = {"hash": h, "mask": mask, "shift": shift,
                        "fall_through": 1, "classid": 0x00010001}
 
@@ -1014,6 +1023,9 @@ class TCNetlinkEncoder(DomainEncoder):
 
     def _qdisc_programs(self, kind, tca_options, idx, prefer_update=False):
         base = 0x7f0000001000 + idx * 0x10000
+        # TBF needs struct tc_tbf_qopt, not the generic hash/mask attrs
+        if kind == "tbf":
+            tca_options = _build_tbf_options()
         hex_new = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options)
         programs = [{
             "name": f"sem_{kind}_qdisc_{idx}",
@@ -1025,11 +1037,16 @@ class TCNetlinkEncoder(DomainEncoder):
 
         if prefer_update:
             # Multi-step: create qdisc → change qdisc (triggers child state)
-            # Step 1: create with default opts (e.g. TBF with limit → creates bfifo child)
-            # Step 2: change same qdisc (now child exists, reaches set_limit-like paths)
-            hex_create = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options)
+            # Step 1: NLM_F_CREATE (0x0405) — create tbf qdisc at root, handle auto-assigned
+            #         tbf_init → tbf_change: q->qdisc == noop, creates bfifo child
+            # Step 2: NO NLM_F_CREATE (0x0005), handle=0 — change existing root qdisc
+            #         Kernel: clid=TC_H_ROOT → q=dev->qdisc (existing tbf), handle=0 →
+            #         skips handle mismatch check → falls through to qdisc_change() →
+            #         tbf_change: now q->qdisc != noop_qdisc → fifo_set_limit() called ✓
+            hex_create = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options,
+                                            flags=0x0405)  # NLM_F_REQUEST|NLM_F_ACK|NLM_F_CREATE
             hex_change = _build_netlink_msg(kind, 0x24, extra_attrs=tca_options,
-                                            handle=0x00100000)
+                                            handle=0, flags=0x0005)  # NLM_F_REQUEST|NLM_F_ACK only
             programs.append({
                 "name": f"sem_{kind}_qdisc_update_{idx}",
                 "text": (
@@ -1524,13 +1541,53 @@ def _nlattr_bytes(attr_type, data):
     return struct.pack("<HH", nla_len, attr_type) + padded
 
 
+def _build_flower_options():
+    """Build minimal valid TCA_OPTIONS bytes for a flower classifier filter.
+
+    Uses empty key attrs (catch-all) + TCA_FLOWER_FLAGS=SKIP_HW to avoid
+    HW offload requirements. This allows fl_change to complete without
+    key validation errors, reaching tcf_exts_init_ex.
+
+    The current generic hash/mask options fail because TCA_FLOWER_INDEV (=2)
+    expects NLA_STRING but gets a u16, causing nla_parse_nested to reject it
+    before calling tcf_exts_init_ex.
+    """
+    # TCA_FLOWER_FLAGS = 22, NLA_U32, value=TCA_CLS_FLAGS_SKIP_HW(1)
+    tca_flags = _nlattr_u32(22, 0x1)
+    return _nlattr_bytes(2, tca_flags)  # TCA_OPTIONS=2
+
+
+def _build_tbf_options(limit=0x10000, rate_bps=0x00100000, burst=0x4000):
+    """Build valid TCA_OPTIONS bytes for a TBF qdisc.
+
+    tbf_change requires:
+      - TCA_TBF_PARMS with struct tc_tbf_qopt (36 bytes)
+        rate.rate > 0, limit > 0
+      - TCA_TBF_BURST (index=6) to set max_size directly (avoids
+        psched_ns_t2l computation that might return 0)
+    """
+    # struct tc_ratespec: cell_log(u8), linklayer(u8), overhead(u16),
+    #                     cell_align(i16), mpu(u16), rate(u32) = 12 bytes
+    rate_spec = struct.pack('<BBHhHI', 0, 1, 0, 0, 0, rate_bps)
+    peak_spec = struct.pack('<BBHhHI', 0, 0, 0, 0, 0, 0)  # no peak rate
+    # struct tc_tbf_qopt: rate + peakrate + limit + buffer + mtu = 36 bytes
+    tbf_qopt = rate_spec + peak_spec + struct.pack('<III', limit, burst, 0)
+    tca_parms = _nlattr_bytes(1, tbf_qopt)         # TCA_TBF_PARMS = 1
+    tca_burst = _nlattr_u32(6, burst)              # TCA_TBF_BURST = 6 (overrides max_size)
+    return _nlattr_bytes(2, tca_parms + tca_burst)  # TCA_OPTIONS = 2
+
+
 def _build_netlink_msg(kind, msg_type, ifindex=1, parent=0xffff0000,
-                       handle=0, info=0, extra_attrs=b""):
-    """Build a TC netlink message, return hex string."""
+                       handle=0, info=0, extra_attrs=b"",
+                       flags=0x0405):
+    """Build a TC netlink message, return hex string.
+
+    Default flags 0x0405 = NLM_F_REQUEST|NLM_F_ACK|NLM_F_CREATE.
+    For "change existing" messages, pass flags=0x0005 (no NLM_F_CREATE).
+    """
     kind_bytes = kind.encode() + b'\x00'
     tca_kind = _nlattr_bytes(1, kind_bytes)
     tcmsg = struct.pack('<BBBBIIII', 0, 0, 0, 0, ifindex, handle, parent, info)
-    flags = 0x0405
     body = tcmsg + tca_kind + extra_attrs
     total_len = 16 + len(body)
     nlmsghdr = struct.pack('<IHHII', total_len, msg_type, flags, 1, 0)

@@ -219,6 +219,67 @@ stone["reachable_via"] = syscalls[:5] if syscalls else []
 
 ---
 
+---
+
+## 수정 파일 3: `semantic_seed.py` — TBF seed 추가 수정 (Case 2 완성)
+
+### 수정 6: `_build_tbf_options()` — 올바른 TCA_TBF_PARMS 생성
+
+**문제**: `_build_programs()`는 tcindex용 hash/mask 속성을 생성하는데, TBF에 이걸 넣으면 `tbf_change`에서 `nla_parse_nested_deprecated`가 TCA_TBF_PARMS의 길이를 검증하다 실패. 즉 seed를 보내도 tbf_change가 바로 EINVAL로 리턴.
+
+**수정**: `_build_tbf_options()` 함수 추가. `struct tc_tbf_qopt` (36 bytes)를 올바르게 직렬화:
+
+```python
+def _build_tbf_options(limit=0x10000, rate_bps=0x00100000, burst=0x4000):
+    # rate: 1MB/s, linklayer=1(ethernet)
+    rate_spec = struct.pack('<BBHhHI', 0, 1, 0, 0, 0, rate_bps)
+    peak_spec = struct.pack('<BBHhHI', 0, 0, 0, 0, 0, 0)
+    tbf_qopt  = rate_spec + peak_spec + struct.pack('<III', limit, burst, 0)
+    tca_parms = _nlattr_bytes(1, tbf_qopt)   # TCA_TBF_PARMS=1
+    tca_burst = _nlattr_u32(6, burst)        # TCA_TBF_BURST=6 → max_size 직접 지정
+    return _nlattr_bytes(2, tca_parms + tca_burst)  # TCA_OPTIONS=2
+```
+
+TCA_TBF_BURST(6)를 포함해서 max_size를 16KB로 직접 지정. 이렇게 하면 `psched_ns_t2l` 계산 없이도 `max_size > 0` 보장.
+
+`_qdisc_programs()` 안에서 `kind == "tbf"`일 때 이 함수 사용:
+```python
+if kind == "tbf":
+    tca_options = _build_tbf_options()
+```
+
+### 수정 7: `_build_netlink_msg()` flags 파라미터 + `_qdisc_programs()` change 메시지 수정
+
+**문제**: 2-step seed의 두 번째 메시지(change)가 `flags=NLM_F_CREATE(0x0405)`로 전송됨. `tc_modify_qdisc` 커널 코드:
+
+```c
+if (q && !(n->nlmsg_flags & NLM_F_REPLACE)) {
+    return -EEXIST;  // ← NLM_F_REPLACE 없으면 기존 qdisc 있을 때 FAIL
+}
+```
+
+두 번째 메시지의 handle(0x00100000)이 커널이 자동 할당한 handle과 다르기 때문에 EEXIST 반환. tbf_change 두 번째 호출이 아예 일어나지 않음.
+
+**수정**:
+1. `_build_netlink_msg()`에 `flags` 파라미터 추가
+2. change 메시지: `handle=0`, `flags=0x0005`(NLM_F_REQUEST|NLM_F_ACK, no NLM_F_CREATE)
+
+```python
+# handle=0 + no NLM_F_CREATE → tc_modify_qdisc 흐름:
+# clid=TC_H_ROOT → q=dev->qdisc(기존 TBF), !tcm_handle=True
+# → else branch → !q=False → magic test(NLM_F_CREATE 없음) → 통과
+# → "Change qdisc parameters" 섹션 → qdisc_change() → tbf_change 호출!
+# → q->qdisc != &noop_qdisc → fifo_set_limit 도달 ✓
+```
+
+**검증**: 생성된 두 번째 메시지 bytes 확인:
+- type=RTM_NEWQDISC(0x24) ✓
+- flags=0x0005 (NLM_F_CREATE 없음) ✓
+- handle=0x00000000 ✓
+- parent=0xffff0000=TC_H_ROOT ✓
+
+---
+
 ## 현재 한계와 남은 문제
 
 ### 세 케이스 모두 dist가 줄어들지 않은 이유
