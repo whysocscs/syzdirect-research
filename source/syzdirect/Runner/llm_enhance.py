@@ -1700,6 +1700,104 @@ def _select_seed_programs(programs, roadmap, target_function, target_file, sourc
     return scored[:limit], rejected, requirements, examined
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Subsystem-specific seed builders
+# ──────────────────────────────────────────────────────────────────────────
+
+def _build_xfrm_newsa(spi=0x1000, proto=0x32,   # proto=50=ESP
+                      family=0x2,                # AF_INET
+                      mode=0,                    # XFRM_MODE_TRANSPORT
+                      reqid=1):
+    """Build XFRM_MSG_NEWSA netlink message bytes (minimal ESP SA).
+
+    xfrm_selector  : 16+16+2+2+2+2+2+1+1+1+1+4+4 = 56 bytes
+    xfrm_id        : 16+4+1+pad3                  = 24 bytes
+    xfrm_address_t : 16 bytes (saddr)
+    xfrm_lifetime_cfg : 8*8                       = 64 bytes  (all XFRM_INF)
+    xfrm_lifetime_cur : 4*8                       = 32 bytes  (zeros)
+    xfrm_stats     : 3*4                          = 12 bytes
+    seq+reqid      : 4+4                          =  8 bytes
+    family+mode+rw+flags+pad : 2+1+1+1+1+2       =  8 bytes
+    Total xfrm_usersa_info                        = 224 bytes
+    """
+    INF = 0xFFFFFFFFFFFFFFFF
+    # xfrm_selector (56 bytes): daddr(16) saddr(16) dport(2) dport_mask(2)
+    #   sport(2) sport_mask(2) family(2) prefixlen_d(1) prefixlen_s(1)
+    #   proto(1) pad(1) ifindex(4) user(4)
+    sel = struct.pack('<16s16sHHHHHBBBBiI',
+                      b'\x7f\x00\x00\x01' + b'\x00'*12,  # daddr = 127.0.0.1
+                      b'\x7f\x00\x00\x01' + b'\x00'*12,  # saddr = 127.0.0.1
+                      0, 0xffff, 0, 0xffff,               # ports/masks
+                      family, 32, 32, proto, 0, 0, 0)     # family=AF_INET, /32
+    # xfrm_id (24 bytes): daddr(16) spi(4be) proto(1) pad(3)
+    xid = struct.pack('>16sI', b'\x7f\x00\x00\x01' + b'\x00'*12, spi)
+    xid += struct.pack('<B3x', proto)  # proto + 3-byte pad
+    # saddr (16 bytes)
+    saddr = b'\x7f\x00\x00\x01' + b'\x00'*12
+    # xfrm_lifetime_cfg (64 bytes): 8 x u64 all INF
+    lft = struct.pack('<8Q', INF, INF, INF, INF, INF, INF, INF, INF)
+    # xfrm_lifetime_cur (32 bytes): zeros
+    curlft = b'\x00' * 32
+    # xfrm_stats (12 bytes): zeros
+    stats = b'\x00' * 12
+    # tail: seq(4) reqid(4) family(2) mode(1) replay_window(1) flags(1) pad(3)
+    tail = struct.pack('<IIHBBBxxx', 0, reqid, family, mode, 32, 0)
+
+    body = sel + xid + saddr + lft + curlft + stats + tail
+    # nlattr XFRMA_ALG_AUTH_TRUNC — skip for minimal; just bare usersa_info
+    total = 16 + len(body)
+    # XFRM_MSG_NEWSA=0x10, NLM_F_REQUEST|NLM_F_CREATE|NLM_F_EXCL = 0x0600|0x0400|0x0200 = 0x0601
+    nlhdr = struct.pack('<IHHII', total, 0x10, 0x0601, 1, 0)
+    return (nlhdr + body).hex()
+
+
+def _build_xfrm_newpolicy(family=0x2, direction=0):  # 0=XFRM_POLICY_IN
+    """Build XFRM_MSG_NEWPOLICY netlink message bytes.
+
+    xfrm_userpolicy_info:
+      xfrm_selector(56) + xfrm_lifetime_cfg(64) + xfrm_lifetime_cur(32)
+      + priority(4) + index(4) + dir(1) + action(1) + flags(1) + share(1) = 164 bytes
+    """
+    INF = 0xFFFFFFFFFFFFFFFF
+    sel = struct.pack('<16s16sHHHHHBBBBiI',
+                      b'\x7f\x00\x00\x01' + b'\x00'*12,
+                      b'\x7f\x00\x00\x01' + b'\x00'*12,
+                      0, 0xffff, 0, 0xffff,
+                      family, 32, 32, 0, 0, 0, 0)
+    lft    = struct.pack('<8Q', INF, INF, INF, INF, INF, INF, INF, INF)
+    curlft = b'\x00' * 32
+    tail   = struct.pack('<IIBBBBxx', 0, 0, direction, 0, 0, 0)  # prio,idx,dir,action,flags,share
+    body   = sel + lft + curlft + tail
+    total  = 16 + len(body)
+    nlhdr  = struct.pack('<IHHII', total, 0x14, 0x0601, 2, 0)  # XFRM_MSG_NEWPOLICY=0x14
+    return (nlhdr + body).hex()
+
+
+def _xfrm_sendmsg(hex_bytes, slot=0):
+    """Wrap xfrm netlink bytes into sendmsg$nl_xfrm syzkaller call."""
+    msg_len = len(hex_bytes) // 2
+    hdr = 0x7f0000005000 + slot * 0x3000
+    iov = 0x7f0000004040 + slot * 0x3000
+    buf = 0x7f0000004080 + slot * 0x3000
+    return (
+        f'sendmsg$nl_xfrm(r0, &(0x{hdr:x})={{0x0, 0x0, '
+        f'&(0x{iov:x})=[{{&(0x{buf:x})=ANY=[@ANYBLOB="{hex_bytes}"], '
+        f'0x{msg_len:x}}}], 0x1, 0x0, 0x0, 0x0}}, 0x0)\n'
+    )
+
+
+def _build_bpf_prog_hex(prog_type=1):
+    """Return hex of a minimal valid BPF program (MOV r0=0; EXIT).
+
+    BPF instruction: u8 code, u8 regs(dst:4|src:4), s16 off, s32 imm  = 8 bytes
+    BPF_MOV64_IMM(BPF_REG_0, 0): code=0xb7, regs=0x00, off=0, imm=0
+    BPF_EXIT_INSN():              code=0x95, regs=0x00, off=0, imm=0
+    """
+    insns = struct.pack('<BBhI', 0xb7, 0x00, 0, 0)   # MOV64 r0=0
+    insns += struct.pack('<BBhI', 0x95, 0x00, 0, 0)  # EXIT
+    return insns.hex()
+
+
 def _generate_generic_seed_programs(roadmap, target_function, target_file, source_snippets=""):
     """Generate deterministic seed programs for non-TC targets based on subsystem heuristics."""
     programs = []
@@ -1769,6 +1867,176 @@ def _generate_generic_seed_programs(roadmap, target_function, target_file, sourc
                 "sendmsg$nl_route(r0, &(0x7f0000001000)={0x0, 0x0, "
                 "&(0x7f0000000040)=[{&(0x7f0000000080)=\"140000001000050100000000000000000000000000000000\", 0x2c}], "
                 "0x1, 0x0, 0x0, 0x0}, 0x0)\n"
+            ),
+        })
+
+    elif "net/sctp" in tf:
+        # SCTP: socket pair + listen + connect triggers sctp_sf_do_prm_asoc
+        # via SCTP_CMD_NEW_ASOC in the state machine
+        programs.append({
+            "name": "sctp_connect_assoc",
+            "text": (
+                "r0 = socket$inet_sctp(0x2, 0x1, 0x84)\n"
+                "bind$inet(r0, &(0x7f0000000000)={0x2, 0x10e1, @local}, 0x10)\n"
+                "listen(r0, 0x5)\n"
+                "r1 = socket$inet_sctp(0x2, 0x1, 0x84)\n"
+                "bind$inet(r1, &(0x7f0000001000)={0x2, 0x10e2, @local}, 0x10)\n"
+                "connect$inet(r1, &(0x7f0000002000)={0x2, 0x10e1, @local}, 0x10)\n"
+                "close(r1)\n"
+                "close(r0)\n"
+            ),
+        })
+        programs.append({
+            "name": "sctp_sendmsg_assoc",
+            "text": (
+                "r0 = socket$inet_sctp(0x2, 0x1, 0x84)\n"
+                "bind$inet(r0, &(0x7f0000000000)={0x2, 0x10e3, @local}, 0x10)\n"
+                "setsockopt$inet_sctp_SCTP_SOCKOPT_BINDX_ADD(r0, 0x84, 0x64, "
+                "&(0x7f0000001000)=[{0x2, 0x10e3, @local}], 0x10)\n"
+                "connect$inet_sctp(r0, &(0x7f0000002000)={0x2, 0x10e4, @local}, 0x10)\n"
+                "sendmsg$inet_sctp(r0, &(0x7f0000003000)={0x0, 0x0, "
+                "&(0x7f0000004000)=[{&(0x7f0000005000)=\"aabbccdd\", 0x4}], 0x1}, 0x0)\n"
+            ),
+        })
+
+    elif "net/xfrm" in tf:
+        # XFRM: Add ESP SA + inbound policy → triggers xfrm_state_find
+        # during IPsec packet processing (kernel path: xfrm_input → xfrm_state_find)
+        try:
+            hex_sa     = _build_xfrm_newsa(spi=0x1001, proto=0x32, family=0x2)
+            hex_policy = _build_xfrm_newpolicy(family=0x2, direction=1)  # XFRM_POLICY_IN
+            # Also an outbound policy to trigger state lookup on output
+            hex_out    = _build_xfrm_newpolicy(family=0x2, direction=0)  # XFRM_POLICY_OUT
+            programs.append({
+                "name": "xfrm_esp_sa_inbound",
+                "text": (
+                    "r0 = socket$nl_xfrm(0x10, 0x3, 0x6)\n"
+                    + _xfrm_sendmsg(hex_sa, 0)
+                    + _xfrm_sendmsg(hex_policy, 1)
+                    # Send raw packet to trigger xfrm_state_find via xfrm_input
+                    + "r1 = socket$inet_udp(0x2, 0x2, 0x0)\n"
+                    "bind$inet(r1, &(0x7f0000008000)={0x2, 0x1234, @local}, 0x10)\n"
+                    "sendto$inet(r1, &(0x7f0000009000)=\"aabb\", 0x2, 0x0, "
+                    "&(0x7f000000a000)={0x2, 0x1234, @local}, 0x10)\n"
+                ),
+            })
+            programs.append({
+                "name": "xfrm_esp_sa_outbound",
+                "text": (
+                    "r0 = socket$nl_xfrm(0x10, 0x3, 0x6)\n"
+                    + _xfrm_sendmsg(hex_sa, 0)
+                    + _xfrm_sendmsg(hex_out, 1)
+                    + "r1 = socket$inet_tcp(0x2, 0x1, 0x0)\n"
+                    "connect$inet(r1, &(0x7f0000008000)={0x2, 0x50, @remote}, 0x10)\n"
+                ),
+            })
+        except Exception:
+            pass
+
+    elif "net/packet" in tf:
+        # AF_PACKET raw socket: bind to interface + send raw frame
+        programs.append({
+            "name": "packet_raw_send",
+            "text": (
+                # ETH_P_ALL=0x300 (htons(0x0003)), SOCK_RAW=3
+                "r0 = socket$packet(0x11, 0x3, 0x300)\n"
+                "bind$packet(r0, &(0x7f0000000000)={0x11, 0x300, 0x1, 0x6, 0x1, "
+                "0x0, @broadcast}, 0x14)\n"
+                "sendto$packet(r0, &(0x7f0000001000)=ANY=[@ANYBLOB="
+                "\"ffffffffffff0011223344550800\"], 0xe, 0x0, 0x0, 0x0)\n"
+            ),
+        })
+        programs.append({
+            "name": "packet_dgram_send",
+            "text": (
+                # SOCK_DGRAM=2, ETH_P_IP=0x800 (htons=0x0008)
+                "r0 = socket$packet(0x11, 0x2, 0x8)\n"
+                "bind$packet(r0, &(0x7f0000000000)={0x11, 0x8, 0x1, 0x1, 0x0, "
+                "0x0, @local}, 0x14)\n"
+                "sendto$packet(r0, &(0x7f0000001000)=ANY, 0x14, 0x0, 0x0, 0x0)\n"
+            ),
+        })
+
+    elif "net/llc" in tf:
+        # LLC UI socket: init_net socket + bind + connect + sendmsg
+        programs.append({
+            "name": "llc_ui_sendmsg",
+            "text": (
+                "r0 = syz_init_net_socket$llc(0x1a, 0x5, 0x0)\n"
+                "bind$llc(r0, &(0x7f0000000000)={0x1a, @local, 0x2, 0x0}, 0x10)\n"
+                "connect$llc(r0, &(0x7f0000001000)={0x1a, @remote, 0x2, 0x1}, 0x10)\n"
+                "sendmsg$llc(r0, &(0x7f0000002000)={0x0, 0x0, "
+                "&(0x7f0000003000)=[{&(0x7f0000004000)=\"aabbccdd\", 0x4}], 0x1}, 0x0)\n"
+            ),
+        })
+        programs.append({
+            "name": "llc_ui_sendmsg_dgram",
+            "text": (
+                "r0 = syz_init_net_socket$llc(0x1a, 0x2, 0x0)\n"  # SOCK_DGRAM
+                "bind$llc(r0, &(0x7f0000000000)={0x1a, @local, 0x4, 0x0}, 0x10)\n"
+                "sendto$llc(r0, &(0x7f0000001000)=\"aabb\", 0x2, 0x0, "
+                "&(0x7f0000002000)={0x1a, @remote, 0x4, 0x1}, 0x10)\n"
+            ),
+        })
+
+    elif "net/vmw_vsock" in tf or "vsock" in tf:
+        # VSock stream: server + client connect + close (triggers virtio_transport_close)
+        programs.append({
+            "name": "vsock_stream_connect_close",
+            "text": (
+                # AF_VSOCK=40(0x28), SOCK_STREAM=1, CID_HOST=2
+                "r0 = socket$vsock_stream(0x28, 0x1, 0x0)\n"
+                "bind$vsock(r0, &(0x7f0000000000)={0x28, 0x3, 0x100}, 0xc)\n"
+                "listen(r0, 0x1)\n"
+                "r1 = socket$vsock_stream(0x28, 0x1, 0x0)\n"
+                "connect$vsock_stream(r1, &(0x7f0000001000)={0x28, 0x3, 0x100}, 0xc)\n"
+                "shutdown(r1, 0x2)\n"
+                "close(r1)\n"
+                "close(r0)\n"
+            ),
+        })
+        programs.append({
+            "name": "vsock_stream_concurrent_close",
+            "text": (
+                # Race: two sockets connecting/closing concurrently
+                "r0 = socket$vsock_stream(0x28, 0x1, 0x0)\n"
+                "r1 = socket$vsock_stream(0x28, 0x1, 0x0)\n"
+                "bind$vsock(r0, &(0x7f0000000000)={0x28, 0x3, 0x101}, 0xc)\n"
+                "connect$vsock_stream(r1, &(0x7f0000001000)={0x28, 0x3, 0x101}, 0xc)\n"
+                "close(r0)\n"
+                "close(r1)\n"
+            ),
+        })
+
+    elif "kernel/bpf" in tf:
+        # BPF verifier: load minimal valid programs of various types
+        bpf_hex = _build_bpf_prog_hex()
+        # BPF_PROG_TYPE_SOCKET_FILTER=1, BPF_PROG_TYPE_SCHED_CLS=3,
+        # BPF_PROG_TYPE_TRACEPOINT=5, BPF_PROG_TYPE_XDP=6
+        for prog_type, type_name in [(1, "socket_filter"), (3, "sched_cls"), (5, "tracepoint")]:
+            programs.append({
+                "name": f"bpf_prog_load_{type_name}",
+                "text": (
+                    f"r0 = bpf$PROG_LOAD(0x5, &(0x7f0000000000)="
+                    f"{{0x{prog_type:x}, 0x2, 0x0, "
+                    f"&(0x7f0000001000)=ANY=[@ANYBLOB=\"{bpf_hex}\"], "
+                    f"&(0x7f0000002000)='GPL\\x00', 0x0, 0x0, 0x0, 0x0, 0x0, "
+                    f"0x10, 0x0, @fallback, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}, 0x90)\n"
+                ),
+            })
+        # BPF map + prog combination to trigger verifier more deeply
+        programs.append({
+            "name": "bpf_map_then_prog",
+            "text": (
+                "r0 = bpf$MAP_CREATE(0x0, &(0x7f0000000000)="
+                "{0x1, 0x4, 0x4, 0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, 0x48)\n"
+                "r1 = bpf$PROG_LOAD(0x5, &(0x7f0000001000)="
+                "{0x1, 0x2, 0x0, "
+                f"&(0x7f0000002000)=ANY=[@ANYBLOB=\"{bpf_hex}\"], "
+                "&(0x7f0000003000)='GPL\\x00', 0x0, 0x0, 0x0, 0x0, 0x0, "
+                "0x10, 0x0, @fallback, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, 0x90)\n"
+                "close(r0)\n"
+                "close(r1)\n"
             ),
         })
 
