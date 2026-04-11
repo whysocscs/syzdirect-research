@@ -31,7 +31,7 @@ from llm_enhance import (
     read_stepping_stone_sources,
     extract_closest_program, extract_closest_programs,
     pack_programs_to_corpus, reverse_trace_bottleneck,
-    _call_llm,
+    _call_llm, _build_target_seed_profile,
 )
 from semantic_seed import run_semantic_pipeline, validate_seed
 from pipeline_new_cve import (
@@ -837,6 +837,25 @@ class AgentLoop:
             print("  [R4] No valid distance data, skipping LLM enhancement")
             return None
 
+        # ── Augment k2s with indirect dispatch (once per instance) ───────
+        # pipeline_dataset does this at build time; pipeline_new_cve may skip
+        # it if src was unavailable, so re-attempt lazily on first R4 round.
+        if not getattr(self, "_k2s_augmented", False):
+            self._k2s_augmented = True  # set before attempt — don't retry on error
+            if os.path.exists(k2s_path) and os.path.isdir(src_dir):
+                try:
+                    from indirect_dispatch_resolver import augment_k2s
+                    augmented = augment_k2s(
+                        k2s_path, src_dir, target_func,
+                        target_file or None,
+                    )
+                    with open(k2s_path, "w") as f:
+                        json.dump(augmented, f)
+                    print(f"  [R4] k2s augmented with indirect dispatch "
+                          f"({len(augmented)} entries)")
+                except Exception as e:
+                    print(f"  [R4] k2s augmentation skipped: {e}")
+
         # ── Try semantic pipeline first (generic analysis) ───────────
         semantic_seeds = self._run_semantic_seeds(round_dir, "R4")
         if semantic_seeds:
@@ -1108,10 +1127,21 @@ class AgentLoop:
                 rcfg_r4 = RunnerConfig(self.layout, self.cpus, self.uptime, self.fuzz_rounds)
                 Cfg_r4 = rcfg_r4.apply_to_legacy_config()
                 syz_db_bin = os.path.join(Cfg_r4.FuzzerDir, "bin", "syz-db")
+                target_profile = _build_target_seed_profile(
+                    roadmap, target_func, target_file, snippets,
+                )
+                print(
+                    "  [R4-ARG] Reinjection profile:"
+                    f" type={target_profile.get('target_type')}"
+                    f" kind={target_profile.get('target_kind')}"
+                    f" candidates={[(k, s) for k, s, _ in target_profile.get('kind_candidates', [])[:4]]}"
+                )
                 closest_progs = extract_closest_programs(
                     sub_workdir, syz_db_bin,
                     detail_corpus_path=detail_corpus,
                     max_programs=20, dist_threshold=dist_threshold,
+                    target_profile=target_profile,
+                    min_shape_score=5,
                 )
                 if closest_progs:
                     print(f"  [R4-ARG] Found {len(closest_progs)} closest programs "

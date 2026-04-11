@@ -380,7 +380,8 @@ class DatasetPipeline:
                 os.makedirs(temp, exist_ok=True)
                 dist_dir = self.layout.dist_dir(ci, xidx)
 
-                from kernel_build import write_makefile_kcov
+                from kernel_build import write_makefile_kcov, ensure_kcov_support
+                ensure_kcov_support(src)
                 write_makefile_kcov(src, dist_dir, target_func)
 
                 sh(f"cd {Q(src)} && make clean && make mrproper", check=False)

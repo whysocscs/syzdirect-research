@@ -1434,3 +1434,163 @@ k2s augmentation 후 target_analyzer 재실행하여 CompactOutput.json의 targe
 2. **퍼징 실험**: case 0, 9의 보강된 callfile로 실제 퍼징 → dist=0 달성 여부 확인
 3. **미해결 패턴 추가**: genl_register_family, nft_register_expr 파싱 개선
 4. **Case 4, 7 재실행**: 비결정적 퇴보 복구
+
+### Latest Fuzzing Snapshot Reconciliation (2026-04-11)
+
+`workdir_v3_unified/fuzzres/`의 현재 산출물을 기준으로 round/run0 전체 `detailCorpus.txt`를 다시 집계했다.
+이 스냅샷은 문서 앞부분의 일부 중간 메모보다 최신이며, 특히 case 1/7/9/11의 성공 여부가 이전 표와 다르다.
+
+| Case | Target | Latest best dist | First observed at | 현재 판정 |
+|------|--------|:----------------:|-------------------|-----------|
+| 0 | tcindex_alloc_perfect_hash | 2010 | agent_round_1 | ❌ FAIL |
+| 1 | qdisc_create | 0 | agent_round_2 | ✅ SUCCESS |
+| 2 | fifo_set_limit | 10 | agent_round_1 | ❌ FAIL |
+| 4 | move_page_tables | 1000 | run0 | ⚠️ REGRESSION |
+| 5 | sco_sock_create | 0 | agent_round_1 | ✅ SUCCESS |
+| 6 | tcf_exts_init_ex | 2010 | agent_round_1 | ❌ FAIL |
+| 7 | nf_tables_newrule | 0 | agent_round_1 | ✅ SUCCESS |
+| 9 | xfrm_state_find | 0 | agent_round_3 | ✅ SUCCESS |
+| 10 | packet_snd | 0 | run0 | ✅ SUCCESS |
+| 11 | llc_ui_sendmsg | 0 | agent_round_1 | ✅ SUCCESS |
+
+현재 `workdir_v3_unified` 기준으로 남아 있는 핵심 실패는 **case 0, 2, 6**이다.
+
+### Failure Analysis From Latest Runs
+
+#### Case 2 — `fifo_set_limit` (best dist = 10, all three agent rounds stuck)
+
+최신 실행에서도 round 1~3 모두 `dist_min=10`에서 더 내려가지 않았다.
+metrics 기준:
+- round 1: exec 45K, dist 10 고정
+- round 2: exec 141K, dist 10 고정
+- round 3: exec 152K, dist 10 고정
+
+즉 탐색량 부족 문제가 아니라, **타겟 직전 상태까지는 가지만 마지막 조건을 못 넘는 상태**다.
+
+이번 재확인에서 드러난 점:
+
+1. **R4-ARG corpus re-injection 자체는 고장나지 않았다**
+   - `detailCorpus.txt`는 실제 존재한다.
+   - `extract_closest_programs()`는 현재 코드에서 정상 동작하며 dist=10 프로그램들을 반환한다.
+   - `corpus_reinject.db`도 실제 생성되어 있다.
+   - 따라서 이전 중간 메모의 "re-injection이 동작하지 않음"은 현재 코드 기준으로는 더 이상 핵심 원인이 아니다.
+
+2. **하지만 re-injection 품질이 낮다**
+   - `corpus_reinject.db`를 unpack해 보면 target과 무관한 `openat$proc_capi20`, `IPSET`, `USBIP`, tunnel ioctl류 프로그램이 섞여 있다.
+   - 현재 기준은 "dist <= current_dist * 2" 뿐이라서, `fifo_set_limit`과 직접 관련 없는 dist=10 프로그램도 함께 재주입된다.
+   - 결과적으로 seed 강화가 아니라 **노이즈 보강**에 가깝다.
+
+3. **dist=10 프로그램이 존재해도, 그것이 곧 올바른 TBF 2-step이라는 뜻은 아니다**
+   - round 1 `detailCorpus.txt`에는 dist=10 엔트리가 280개나 있다.
+   - 그러나 대표 예시는:
+     ```syz
+     r0 = socket$nl_route(0x10, 0x3, 0x0)
+     sendmsg$nl_route_sched(r0, ... @newtclass={0x24, 0x10, 0x3} ...)
+     ```
+   - 즉 `fifo_set_limit`에 필요한 `tbf create -> tbf change`의 명시적 2-step이 아니라,
+     매우 generic한 `sendmsg$nl_route_sched` 한 방만으로도 dist=10 근처 블록까지는 갈 수 있다.
+   - 이 때문에 "dist=10 근접 corpus"를 그대로 다시 넣어도 target-specific mutation pressure가 약하다.
+
+4. **기본 callfile이 여전히 너무 generic하다**
+   - 최신 `fuzzinps/case_2/inp_0.json`은:
+     - `Target = sendmsg$nl_route_sched`
+     - `Relate = [socket$nl_route, sendmsg$nl_route, bind, close]`
+   - 여기에 `tbf` create/change 시퀀스 정보는 없다.
+   - semantic seed가 TBF 특화 seed를 보강하고는 있지만, base callfile 자체가 generic해서 전체 퍼징 분포가 너무 넓다.
+
+5. **현재 병목은 "tbf 경로 부재"가 아니라 "tbf 직전 조건 미충족"이다**
+   - 과거 메모에는 "corpus에 tbf가 0개"라는 상태가 있었지만, 그건 최신 스냅샷을 설명하지 못한다.
+   - 지금은 `dist=10`이 수백 개이고, reinjection corpus도 생성된다.
+   - 따라서 최신 실패 원인은:
+     - TBF 경로가 전혀 없어서가 아니라,
+     - **마지막 분기/속성 조합이 맞지 않거나**
+     - **재주입된 corpus가 target-specific하지 않아서**
+     - `fifo_set_limit()` 진입으로 이어지지 않는 것이다.
+
+정리:
+- **옛 진단**: "tbf 프로그램이 아예 없다"
+- **최신 진단**: "tbf 근처까지는 가는데, 마지막 payload/state precision이 부족하다"
+
+우선순위 높은 수정 방향:
+1. re-injection 대상을 `sendmsg$nl_route_sched` + `tbf`/`RTM_NEWQDISC` shape로 한 번 더 필터링
+2. case 2 callfile 자체에 `tbf create -> change` 힌트를 직접 넣기
+3. ANYBLOB 기반 netlink seed를 줄이고, syzkaller가 필드 단위 mutation 가능한 표현으로 전환
+
+#### Case 6 — `tcf_exts_init_ex` (best dist = 2010, no progress across rounds)
+
+최신 실행에서도 round 1~3 모두 `dist_min=2010`에서 고정됐다.
+metrics 기준:
+- round 1: exec 87K, dist 2010 고정
+- round 2: exec 50K, dist 2010 고정
+- round 3: exec 43K, dist 2010 고정
+
+즉 case 2와 달리, case 6은 **타겟 근처까지도 못 가고 2-hop 바깥에서 멈춘다.**
+
+이번 재확인에서 드러난 점:
+
+1. **seed는 아예 없는 상태가 아니다**
+   - `merged_seed.db`를 unpack하면 32개 seed가 들어 있다.
+   - `sendmsg$nl_route_sched` 기반 seed도 다수 존재한다.
+   - 따라서 "seed 생성 실패"는 현재 핵심 원인이 아니다.
+
+2. **그러나 seed가 target kind를 제대로 집중하지 못한다**
+   - unpack 결과에 `u32`, `matchall`, `sfq` 등 여러 kind가 섞여 있고,
+     `flower`를 직접 나타내는 seed는 거의 보이지 않는다.
+   - target이 `cls_api.c` 공통 경로라서 generic classifier fallback을 쓰는 것은 맞지만,
+     그 결과 실제 target dispatch에 필요한 kind로 mutation pressure가 집중되지 않는다.
+
+3. **best dist=2010은 "올바른 syscall family는 잡았지만, handler dispatch에 못 들어간다"는 신호다**
+   - 최신 corpus에는 `sendmsg$nl_route_sched`가 많이 보이지만,
+     target 진입 직전인 dist=10/30 수준 엔트리는 없다.
+   - 이는 `tcf_exts_init_ex`가 호출되는 classifier change 경로 자체로 못 들어가고 있다는 뜻이다.
+   - 즉 문제는 단순한 argument fine-tuning보다 더 앞 단계인 **dispatch/state selection 실패**에 가깝다.
+
+4. **generic classifier fallback은 coverage는 늘리지만 precision은 낮다**
+   - `cls_api.c`가 공통 코드라서 `basic`, `flower`, `u32`, `matchall`을 다 seed로 생성하는 방향은 seed 0개 문제를 해결했다.
+   - 하지만 최신 결과를 보면 이 방식은 "뭔가 보내는 것"까지는 해결했어도,
+     "어떤 classifier path로 `tcf_exts_init_ex`까지 갈 것인가"를 충분히 좁혀 주지 못한다.
+
+5. **ANYBLOB/raw netlink encoding 한계가 case 6에서 특히 치명적이다**
+   - TC filter payload는 nested attribute 구조가 복잡하고 kind-specific validation이 많다.
+   - 현재 seed의 상당수는 raw blob/거친 구조로 들어가 있어, syzkaller가 `TCA_KIND`, `TCA_OPTIONS`, nested attr를 의미 있게 mutation하기 어렵다.
+   - case 6은 case 2보다도 payload precision 의존도가 높아서, 이 표현 한계의 영향을 더 크게 받는다.
+
+정리:
+- **현재 case 6의 실패 원인**은 validator reject가 아니라,
+  **generic한 TC filter seed는 생성되지만 실제 target classifier dispatch와 nested attribute validation을 통과하지 못하는 것**이다.
+- 즉 "seed 생성 여부"보다 **seed precision과 kind targeting 부족**이 핵심이다.
+
+우선순위 높은 수정 방향:
+1. `cls_api.c` 공통 타겟일 때도 kind 후보를 무차별 확장하지 말고, semantic chain/roadmap에서 나온 실제 caller(kind) 쪽으로 가중치 주기
+2. `u32/basic/matchall/flower`별로 seed를 만들더라도, `tcf_exts_init_ex`로 이어진 실제 change handler 기준으로 rank를 매기기
+3. TC filter netlink를 ANYBLOB이 아닌 구조화된 syzlang 형태로 생성해서 nested attr mutation 가능하게 만들기
+
+#### Case 0 — `tcindex_alloc_perfect_hash` (best dist = 2010, fully stalled)
+
+최신 실행에서도 round 1~3 모두 `dist_min=2010`에서 고정됐다.
+exec은 55K~175K까지 늘었지만 거리 변화가 전혀 없다.
+
+재확인 결과:
+- `merged_seed.db`에는 seed가 33개 존재한다.
+- `sendmsg$nl_route_sched` 기반 프로그램도 다수 있다.
+- 하지만 `detailCorpus.txt`의 dist=2010 엔트리 669개 중 대표 예시가 `creat("./file0")` 같은 완전 비관련 프로그램이다.
+
+즉 case 0은 case 6보다도 더 심하게, **퍼저가 넓은 generic coverage로 흩어지고 target subsystem으로 수렴하지 못하고 있다.**
+`tcindex` 관련 문자열이 round 1 corpus에 아주 소수만 보이는 것도 같은 신호다.
+
+최신 기준 해석:
+- registration/dispatch 추론으로 `sendmsg$nl_route_sched`까지는 복구했지만,
+- 실제 `tcindex_change -> tcindex_set_parms -> tcindex_alloc_perfect_hash` 경로를 타게 하는
+  classifier-specific payload precision은 여전히 부족하다.
+
+### Updated Conclusion
+
+최신 `workdir_v3_unified` 기준으로 남은 실패 3개(case 0/2/6)는 성격이 다르다.
+
+- **case 2**: 타겟 직전(`dist=10`)까지는 감. 문제는 close corpus filtering과 마지막 state/payload precision.
+- **case 6**: 올바른 syscall family는 쓰지만 classifier dispatch와 nested attr validation을 못 넘음.
+- **case 0**: subsystem 수렴 자체가 약해 generic coverage에 퍼짐.
+
+공통 병목은 결국 **TC/netlink structured payload precision**이다.
+callfile repair, reinjection, indirect-dispatch 복구는 모두 도움이 되었지만,
+남은 3개는 raw ANYBLOB 기반 seed로는 한계가 분명하다.

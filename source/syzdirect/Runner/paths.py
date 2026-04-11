@@ -31,9 +31,13 @@ TEMPLATE_CONFIG = os.path.join(RESOURCE_ROOT, "template_config")
 KNOWN_CRASH_DB = os.path.join(SCRIPT_DIR, "known_crash_signatures.json")
 
 RUNTIME_BASE = os.environ.get("SYZDIRECT_RUNTIME", "/home/ai/syzdirect-runtime/cve")
+_vm_img_base = os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work")
 VM_IMAGE = os.environ.get(
     "SYZDIRECT_VM_IMAGE",
-    os.path.join(RUNTIME_BASE, "cve_cve_2025_68205/image-work/bullseye.img"),
+    # prefer qcow2 (supports -snapshot without raw-copy overhead); fall back to img
+    os.path.join(_vm_img_base, "bullseye.qcow2")
+    if os.path.exists(os.path.join(_vm_img_base, "bullseye.qcow2"))
+    else os.path.join(_vm_img_base, "bullseye.img"),
 )
 SSH_KEY = os.environ.get(
     "SYZDIRECT_SSH_KEY",
@@ -51,18 +55,19 @@ PREBUILT_TARGETS = [
      "func_path": "net/sched/sch_teql.c",
      "syscalls": [{"Target": "sendmsg$nl_route_sched",
                    "Relate": ["socket$nl_route", "sendmsg$nl_route", "bind", "close"]}]},
-    {"idx": 1, "name": "cec_adap",       "function": "__cec_s_phys_addr",
-     "func_path": "drivers/media/cec/core/cec-adap.c",
-     "syscalls": [{"Target": "ioctl",
-                   "Relate": ["openat", "close", "read", "write"]}]},
-    {"idx": 2, "name": "hfsc_netem",     "function": "hfsc_change_class",
-     "func_path": "net/sched/sch_hfsc.c",
+    {"idx": 1, "name": "qdisc_create",   "function": "qdisc_create",
+     "func_path": "net/sched/sch_api.c",
      "syscalls": [{"Target": "sendmsg$nl_route_sched",
                    "Relate": ["socket$nl_route", "sendmsg$nl_route", "bind", "close"]}]},
-    {"idx": 3, "name": "packet_fanout",  "function": "fanout_add",
-     "func_path": "net/packet/af_packet.c",
-     "syscalls": [{"Target": "setsockopt$packet_fanout",
-                   "Relate": ["socket$packet", "bind", "close", "unshare"]}]},
+    {"idx": 2, "name": "fifo_set_limit", "function": "fifo_set_limit",
+     "func_path": "net/sched/sch_fifo.c",
+     "syscalls": [{"Target": "sendmsg$nl_route_sched",
+                   "Relate": ["socket$nl_route", "sendmsg$nl_route", "bind", "close"]}]},
+    {"idx": 3, "name": "tcp_cleanup_congestion_control",
+     "function": "tcp_cleanup_congestion_control",
+     "func_path": "net/ipv4/tcp_cong.c",
+     "syscalls": [{"Target": "setsockopt$inet_tcp_TCP_CONGESTION",
+                   "Relate": ["socket$inet_tcp", "bind$inet", "close"]}]},
     {"idx": 4, "name": "vsock_race",     "function": "virtio_transport_close",
      "func_path": "net/vmw_vsock/virtio_transport_common.c",
      "syscalls": [{"Target": "connect$vsock_stream",

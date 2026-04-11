@@ -120,6 +120,10 @@ def ensure_kcov_support(src_dir):
         with open(header_path) as f:
             txt = f.read()
         updated = txt
+        # Update __sanitizer_cov_trace_pc prototype to accept distance arg
+        updated = updated.replace(
+            "void __sanitizer_cov_trace_pc(void);",
+            "void __sanitizer_cov_trace_pc(u32 dt);")
         if "void notrace kcov_mark_block(u32 i);" not in updated:
             updated = updated.replace(
                 "void kcov_remote_stop(void);\n",

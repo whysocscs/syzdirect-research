@@ -118,6 +118,11 @@ def MultirunFuzzer():
                 config["vm"]["kernel"] = kernel_image
                 config["syzkaller"] = syzkaller_path
                 config["hitindex"] = int(xidx)
+                # kernel_obj: directory containing vmlinux (needed for coverage
+                # symbolization during machine check).
+                kernel_obj_dir = os.path.dirname(kernel_image)
+                if os.path.isdir(kernel_obj_dir):
+                    config["kernel_obj"] = kernel_obj_dir
 
                 bug_title = datapoint['repro bug title']
                 if not pd.isna(bug_title):

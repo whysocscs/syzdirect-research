@@ -164,19 +164,50 @@ def extract_kind_from_target(target_function, target_file):
 
     # cls_X.c → filter kind X
     m = re.match(r'cls_(\w+)\.c', basename)
-    if m:
+    if m and m.group(1) not in ("api", "route"):
         return m.group(1), "filter"
 
     # sch_X.c → qdisc kind X
     m = re.match(r'sch_(\w+)\.c', basename)
-    if m:
+    if m and m.group(1) not in ("api", "generic"):
         return m.group(1), "qdisc"
 
     # act_X.c → action kind X
     m = re.match(r'act_(\w+)\.c', basename)
-    if m:
+    if m and m.group(1) not in ("api",):
         return m.group(1), "action"
 
+    return None, None
+
+
+def _kind_from_dispatch_context(roadmap):
+    prefixes = {
+        "tcindex": ("tcindex", "filter"),
+        "tbf": ("tbf", "qdisc"),
+        "cls_u32": ("u32", "filter"),
+        "u32": ("u32", "filter"),
+        "fl_": ("flower", "filter"),
+        "flower": ("flower", "filter"),
+        "mall_": ("matchall", "filter"),
+        "matchall": ("matchall", "filter"),
+        "basic_": ("basic", "filter"),
+        "bpf": ("bpf", "filter"),
+        "pfifo": ("pfifo", "qdisc"),
+        "bfifo": ("bfifo", "qdisc"),
+        "htb": ("htb", "qdisc"),
+        "sfq": ("sfq", "qdisc"),
+    }
+    tokens = []
+    tokens.extend(str(fn) for fn in (roadmap or {}).get("actual_callers", []) or [])
+    for caller in (roadmap or {}).get("cross_file_callers", []) or []:
+        tokens.append(caller.get("function", "") if isinstance(caller, dict) else str(caller))
+    for stone in (roadmap or {}).get("stepping_stones", []) or []:
+        tokens.append(stone.get("function", ""))
+    for tok in tokens:
+        tok = tok.lower()
+        for prefix, result in prefixes.items():
+            if tok.startswith(prefix) or f"_{prefix}" in tok:
+                return result
     return None, None
 
 
@@ -186,6 +217,11 @@ def determine_syscall_sequence(target_function, target_file, roadmap=None):
     Returns list of steps: [{call, msg_type, kind, attrs, notes}]
     """
     kind, obj_type = extract_kind_from_target(target_function, target_file)
+    ctx_kind, ctx_type = _kind_from_dispatch_context(roadmap)
+    if ctx_kind:
+        # Caller/registration chain is more reliable for helpers and generic
+        # API files than the target's own source basename.
+        kind, obj_type = ctx_kind, ctx_type
     steps = []
 
     if "net/sched" in (target_file or ""):

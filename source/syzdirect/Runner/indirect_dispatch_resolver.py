@@ -289,8 +289,8 @@ def extract_ops_struct_functions(filepath: str, struct_name: str,
         return functions
 
     # Find all struct initializations of this type
-    # Pattern: struct <type> <name> = { ... };
-    pattern = rf"struct\s+{re.escape(struct_name)}\s+\w+\s*=\s*\{{([^}}]*)\}}"
+    # Pattern: struct <type> <name> [__read_mostly/__ro_after_init/etc] = { ... };
+    pattern = rf"struct\s+{re.escape(struct_name)}\s+\w+[\s\w]*=\s*\{{([^}}]*)\}}"
     for m in re.finditer(pattern, content, re.DOTALL):
         init_block = m.group(1)
         # Extract .field = function_name patterns
@@ -336,9 +336,15 @@ def find_callers_in_file(filepath: str, target_func: str) -> list[str]:
                     search_text = ""
                     for j in range(i, max(i - 5, -1), -1):
                         search_text = lines[j].strip() + " " + search_text
+                    # Trim to text after the last '}' so that a single-line
+                    # function on the previous line (e.g. `foo() {}`) doesn't
+                    # pollute the search and cause the wrong name to be
+                    # extracted for the current function.
+                    last_close = search_text.rfind('}')
+                    relevant = search_text[last_close + 1:] if last_close >= 0 else search_text
                     # Find the last identifier before (
                     m = re.search(r'(\w+)\s*\([^)]*\)\s*\{?\s*$',
-                                  search_text.split('{')[0])
+                                  relevant.split('{')[0])
                     if m:
                         fname = m.group(1)
                         # Skip keywords

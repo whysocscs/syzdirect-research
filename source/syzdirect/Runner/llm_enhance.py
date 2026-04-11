@@ -149,6 +149,143 @@ _NOISE_PREFIXES = (
     "decompress_", "early_", "__pfx_",
 )
 
+_TC_KIND_PREFIXES = {
+    "tcindex": "tcindex",
+    "tbf": "tbf",
+    "pfifo": "pfifo",
+    "bfifo": "bfifo",
+    "htb": "htb",
+    "hfsc": "hfsc",
+    "sfq": "sfq",
+    "fq_codel": "fq_codel",
+    "codel": "codel",
+    "netem": "netem",
+    "cbq": "cbq",
+    "qfq": "qfq",
+    "cls_u32": "u32",
+    "u32": "u32",
+    "fl_": "flower",
+    "flower": "flower",
+    "mall_": "matchall",
+    "matchall": "matchall",
+    "basic_": "basic",
+    "bpf": "bpf",
+    "route4_": "route4",
+    "fw_": "fw",
+}
+
+_TC_FILTER_KINDS = {
+    "tcindex", "u32", "flower", "matchall", "basic", "bpf", "route4", "fw",
+}
+_TC_QDISC_KINDS = {
+    "tbf", "pfifo", "bfifo", "htb", "hfsc", "sfq", "fq_codel", "codel",
+    "netem", "cbq", "qfq", "prio", "ingress", "clsact",
+}
+
+
+def _tc_kind_from_token(token):
+    token = (token or "").lower()
+    for prefix, kind in _TC_KIND_PREFIXES.items():
+        if token.startswith(prefix) or f"_{prefix}" in token:
+            return kind
+    return None
+
+
+def _add_kind_score(scores, kind, weight, reason):
+    if not kind:
+        return
+    current = scores.setdefault(kind, {"score": 0, "reasons": []})
+    current["score"] += weight
+    current["reasons"].append(reason)
+
+
+def _infer_type_from_kind_candidates(kind_candidates):
+    if not kind_candidates:
+        return None
+    top_kind = kind_candidates[0][0]
+    if top_kind in _TC_FILTER_KINDS:
+        return "filter"
+    if top_kind in _TC_QDISC_KINDS:
+        return "qdisc"
+    return None
+
+
+def _build_target_seed_profile(roadmap, target_function, target_file, source_snippets=""):
+    """Infer a reusable seed profile from structural signals, not case ids."""
+    if "net/sched" not in (target_file or ""):
+        return {
+            "target_type": "unknown",
+            "target_kind": None,
+            "kind_candidates": [],
+            "prefer_multi_stage": False,
+            "avoid_ops": set(),
+            "prefer_explicit_handle": False,
+            "snippet_type": None,
+        }
+
+    target_type = _detect_tc_target_type(target_file)
+    snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
+    if snippet_type and snippet_type != target_type:
+        target_type = snippet_type
+
+    scores = {}
+    basename = os.path.basename(target_file or "")
+    m = re.match(r'cls_(\w+)\.c', basename)
+    if m and m.group(1) not in {"api", "route"}:
+        _add_kind_score(scores, _tc_kind_from_token(os.path.splitext(basename)[0]), 5, "target_file")
+    m = re.match(r'sch_(\w+)\.c', basename)
+    if m and m.group(1) not in {"api", "generic"}:
+        _add_kind_score(scores, _tc_kind_from_token(os.path.splitext(basename)[0]), 4, "target_file")
+
+    for fn in [target_function]:
+        _add_kind_score(scores, _tc_kind_from_token(fn), 5, "target_function")
+
+    for fn in (roadmap or {}).get("actual_callers", []) or []:
+        _add_kind_score(scores, _tc_kind_from_token(str(fn)), 8, "actual_caller")
+
+    for caller in (roadmap or {}).get("cross_file_callers", []) or []:
+        fn = caller.get("function") if isinstance(caller, dict) else str(caller)
+        _add_kind_score(scores, _tc_kind_from_token(fn), 5, "cross_file_caller")
+
+    for stone in (roadmap or {}).get("stepping_stones", []) or []:
+        weight = 6 if stone.get("is_caller") else 3
+        _add_kind_score(scores, _tc_kind_from_token(stone.get("function", "")), weight, "roadmap")
+
+    # Semantic context and injected caller snippets often contain the true
+    # dispatch function for generic files such as cls_api.c.
+    for tok in re.findall(r'\b[A-Za-z_][A-Za-z0-9_]*\b', source_snippets or ""):
+        _add_kind_score(scores, _tc_kind_from_token(tok), 1, "source_snippet")
+
+    kind_candidates = sorted(
+        ((kind, data["score"], data["reasons"]) for kind, data in scores.items()),
+        key=lambda item: (-item[1], item[0]),
+    )
+
+    if target_type == "unknown":
+        inferred = _infer_type_from_kind_candidates(kind_candidates)
+        if inferred:
+            target_type = inferred
+
+    terms = [target_function.lower()]
+    terms.extend(str(fn).lower() for fn in (roadmap or {}).get("actual_callers", []) or [])
+    terms.extend((s.get("function", "") or "").lower() for s in (roadmap or {}).get("stepping_stones", [])[:5])
+    prefer_multi_stage = any(
+        any(tok in term for tok in ("change", "update", "replace", "modify", "alloc", "set_parms"))
+        for term in terms
+    )
+    if target_type == "qdisc" and kind_candidates and kind_candidates[0][0] == "tbf":
+        prefer_multi_stage = True
+
+    return {
+        "target_type": target_type,
+        "target_kind": kind_candidates[0][0] if kind_candidates else None,
+        "kind_candidates": kind_candidates,
+        "prefer_multi_stage": prefer_multi_stage,
+        "avoid_ops": {0x29, 0x2d},
+        "prefer_explicit_handle": target_type in {"filter", "action"},
+        "snippet_type": snippet_type,
+    }
+
 
 def _parse_detail_corpus(detail_corpus_path):
     """Parse detailCorpus.txt (JSON format) into list of (program_text, distance).
@@ -230,8 +367,61 @@ def extract_closest_program(workdir, syz_db_path, detail_corpus_path=None):
         shutil.rmtree(unpack_dir, ignore_errors=True)
 
 
+def _program_shape_score(program_text, profile):
+    if not profile:
+        return 0, []
+    analysis = _analyze_seed_program(program_text)
+    score = 0
+    reasons = []
+    if analysis["has_route_socket"]:
+        score += 1
+        reasons.append("route_socket")
+    if analysis["sendmsg_sched_count"]:
+        score += 2
+        reasons.append("sched_sendmsg")
+    messages = analysis["messages"]
+    nl_types = [m["nl_type"] for m in messages]
+    all_kinds = [kind for m in messages for kind in m["kinds"]]
+    target_type = profile.get("target_type")
+    if target_type == "filter" and 0x24 in nl_types and 0x2C in nl_types:
+        score += 3
+        reasons.append("qdisc_then_filter")
+    elif target_type == "qdisc" and 0x24 in nl_types:
+        score += 3
+        reasons.append("qdisc_msg")
+    elif target_type == "action" and 0x24 in nl_types and 0x2C in nl_types:
+        score += 2
+        reasons.append("action_prereq_shape")
+
+    for idx, (kind, weight, _why) in enumerate(profile.get("kind_candidates", [])[:5]):
+        if kind in all_kinds:
+            score += max(1, min(4, int(weight)))
+            reasons.append(f"kind={kind}")
+            break
+        if _fuzzy_kind_match(kind, all_kinds):
+            score += 1
+            reasons.append(f"kind~{kind}")
+            break
+        # Do not let weak lower-ranked candidates dominate exact shape.
+        if idx >= 2:
+            break
+
+    if profile.get("kind_candidates") and messages and not any(r.startswith("kind") for r in reasons):
+        return 0, ["kind_mismatch"]
+
+    if profile.get("prefer_multi_stage"):
+        if target_type == "qdisc" and len([m for m in messages if m["nl_type"] in {0x24, 0x25}]) >= 2:
+            score += 3
+            reasons.append("multi_stage_qdisc")
+        elif target_type in {"filter", "action"} and len([m for m in messages if m["nl_type"] == 0x2C]) >= 1 and 0x24 in nl_types:
+            score += 2
+            reasons.append("stateful_filter_setup")
+    return score, reasons
+
+
 def extract_closest_programs(workdir, syz_db_path, detail_corpus_path=None,
-                             max_programs=20, dist_threshold=None):
+                             max_programs=20, dist_threshold=None,
+                             target_profile=None, min_shape_score=0):
     """Extract the N closest programs from detailCorpus.txt ordered by distance.
 
     Returns list of (program_text, distance) tuples, sorted by distance ascending.
@@ -252,6 +442,15 @@ def extract_closest_programs(workdir, syz_db_path, detail_corpus_path=None,
             seen.add(prog)
             unique.append((prog, dist))
     entries = unique
+
+    if target_profile:
+        shaped = []
+        for prog, dist in entries:
+            shape_score, shape_reasons = _program_shape_score(prog, target_profile)
+            if shape_score >= min_shape_score:
+                shaped.append((prog, dist, shape_score, shape_reasons))
+        shaped.sort(key=lambda x: (x[1], -x[2]))
+        return [(prog, dist) for prog, dist, _score, _reasons in shaped[:max_programs]]
 
     entries.sort(key=lambda x: x[1])
     return entries[:max_programs]
@@ -921,8 +1120,18 @@ def _prio_qdisc_options():
     return _nlattr_bytes(2, prio_qopt)
 
 
+def _tbf_qdisc_options(limit=0x10000, rate_bps=0x00100000, burst=0x4000):
+    """Build minimal valid TCA_OPTIONS for a TBF qdisc."""
+    rate_spec = struct.pack('<BBHhHI', 0, 1, 0, 0, 0, rate_bps)
+    peak_spec = struct.pack('<BBHhHI', 0, 0, 0, 0, 0, 0)
+    tbf_qopt = rate_spec + peak_spec + struct.pack('<III', limit, burst, 0)
+    tca_parms = _nlattr_bytes(1, tbf_qopt)
+    tca_burst = _nlattr_u32(6, burst)
+    return _nlattr_bytes(2, tca_parms + tca_burst)
+
+
 def _build_netlink_tc_seed(kind, msg_type, ifindex=1, parent=0xffff0000,
-                           handle=0, info=0, extra_attrs=b""):
+                           handle=0, info=0, extra_attrs=b"", flags=None):
     """Build a valid RTM_NEWQDISC or RTM_NEWTFILTER netlink message bytes.
 
     kind: TC kind string (e.g. "tcindex", "pfifo", "tbf")
@@ -935,12 +1144,15 @@ def _build_netlink_tc_seed(kind, msg_type, ifindex=1, parent=0xffff0000,
     # Auto-add required TCA_OPTIONS for qdiscs that need them
     if msg_type == 0x24 and kind == "prio" and not extra_attrs:
         extra_attrs = _prio_qdisc_options()
+    if msg_type == 0x24 and kind == "tbf" and not extra_attrs:
+        extra_attrs = _tbf_qdisc_options()
 
     # tcmsg: family(1) + pad(3) + ifindex(4le) + handle(4le) + parent(4le) + info(4le)
     tcmsg = struct.pack('<BBBBIIII', 0, 0, 0, 0, ifindex, handle, parent, info)
 
     # nlmsghdr: len(4le) + type(2le) + flags(2le) + seq(4le) + pid(4le)
-    flags = 0x0405  # NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE
+    if flags is None:
+        flags = 0x0405  # NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE
     body = tcmsg + tca_kind + extra_attrs
     total_len = 16 + len(body)
     nlmsghdr = struct.pack('<IHHII', total_len, msg_type, flags, 1, 0)
@@ -1029,12 +1241,18 @@ def _detect_tc_target_type_from_snippets(source_snippets):
     counts = {"filter": 0, "action": 0, "qdisc": 0}
     for line in (source_snippets or "").splitlines():
         line = line.strip()
-        if not line.startswith("// "):
-            continue
-        path = line[3:].split(":", 1)[0]
+        if line.startswith("// "):
+            path = line[3:].split(":", 1)[0]
+        else:
+            path = line
         inferred = _detect_tc_target_type(path)
         if inferred in counts:
             counts[inferred] += 1
+        kind = _tc_kind_from_token(line)
+        if kind in _TC_FILTER_KINDS:
+            counts["filter"] += 1
+        elif kind in _TC_QDISC_KINDS:
+            counts["qdisc"] += 1
     best_type = max(counts, key=counts.get)
     return best_type if counts[best_type] > 0 else None
 
@@ -1198,6 +1416,36 @@ def _analyze_seed_program(program_text):
         decoded = _decode_tc_anyblob(blob)
         if decoded:
             messages.append(decoded)
+    for marker, nl_type, prefix in (
+        ("@newqdisc", 0x24, "q_"),
+        ("@newtfilter", 0x2C, "f_"),
+    ):
+        start = 0
+        while True:
+            idx = text_l.find(marker, start)
+            if idx < 0:
+                break
+            segment = text_l[idx:idx + 500]
+            kinds = []
+            for member in re.findall(r'@([qf]_[a-z0-9_]+)', segment):
+                if not member.startswith(prefix):
+                    continue
+                kind = member[2:]
+                if kind == "route":
+                    kind = "route4"
+                kinds.append(kind)
+            messages.append({
+                "nl_type": nl_type,
+                "flags": 0,
+                "ifindex": 0,
+                "handle": 0,
+                "parent": 0,
+                "info": 0,
+                "kinds": kinds,
+                "has_options": bool(kinds),
+                "option_attrs": 1 if kinds else 0,
+            })
+            start = idx + len(marker)
     return {
         "has_route_socket": "socket$nl_route" in text_l,
         "sendmsg_sched_count": text_l.count("sendmsg$nl_route_sched"),
@@ -1206,37 +1454,20 @@ def _analyze_seed_program(program_text):
 
 
 def _seed_requirements(roadmap, target_function, target_file, source_snippets=""):
-    target_type = _detect_tc_target_type(target_file)
-    snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
-    if snippet_type and snippet_type != target_type:
-        target_type = snippet_type
+    return _build_target_seed_profile(roadmap, target_function, target_file, source_snippets)
 
-    # For non-TC targets, return minimal generic requirements
-    if target_type == "unknown":
-        return {
-            "target_type": "unknown",
-            "target_kind": None,
-            "prefer_multi_stage": False,
-            "avoid_ops": set(),
-            "prefer_explicit_handle": False,
-            "snippet_type": None,
-        }
 
-    target_kind = _infer_tc_kind_from_roadmap(roadmap, target_function)
-    prefer_multi_stage = False
-    terms = [target_function.lower()]
-    for stone in (roadmap or {}).get("stepping_stones", [])[:3]:
-        terms.append(stone.get("function", "").lower())
-    if any(any(tok in term for tok in ("change", "update", "replace", "modify", "alloc")) for term in terms):
-        prefer_multi_stage = True
-    return {
-        "target_type": target_type,
-        "target_kind": target_kind,
-        "prefer_multi_stage": prefer_multi_stage,
-        "avoid_ops": {0x29, 0x2d},
-        "prefer_explicit_handle": target_type in {"filter", "action"},
-        "snippet_type": snippet_type,
-    }
+def _kind_candidate_match(kind_candidates, all_kinds):
+    for idx, item in enumerate(kind_candidates or []):
+        kind = item[0]
+        weight = item[1] if len(item) > 1 else 1
+        if kind in all_kinds:
+            return kind, weight, False
+        if _fuzzy_kind_match(kind, all_kinds):
+            return kind, max(1, weight // 2), True
+        if idx >= 2:
+            break
+    return None, 0, False
 
 
 def _format_seed_messages(messages):
@@ -1284,7 +1515,7 @@ def _score_seed_program(prog, requirements):
 
     messages = analysis["messages"]
     target_type = requirements.get("target_type")
-    target_kind = requirements.get("target_kind")
+    kind_candidates = requirements.get("kind_candidates", [])
     nl_types = [m["nl_type"] for m in messages]
     all_kinds = [kind for m in messages for kind in m["kinds"]]
 
@@ -1308,15 +1539,12 @@ def _score_seed_program(prog, requirements):
         score += 2
         reasons.append("qdisc_entry")
 
-    if target_kind:
-        if target_kind not in all_kinds:
-            fuzzy = _fuzzy_kind_match(target_kind, all_kinds)
-            if not fuzzy:
-                return None
-            score += 1  # partial credit for fuzzy match
-        else:
-            score += 2
-        reasons.append(f"kind={target_kind}")
+    matched_kind, kind_weight, fuzzy_kind = _kind_candidate_match(kind_candidates, all_kinds)
+    if kind_candidates:
+        if not matched_kind:
+            return None
+        score += max(1, min(4, int(kind_weight)))
+        reasons.append(f"kind{'~' if fuzzy_kind else '='}{matched_kind}")
 
     if target_type == "filter":
         first_qdisc = next((i for i, m in enumerate(messages) if m["nl_type"] == 0x24), None)
@@ -1325,12 +1553,12 @@ def _score_seed_program(prog, requirements):
             return None
         qdisc_msg = messages[first_qdisc]
         filter_msg = messages[first_filter]
-        if target_kind in qdisc_msg["kinds"]:
+        if matched_kind and matched_kind in qdisc_msg["kinds"]:
             return None
         reasons.append("filter_after_qdisc")
         score += 2
-        if target_kind:
-            kind_filters = [m for m in messages if m["nl_type"] == 0x2C and target_kind in m["kinds"]]
+        if matched_kind:
+            kind_filters = [m for m in messages if m["nl_type"] == 0x2C and matched_kind in m["kinds"]]
             if not kind_filters:
                 return None
             if any(m["has_options"] for m in kind_filters):
@@ -1355,8 +1583,8 @@ def _score_seed_program(prog, requirements):
             if len(filter_msgs) >= 2:
                 score += 2
                 reasons.append("multi_stage_filter_update")
-                if target_kind:
-                    kind_filters = [m for m in filter_msgs if target_kind in m["kinds"]]
+                if matched_kind:
+                    kind_filters = [m for m in filter_msgs if matched_kind in m["kinds"]]
                     if len(kind_filters) >= 2:
                         score += 1
                         reasons.append("repeated_target_filter_kind")
@@ -1365,8 +1593,8 @@ def _score_seed_program(prog, requirements):
             if len(qdisc_ops) >= 2:
                 score += 2
                 reasons.append("multi_stage_qdisc")
-                if target_kind:
-                    kind_qdiscs = [m for m in qdisc_ops if target_kind in m["kinds"]]
+                if matched_kind:
+                    kind_qdiscs = [m for m in qdisc_ops if matched_kind in m["kinds"]]
                     if len(kind_qdiscs) >= 2:
                         score += 1
                         reasons.append("repeated_target_qdisc_kind")
@@ -1393,7 +1621,7 @@ def _reject_reason_for_seed(prog, requirements):
         return "missing_route_socket"
 
     messages = analysis["messages"]
-    target_kind = requirements.get("target_kind")
+    kind_candidates = requirements.get("kind_candidates", [])
     nl_types = [m["nl_type"] for m in messages]
     all_kinds = [kind for m in messages for kind in m["kinds"]]
 
@@ -1411,18 +1639,13 @@ def _reject_reason_for_seed(prog, requirements):
         if first_qdisc is None or first_filter is None or first_filter <= first_qdisc:
             return "filter_not_after_qdisc"
         qdisc_msg = messages[first_qdisc]
-        if target_kind and target_kind in qdisc_msg["kinds"]:
+        matched_kind, _weight, _fuzzy = _kind_candidate_match(kind_candidates, all_kinds)
+        if matched_kind and matched_kind in qdisc_msg["kinds"]:
             return "target_kind_used_as_qdisc"
-        if target_kind and target_kind not in all_kinds:
+        if kind_candidates and not matched_kind:
             # Fuzzy match: fix LLM typos (edit distance ≤ 2)
-            corrected = _fuzzy_kind_match(target_kind, all_kinds)
-            if not corrected:
-                return "target_kind_missing"
-            # Patch kind lists in-place so downstream checks work
-            for msg in messages:
-                msg["kinds"] = [corrected if _edit_distance(k, target_kind) <= 2 else k for k in msg["kinds"]]
-            all_kinds = {k for m in messages for k in m["kinds"]}
-        kind_filters = [m for m in messages if m["nl_type"] == 0x2C and (not target_kind or target_kind in m["kinds"])]
+            return "target_kind_missing"
+        kind_filters = [m for m in messages if m["nl_type"] == 0x2C and (not matched_kind or matched_kind in m["kinds"])]
         if not kind_filters:
             return "target_filter_message_missing"
         if not any(m["has_options"] for m in kind_filters):
@@ -1433,7 +1656,7 @@ def _reject_reason_for_seed(prog, requirements):
     elif target_type == "qdisc":
         if 0x24 not in nl_types:
             return "missing_rtm_newqdisc"
-    elif target_kind and target_kind not in all_kinds:
+    elif kind_candidates and not _kind_candidate_match(kind_candidates, all_kinds)[0]:
         return "target_kind_missing"
 
     return "filtered_by_score"
@@ -1568,15 +1791,13 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
     if "net/sched" not in target_file:
         return []
 
-    kind = _infer_tc_kind_from_roadmap(roadmap, target_function)
+    profile = _build_target_seed_profile(roadmap, target_function, target_file, source_snippets)
+    kind = profile.get("target_kind")
     if not kind:
         return []
 
     # ── Generic prerequisite sequences ───────────────────────────────
-    target_type = _detect_tc_target_type(target_file)
-    snippet_type = _detect_tc_target_type_from_snippets(source_snippets)
-    if snippet_type and snippet_type != target_type:
-        target_type = snippet_type
+    target_type = profile.get("target_type")
 
     def _make_msg(hex_bytes, slot=0):
         msg_len = len(hex_bytes) // 2
@@ -1611,8 +1832,8 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
             return [{"name": f"pfifo_then_{kind}_action", "text": prog1}]
 
         else:
-            hex_new    = _build_netlink_tc_seed(kind, 0x24)
-            hex_change = _build_netlink_tc_seed(kind, 0x25)
+            hex_new    = _build_netlink_tc_seed(kind, 0x24, flags=0x0405)
+            hex_change = _build_netlink_tc_seed(kind, 0x24, handle=0, flags=0x0005)
             prog1 = ("r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
                      + _make_msg(hex_new, 0))
             prog2 = ("r0 = socket$nl_route(0x10, 0x3, 0x0)\n"
@@ -1741,6 +1962,7 @@ Return ONLY JSON (no markdown):
         "  [LLM-seed] Seed selection basis:"
         f" target_type={requirements.get('target_type')}"
         f" target_kind={requirements.get('target_kind')}"
+        f" kind_candidates={[(k, s) for k, s, _ in requirements.get('kind_candidates', [])[:4]]}"
         f" prefer_multi_stage={requirements.get('prefer_multi_stage')}"
         f" snippet_type={requirements.get('snippet_type')}"
     )
@@ -1789,6 +2011,7 @@ Return ONLY JSON (no markdown):
             "  [LLM-seed] Fallback seed selection basis:"
             f" target_type={requirements.get('target_type')}"
             f" target_kind={requirements.get('target_kind')}"
+            f" kind_candidates={[(k, s) for k, s, _ in requirements.get('kind_candidates', [])[:4]]}"
             f" prefer_multi_stage={requirements.get('prefer_multi_stage')}"
             f" snippet_type={requirements.get('snippet_type')}"
         )

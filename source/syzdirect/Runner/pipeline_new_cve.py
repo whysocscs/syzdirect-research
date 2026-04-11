@@ -434,6 +434,24 @@ class NewCVEPipeline:
             from SyscallAnalyze.InterfaceGenerate import MatchSig
             with open(k2s, "w") as f:
                 json.dump(MatchSig(self.layout.syz_sig(), sig), f, indent="\t")
+
+        # V7: augment k2s with indirect dispatch resolution so TC/netlink
+        # handler functions (tbf_change, fl_change, etc.) are reachable.
+        src_dir = self.layout.src(ci)
+        if os.path.isdir(src_dir):
+            try:
+                from indirect_dispatch_resolver import augment_k2s
+                augmented = augment_k2s(
+                    k2s, src_dir, self.function,
+                    self.file_path or None,
+                )
+                with open(k2s, "w") as f:
+                    json.dump(augmented, f, indent="\t")
+                print(f"  [V7] k2s augmented with indirect dispatch "
+                      f"({len(augmented)} entries)")
+            except Exception as e:
+                print(f"  [V7] k2s augmentation skipped: {e}")
+
         print("  Done.")
 
     def step4_analyze_target_point(self):
@@ -501,6 +519,7 @@ class NewCVEPipeline:
         temp = os.path.join(self.layout.kwithdist(ci), "temp_build")
         os.makedirs(temp, exist_ok=True)
 
+        ensure_kcov_support(src)
         write_makefile_kcov(src, dist, target_func)
 
         sh(f"cd {Q(src)} && make clean && make mrproper", check=False)

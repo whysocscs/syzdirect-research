@@ -6,7 +6,9 @@
 	"vm": {
 		"count": 1,
 		"cpu": 2,
-		"mem": 4096
+		"mem": 4096,
+		"cmdline": "net.ifnames=0 biosdevname=0",
+		"qemu_args": "-enable-kvm -cpu host,migratable=off"
 	},
 	"reproduce": false
 }
