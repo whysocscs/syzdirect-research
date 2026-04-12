@@ -160,11 +160,37 @@ def assess_round_health(metrics_jsonl, manager_log, crash_summary=None,
     )
     effective_dist_best = relevant_dist_min_best if relevant_dist_min_best is not None else dist_min_best
 
+    # ── Null-coverage detection ──────────────────────────────────────────
+    # syz-manager initialises dist_min=0 and only updates it when a corpus
+    # program reaches a measured BB.  If all corpus programs have UINT_MAX
+    # distance (no BB on the target path was ever hit), dist_min stays at 0
+    # even after millions of executions — a "false zero" that makes the agent
+    # think the target was reached and suppresses stagnation detection.
+    #
+    # We detect this by cross-checking the detailCorpus: when
+    #   relevant_prog_count > 0  (target-relevant programs DO exist)
+    #   relevant_dist_min_best is None  (every one of them is UINT_MAX)
+    #   dist_min_best == 0              (metrics show the false zero)
+    # we override effective_dist_best with a large sentinel so that
+    # stagnation logic fires correctly.
+    null_coverage = (
+        relevant_prog_count > 0
+        and relevant_dist_min_best is None
+        and dist_min_best == 0
+    )
+    if null_coverage:
+        # Use a large value — clearly not "target reached", but allows
+        # stagnation detection and feeds the R4 roadmap as current_dist.
+        effective_dist_best = 2_000_000_000
+
     dist_stagnant = False
     # If dist_stall_timeout fired, the fuzzer already proved distance is stuck —
     # trust that verdict even if first→last shows improvement within the round
     # (e.g. 2030→2010 improved but then stuck at 2010 for 300s).
     if dist_stall_terminated and effective_dist_best is not None and effective_dist_best > 0:
+        dist_stagnant = True
+    elif null_coverage and exec_delta > 100:
+        # All corpus programs miss every target-adjacent BB → treat as stagnant.
         dist_stagnant = True
     elif effective_dist_best is not None and effective_dist_best > 0:
         if best_dist_min_ever is not None:
@@ -194,8 +220,12 @@ def assess_round_health(metrics_jsonl, manager_log, crash_summary=None,
         reason = f"coverage stalled for stall_timeout ({stall_timeout}s), terminated early"
     elif dist_stagnant and exec_delta > 500:
         status = "stagnant"
-        basis = "relevant distance" if relevant_dist_min_best is not None else "distance"
-        reason = f"{basis} stagnant at {effective_dist_best} (not getting closer to target)"
+        if null_coverage:
+            reason = (f"null coverage: {relevant_prog_count} relevant programs all have "
+                      f"UINT_MAX distance — no target BB reached (syz-manager false-zero)")
+        else:
+            basis = "relevant distance" if relevant_dist_min_best is not None else "distance"
+            reason = f"{basis} stagnant at {effective_dist_best} (not getting closer to target)"
     elif cover_delta == 0 and exec_delta > 100:
         status = "stagnant"
         reason = "coverage stalled despite executions"
@@ -220,6 +250,7 @@ def assess_round_health(metrics_jsonl, manager_log, crash_summary=None,
         "dist_min_best": dist_min_best,
         "relevant_dist_min_best": relevant_dist_min_best,
         "relevant_prog_count": relevant_prog_count,
+        "null_coverage": null_coverage,
         "effective_dist_min_best": effective_dist_best,
         "distance_basis": "relevant" if relevant_dist_min_best is not None else "raw",
         "dist_stagnant": dist_stagnant,

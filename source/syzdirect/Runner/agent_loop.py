@@ -337,7 +337,11 @@ class AgentLoop:
                         self.best_dist_min_ever = dist_best
                 raw_best = health.get("dist_min_best")
                 relevant_best = health.get("relevant_dist_min_best")
-                if relevant_best is not None:
+                null_cov = health.get("null_coverage", False)
+                if null_cov:
+                    print(f"  Distance: NULL COVERAGE (all relevant corpus at UINT_MAX, "
+                          f"raw_best={raw_best})  best_ever={self.best_dist_min_ever}")
+                elif relevant_best is not None:
                     print(f"  Distance: best_this_round={dist_best}  raw_best={raw_best}  best_ever={self.best_dist_min_ever}")
                 else:
                     print(f"  Distance: best_this_round={dist_best}  best_ever={self.best_dist_min_ever}")
