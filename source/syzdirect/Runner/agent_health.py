@@ -61,7 +61,9 @@ def _relevant_dist_from_corpus(detail_corpus_path, relevant_call_names, repeat_t
             continue
         matched += 1
         dist = item.get("Dist")
-        if isinstance(dist, int) and (best is None or dist < best):
+        # 4294967295 (UINT_MAX) is a sentinel meaning "no BB on target path
+        # was hit" — treat it as missing, not as a real distance value.
+        if isinstance(dist, int) and dist != 4294967295 and (best is None or dist < best):
             best = dist
     return best, matched
 
@@ -146,6 +148,7 @@ def assess_round_health(metrics_jsonl, manager_log, crash_summary=None,
     # (e.g. exec=17 but no BBs covered → still initializing).
     dist_vals = [m["dist_min"] for m in metrics
                  if "dist_min" in m
+                 and m.get("dist_min") != 4294967295  # UINT_MAX sentinel = no BB hit
                  and not (m.get("dist_min", 0) == 0
                           and (m.get("exec_total", 0) < 10
                                or m.get("corpus_cover", 0) == 0))]

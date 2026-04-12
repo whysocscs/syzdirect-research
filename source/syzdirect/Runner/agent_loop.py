@@ -685,6 +685,7 @@ class AgentLoop:
             dist_dir, target_func, current_dist_min=99999,
             k2s_path=k2s_path if os.path.exists(k2s_path) else None,
             src_dir=src_dir if os.path.isdir(src_dir) else None,
+            target_file=target_file,
         )
 
         if not roadmap:
@@ -872,6 +873,7 @@ class AgentLoop:
             dist_dir, target_func, current_dist,
             k2s_path=k2s_path if os.path.exists(k2s_path) else None,
             src_dir=src_dir if os.path.isdir(src_dir) else None,
+            target_file=target_file,
         )
 
         # Log cross-file callers and actual callers if found
@@ -910,6 +912,7 @@ class AgentLoop:
                 dist_dir, target_func, current_dist_min=99999,
                 k2s_path=k2s_path if os.path.exists(k2s_path) else None,
                 src_dir=src_dir if os.path.isdir(src_dir) else None,
+                target_file=target_file,
             )
             if wide_roadmap and wide_roadmap.get("stepping_stones"):
                 stones = wide_roadmap["stepping_stones"]

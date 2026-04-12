@@ -488,21 +488,85 @@ def pack_programs_to_corpus(programs_text_list, syz_db_path, output_path):
         shutil.rmtree(pack_dir, ignore_errors=True)
 
 
+def _dist_files_for_target(dist_dir, target_file):
+    """Return the set of dist file names relevant to target_file.
+
+    Strategy (ordered by priority):
+    1. The dist file that directly corresponds to target_file
+       (e.g. "net/sched/sch_fifo.c" → "net-sched-sch_fifo.dist")
+    2. All dist files in the same subsystem directory
+       (same prefix up to the last path component, e.g. "net-sched-*")
+
+    This avoids reading thousands of unrelated dist files (e.g. InfiniBand
+    when the target is in net/sched) and prevents bogus stepping stones.
+
+    Returns a set of basenames (may be empty, caller falls back to all files).
+    """
+    if not target_file:
+        return set()
+    # Strip leading slash and normalise
+    tf = target_file.lstrip("/")
+    # Remove .c extension
+    if tf.endswith(".c"):
+        tf = tf[:-2]
+    # Convert path separators to dashes
+    stem = tf.replace("/", "-")
+    primary = stem + ".dist"
+
+    # Subsystem prefix: everything up to (not including) the last component
+    # e.g. "net-sched-sch_fifo" → prefix "net-sched-"
+    last_dash = stem.rfind("-")
+    if last_dash > 0:
+        prefix = stem[:last_dash + 1]  # e.g. "net-sched-"
+    else:
+        prefix = stem  # single-component path, just use the stem itself
+
+    result = set()
+    try:
+        for fname in os.listdir(dist_dir):
+            if not fname.endswith(".dist"):
+                continue
+            if fname == primary or fname.startswith(prefix):
+                result.add(fname)
+    except OSError:
+        pass
+    return result
+
+
 def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
-                             k2s_path=None, max_stones=12, src_dir=None):
+                             k2s_path=None, max_stones=12, src_dir=None,
+                             target_file=None):
     """Build a stepping-stone roadmap from .dist files.
 
     Returns a dict with target info and a list of intermediate functions
     sorted by distance (ascending, closest to target first).
+
+    Args:
+        target_file: Source file path of the target (e.g. "net/sched/sch_fifo.c").
+            When provided, only the dist file for that source file plus files in
+            the same subsystem directory are read.  This prevents unrelated
+            subsystems (e.g. InfiniBand when targeting net/sched) from
+            polluting the roadmap with bogus stepping stones.
     """
     if not os.path.isdir(dist_dir):
         return None
 
-    # Parse all .dist files: collect min distance per function
+    # Determine which dist files to read.
+    # If target_file is given, restrict to the target's own dist file and
+    # same-subsystem files.  Fall back to all files only when no match found.
+    candidate_files = _dist_files_for_target(dist_dir, target_file)
+    all_fnames = [f for f in os.listdir(dist_dir) if f.endswith(".dist")]
+    if candidate_files:
+        fnames_to_read = [f for f in all_fnames if f in candidate_files]
+        if not fnames_to_read:
+            # Derived name didn't match anything — fall back to all files
+            fnames_to_read = all_fnames
+    else:
+        fnames_to_read = all_fnames
+
+    # Parse selected .dist files: collect min distance per function
     func_min_dist = {}
-    for fname in os.listdir(dist_dir):
-        if not fname.endswith(".dist"):
-            continue
+    for fname in fnames_to_read:
         fpath = os.path.join(dist_dir, fname)
         try:
             with open(fpath) as f:
@@ -665,6 +729,11 @@ def extract_distance_roadmap(dist_dir, target_function, current_dist_min,
     if target_dist_file:
         for fname in os.listdir(dist_dir):
             if not fname.endswith(".dist") or fname == target_dist_file:
+                continue
+            # Restrict to same-subsystem files when target_file was provided.
+            # This prevents unrelated subsystems (e.g. InfiniBand when target
+            # is in net/sched) from injecting bogus cross-file callers.
+            if candidate_files and fname not in candidate_files:
                 continue
             fpath = os.path.join(dist_dir, fname)
             try:
