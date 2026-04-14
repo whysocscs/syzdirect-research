@@ -2190,7 +2190,8 @@ def _generate_tc_seed_programs(roadmap, target_function, target_file, source_sni
 def llm_generate_seed_program(roadmap, source_snippets, target_function, target_file,
                                current_callfile, syz_db_path=None, output_dir=None,
                                closest_program=None, closest_dist=None,
-                               reverse_trace="", syz_resource_chain=""):
+                               reverse_trace="", syz_resource_chain="",
+                               agent_context=""):
     """Ask the LLM to generate syzkaller seed programs based on the distance roadmap.
 
     Generates concrete syzkaller program text that exercises kernel paths leading
@@ -2240,9 +2241,11 @@ def llm_generate_seed_program(roadmap, source_snippets, target_function, target_
     prompt = f"""You are a Linux kernel fuzzing expert. Generate syzkaller seed programs.
 
 {compact_plan}
+{agent_context}
 
-Generate 2 syzkaller programs that trigger the kernel path to {target_function}.
-Follow the SYSCALL SEQUENCE above. Each program should be a complete sequence.
+Before generating programs, classify the target using the taxonomy above and choose exactly one blocking layer.
+Then generate 2 syzkaller programs that trigger the kernel path to {target_function}.
+Follow the SYSCALL SEQUENCE above. Each program should be a complete sequence and should attack only the selected blocking layer.
 
 Use syzkaller syntax. Each syscall on its own line:
   r0 = socket$nl_route(0x10, 0x3, 0x0)
@@ -2252,7 +2255,7 @@ Use $variant names (e.g. socket$inet_tcp, ioctl$KVM_RUN).
 Use different memory addresses for each argument (increment by 0x1000).
 
 Return ONLY JSON (no markdown):
-{{"programs": [{{"name": "short_name", "text": "complete program text"}}], "reasoning": "one sentence"}}"""
+{{"classified_layers": {{"syscall_family": "...", "resource_chain": "...", "payload_grammar": "...", "subsystem_state": "...", "dispatch_selector": "..."}}, "blocking_layer": "...", "selected_strategy": "...", "programs": [{{"name": "short_name", "text": "complete program text"}}], "reasoning": "one sentence"}}"""
 
     print(f"  [LLM-seed] Compact plan: {len(compact_plan)} chars")
     try:
@@ -2268,6 +2271,15 @@ Return ONLY JSON (no markdown):
     except json.JSONDecodeError as e:
         print(f"  [LLM-seed] JSON parse error: {e}")
         return None
+
+    blocking_layer = result.get("blocking_layer", "")
+    selected_strategy = result.get("selected_strategy", "")
+    classified_layers = result.get("classified_layers", {})
+    if blocking_layer or selected_strategy:
+        print(f"  [LLM-seed] Blocking layer: {blocking_layer or 'unknown'}")
+        print(f"  [LLM-seed] Strategy: {selected_strategy or 'unknown'}")
+    if classified_layers:
+        print(f"  [LLM-seed] Classified layers: {classified_layers}")
 
     reasoning = result.get("reasoning", "")
     if reasoning:
@@ -2486,7 +2498,8 @@ def llm_generate_seed_via_codegen(roadmap, source_snippets, target_function, tar
                                    current_callfile, syz_db_path=None, output_dir=None,
                                    closest_program=None, closest_dist=None,
                                    reverse_trace="", syz_resource_chain="",
-                                   current_dist=None, semantic_context=""):
+                                   current_dist=None, semantic_context="",
+                                   agent_context=""):
     """Generate syzkaller seeds by having LLM write a Python script, then executing it.
 
     Instead of asking the LLM to produce hex bytes directly (which it gets wrong),
@@ -2536,7 +2549,13 @@ def llm_generate_seed_via_codegen(roadmap, source_snippets, target_function, tar
     prompt = f"""You are a Linux kernel fuzzing expert. Write a Python 3 script that generates syzkaller seed programs.
 
 {compact_plan}
+{agent_context}
 {close_distance_hint}
+
+Before writing the script, use the taxonomy above internally:
+- classify the syscall family, resource chain, payload grammar, subsystem state, and dispatch selector
+- choose exactly one blocking layer
+- make the generated programs attack only that layer
 
 Write a Python script that:
 1. Uses struct.pack() to build binary payloads (netlink messages, ioctl args, setsockopt buffers, etc.)

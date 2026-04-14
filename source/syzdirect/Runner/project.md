@@ -1594,3 +1594,378 @@ exec은 55K~175K까지 늘었지만 거리 변화가 전혀 없다.
 공통 병목은 결국 **TC/netlink structured payload precision**이다.
 callfile repair, reinjection, indirect-dispatch 복구는 모두 도움이 되었지만,
 남은 3개는 raw ANYBLOB 기반 seed로는 한계가 분명하다.
+
+## 2026-04-13 Full Re-run — Agent Loop vs LLVM18 Baseline
+
+### 실행 설정
+
+두 계열을 같은 prebuilt kernel/callfile 산출물 기반으로 재실행했다.
+
+- **Agent loop run**: 최신 `merge-temp` 코드, `--agent-rounds 3`, `--agent-uptime 1`, `--proactive-seed`, 3-wide scheduler
+  - 로그: `bg_logs/fuzz_3wide_case_<case>_20260413.log`
+  - scheduler done: `2026-04-13 13:22:28`
+- **LLVM18 baseline run**: agent loop/proactive seed/triage/enhance 없이 `Fuzz.MultirunFuzzer()` fuzz-only 경로만 실행
+  - 첫 시도 `llvm18_baseline_20260413`는 `vmlinux` 파일명 문제로 실패. 유효한 결과는 **`llvm18_baseline2_20260413`**.
+  - 로그: `bg_logs/llvm18_baseline2_20260413/case_<case>.log`
+  - scheduler done: `2026-04-13 16:30:53`
+- case 8은 로컬에 `kwithdist/fuzzinps` 산출물이 없어 두 run 모두 skip.
+
+### 결과 비교
+
+| Case | Target | Agent loop | LLVM18 baseline | 판정 |
+|------|--------|------------|-----------------|------|
+| 0 | `tcindex_alloc_perfect_hash` | FAIL, dist 2010 | FAIL, dist 2010 | 동일 실패 |
+| 1 | `qdisc_create` | SUCCESS, dist 0 | FAIL, dist 1010 | agent loop 개선 |
+| 2 | `fifo_set_limit` | FAIL, dist 10 | FAIL, dist 10 | 동일 실패 |
+| 3 | `tcp_cleanup_congestion_control` | 부분 성공: round 1/2 dist 0, 최종 round dist 1010 | FAIL, dist 1010 | agent loop 비결정적 개선 |
+| 4 | `virtio_transport_close` / 이전 `move_page_tables` 계열 | FAIL, dist 1000 | FAIL, dist 1000 | 동일 실패 |
+| 5 | `sco_sock_create` | SUCCESS, dist 0 | SUCCESS, dist 0 | 둘 다 성공 |
+| 6 | `tcf_exts_init_ex` | FAIL, dist 2010 | FAIL, dist 2010 | 동일 실패 |
+| 7 | `nf_tables_newrule` | FAIL, dist 10 | FAIL, dist 10 | 동일 실패 |
+| 8 | `sctp_sf_do_prm_asoc` | SKIP | SKIP | 로컬 산출물 없음 |
+| 9 | `xfrm_state_find` | SUCCESS, dist 0 | FAIL, dist 3010 | agent loop 개선 |
+| 10 | `packet_snd` | SUCCESS, dist 0/0 | SUCCESS, dist 0/0 | 둘 다 성공 |
+| 11 | `llc_ui_sendmsg` | SUCCESS, dist 0 | SUCCESS, dist 0 | 둘 다 성공 |
+
+요약:
+
+- Agent loop 성공: **1, 5, 9, 10, 11**
+- Agent loop 부분 성공: **3**
+- Agent loop 실패: **0, 2, 4, 6, 7**
+- LLVM18 baseline 성공: **5, 10, 11**
+- LLVM18 baseline 실패: **0, 1, 2, 3, 4, 6, 7, 9**
+- 양쪽 skip: **8**
+
+agent loop가 baseline 대비 명확히 이득을 낸 케이스:
+
+- case 1: baseline `dist=1010` → agent loop `dist=0`
+- case 9: baseline `dist=3010` → agent loop `dist=0`
+- case 3: baseline `dist=1010` → agent loop 일부 round `dist=0`
+
+### 실패 원인 재정리
+
+이번 비교로 agent loop 자체의 유효성은 확인됐다. 다만 남은 실패군은 단순한 "LLM seed 부족"이 아니라,
+**구조화된 syscall payload + subsystem state + indirect dispatch**가 겹친 문제로 보는 게 맞다.
+
+#### Case 0 — TC `tcindex_alloc_perfect_hash`, dist 2010
+
+- `sendmsg$nl_route_sched` family까지는 잡지만 `tcindex_change -> tcindex_set_parms -> tcindex_alloc_perfect_hash` 경로로 수렴하지 못한다.
+- TC classifier payload는 `TCA_KIND=tcindex`와 nested `TCA_OPTIONS`의 정밀한 조합이 필요하다.
+- generic coverage로 넓게 퍼지고, target-specific classifier payload mutation pressure가 부족하다.
+
+#### Case 2 — TC `fifo_set_limit`, dist 10
+
+- `tbf_change` 근처까지는 도달한다.
+- 마지막 조건은 TBF qdisc create/change state, child fifo state, `fifo_set_limit()` 호출 가능 조건이 맞아야 한다.
+- dist=10 corpus를 재주입해도 generic `sendmsg$nl_route_sched`가 섞여 있어 target-specific seed 강화 효과가 약하다.
+
+#### Case 6 — TC classifier `tcf_exts_init_ex`, dist 2010
+
+- `sendmsg$nl_route_sched` seed는 있지만 classifier kind dispatch와 nested attr validation을 통과하지 못한다.
+- `u32/basic/flower/matchall` 같은 kind 후보를 넓게 뿌리는 방식은 coverage는 늘리지만 precision은 낮다.
+- `cls_api.c` 공통 타겟이라도 실제 caller/change handler 기준으로 kind를 rank해야 한다.
+
+#### Case 7 — nftables `nf_tables_newrule`, dist 10
+
+- nftables table/chain/rule transaction state와 nested expression attrs가 필요하다.
+- 이전 snapshot에서는 성공한 적이 있으므로 비결정성도 있지만, 이번 run에서는 마지막 nft state/payload 조건을 넘지 못했다.
+- TC와 같은 netlink 계열이지만 `NETLINK_NETFILTER` + nft transaction/batch semantic이 추가된다.
+
+#### Case 4 — vsock/stateful socket, dist 1000
+
+- 과거 성공 기록이 있었으나 이번에는 both-run stall.
+- 단순 payload보다 socket state sequence 문제로 보인다.
+- `socket/bind/listen/connect/shutdown/accept/close` 순서와 VM 환경 state가 정확히 맞아야 한다.
+
+### "구조"는 단일 분류가 아니라 조합이다
+
+이번 실패를 설명할 때 "TC/nft structured"라고 부르지만, 실제 난이도는 단일 구조가 아니라 여러 구조의 조합이다.
+
+예시:
+
+```text
+case 2 fifo_set_limit:
+sendmsg
++ NETLINK_ROUTE
++ nested nlattr
++ TC qdisc kind=tbf
++ qdisc create/change state
++ child fifo state
++ indirect dispatch: Qdisc_ops -> tbf_change -> fifo_set_limit
+```
+
+```text
+case 6 tcf_exts_init_ex:
+sendmsg
++ NETLINK_ROUTE filter
++ nested nlattr
++ classifier kind selection
++ kind-specific option validation
++ indirect dispatch: tcf_proto_ops -> *_change -> tcf_exts_init_ex
+```
+
+```text
+case 7 nf_tables_newrule:
+sendmsg
++ NETLINK_NETFILTER
++ nft table/chain/rule state
++ transaction/batch semantic
++ nested attrs
++ nft expression attrs
++ nfnetlink dispatch
+```
+
+따라서 현재 남은 문제는 단순히 "structured seed를 만들자"가 아니라,
+**payload grammar, state machine, resource chain, indirect dispatch를 하나의 모델로 묶어야 하는 문제**다.
+
+### 구조 유형 taxonomy — 리팩토링 기준
+
+앞으로 코드를 정리할 때 syscall을 다음 축으로 분류하고, 각 축별 seed/callfile/corpus filtering 전략을 분리해야 한다.
+
+| 유형 | 예 | 필요한 모델 |
+|------|----|-------------|
+| scalar-only | `close`, `madvise`, `prctl` | flag/enum/value mutation |
+| resource/fd chain | `open -> read/write`, `epoll_create -> epoll_ctl` | producer/consumer graph |
+| pointer struct | `perf_event_open`, `sched_setattr` | struct field model |
+| ioctl command struct | `VIDIOC_*`, `DRM_IOCTL_*`, `BTRFS_IOC_*` | fd type + cmd-specific arg type |
+| setsockopt opt struct | TCP/SCTP/PACKET/Bluetooth opts | socket family + level/optname schema |
+| socket state machine | TCP, SCTP, vsock, LLC, packet | protocol state sequence |
+| sendmsg/msghdr | netlink, SCTP, LLC, AF_ALG | msghdr/iovec/cmsg model |
+| netlink nested attrs | route, TC, nft, xfrm, genl | nlmsghdr + subsystem header + nested nlattr grammar |
+| filesystem/mount state | `mount`, `move_mount`, xattr | path namespace and mount/file state |
+| memory/VMA state | `mmap`, `mremap`, `userfaultfd` | VMA layout and page state |
+| BPF | `bpf$PROG_LOAD`, BTF, maps | verifier program/object model |
+| io_uring | SQE/CQE/register | ring state and op-specific SQE |
+| perf/key/signal/timer | perf ring, keyring, timerfd | kernel object + async state |
+| device/bus protocol | USB/HID/DRM/V4L2/KVM/VFIO | device descriptor/ioctl protocol |
+| packet/frame protocol | raw packet, tun/tap | Ethernet/IP/TCP/UDP/SCTP frame grammar |
+| virtual-fs text protocol | `/proc`, `/sys`, configfs | path-specific text DSL |
+| indirect ops dispatch | `Qdisc_ops`, `tcf_proto_ops`, `nfnetlink`, `proto_ops` | dispatcher -> registered handler graph |
+
+### 리팩토링 필요성
+
+현재 코드는 V2~V8 개선을 빠르게 누적하면서 동작은 하지만, 책임 경계가 흐려졌다.
+
+문제:
+
+- `agent_loop.py`, `llm_enhance.py`, `semantic_seed.py`에 seed 생성, seed 평가, corpus 재주입, source/roadmap 분석, LLM fallback이 뒤섞여 있다.
+- TC/nft/xfrm/packet/llc/vsock 같은 도메인별 encoder가 명확한 인터페이스 없이 확장됐다.
+- baseline fuzz, agent fuzz, proactive seed, R4 triage, corpus reinjection의 실행 모드가 같은 코드 경로에서 섞인다.
+- `detailCorpus` 기반 corpus filtering이 target semantic을 충분히 반영하지 못한다.
+- `PREBUILT_TARGETS`와 workdir-local truth가 계속 충돌한다. `resolve_prebuilt_target()`로 완화했지만 근본적으로 case registry가 필요하다.
+- `vmlinux` vs `vmlinux_0` 같은 legacy path 차이가 실험 스크립트에서 반복적으로 터진다.
+
+리팩토링 방향:
+
+1. **Experiment runner 분리**
+   - baseline fuzz-only, agent-loop fuzz, one-off case replay를 별도 entrypoint로 분리.
+   - 결과 디렉터리와 로그 naming을 표준화.
+
+2. **Case registry 도입**
+   - case id, target function/path, workdir source, kernel image, callfile, expected subsystem을 한 곳에서 관리.
+   - `PREBUILT_TARGETS`와 workdir-local metadata 충돌을 제거.
+
+3. **Seed pipeline 인터페이스 정리**
+   - `SeedPlan -> Encoder -> Validator -> Packer -> Injection` 단계로 명확히 분리.
+   - LLM fallback은 encoder 이후의 보조 수단으로 제한.
+
+4. **Domain encoder 분리**
+   - `tc_route`, `tc_qdisc`, `tc_filter`, `nft`, `xfrm`, `packet`, `llc`, `vsock`, `bluetooth`, `bpf` 등으로 모듈화.
+   - 각 encoder는 자신이 생성한 syscall shape와 required state를 명시.
+
+5. **Corpus filtering 개선**
+   - 단순 `dist <= current_dist * 2` 대신 syscall family, subsystem kind, decoded netlink attrs, target path relevance를 함께 사용.
+   - case 2는 `sendmsg$nl_route_sched` 중에서도 TBF create/change shape를 우선해야 한다.
+
+6. **Indirect dispatch graph를 first-class로 승격**
+   - V7의 resolver 결과를 seed selection과 corpus filtering이 직접 사용하게 한다.
+   - `Qdisc_ops`, `tcf_proto_ops`, `nfnetlink_subsys`, `genl_family`, `proto_ops`, ioctl table을 공통 dispatch graph로 다룬다.
+
+7. **Path/workdir compatibility layer**
+   - `vmlinux`/`vmlinux_0`, symlinked `kwithdist`, split workdir layout을 한 레이어에서 해결.
+   - 실험 스크립트마다 임시 symlink를 만들지 않도록 한다.
+
+### 다음 구현 우선순위
+
+1. `case_registry.py` 추가: case 0~11의 truth source와 workdir mapping 정리.
+2. `experiment_runner.py` 추가: baseline/agent/compare 모드를 명시적으로 지원.
+3. `seed_pipeline/` 모듈 분리: plan, encode, validate, pack, inject.
+4. `domain_encoders/tc.py`를 먼저 정리: case 0/2/6 공통 병목 해결용.
+5. `corpus_filter.py` 추가: dist + syscall shape + decoded payload 기반 filtering.
+6. 기존 `agent_loop.py`는 orchestration만 남기고, domain logic을 외부 모듈로 이동.
+
+## 2026-04-14 Refactor Plan — LLM Helper에서 Agent Planner로 전환
+
+현재 구조는 LLM에게 "좋은 seed/callfile을 추천해달라"고 묻는 형태에 가깝다.
+이 방식은 쉬운 syscall family에서는 효과가 있었지만, case 0/2/6/7처럼 구조가 겹치는 타겟에서는
+LLM이 한 번에 너무 많은 조건을 맞춰야 한다.
+
+목표는 LLM 호출을 제거하는 것이 아니라, LLM이 생각해야 할 구조를 agent가 먼저 고정해주는 것이다.
+
+### 새 agent loop 사고 구조
+
+앞으로 agent round는 다음 단계를 명시적으로 가진다.
+
+```text
+Observe
+  현재 corpus, detailCorpus, dist_min, coverage, callfile, target metadata를 읽는다.
+
+Profile
+  target을 공통 축으로 분해한다.
+  - syscall family
+  - resource/fd chain
+  - payload grammar
+  - subsystem state
+  - dispatch selector
+  - likely preconditions
+
+Hypothesize
+  현재 막힌 layer를 하나 고른다.
+  예: sendmsg family는 맞지만 TCA_KIND/TCA_OPTIONS dispatch가 틀림.
+
+Plan
+  다음 round에서 공격할 seed/corpus/callfile 전략을 하나로 좁힌다.
+
+Act
+  encoder, validator, packer, injection 단계로 실행한다.
+
+Verify
+  다음 fuzz 결과에서 dist/coverage가 어느 layer까지 움직였는지 확인한다.
+
+Update
+  가설을 유지/폐기하고 다음 blocking layer로 이동한다.
+```
+
+핵심 제약:
+
+- 한 round에서 모든 구조를 동시에 고치려고 하지 않는다.
+- LLM에게 바로 seed를 만들라고 하지 않는다.
+- 먼저 target profile과 blocking layer를 고르게 한 뒤, 그 layer에 필요한 seed만 만들게 한다.
+- hardcoded case 특화 로직은 최소화하고, `TargetProfile`의 축 조합으로 표현한다.
+
+### TargetProfile 초안
+
+```text
+TargetProfile:
+  case_id
+  target_function
+  target_path
+  syscall_family
+  primary_syscall
+  related_syscalls
+  resource_chain
+  payload_model
+  subsystem
+  subsystem_state
+  dispatch_model
+  dispatch_selector
+  likely_preconditions
+  blocking_layer
+  confidence
+```
+
+예시:
+
+```text
+case 2 fifo_set_limit:
+  syscall_family: sendmsg
+  primary_syscall: sendmsg$nl_route_sched
+  payload_model: netlink nested attrs
+  subsystem: TC
+  subsystem_state: qdisc create/change + child fifo state
+  dispatch_model: Qdisc_ops
+  dispatch_selector: TCA_KIND=tbf -> tbf_change -> fifo_set_limit
+  blocking_layer: child fifo/fifo_set_limit precondition
+```
+
+```text
+case 7 nf_tables_newrule:
+  syscall_family: sendmsg
+  primary_syscall: sendmsg$nl_netfilter
+  payload_model: netlink nested attrs
+  subsystem: nftables
+  subsystem_state: table -> chain -> rule transaction
+  dispatch_model: nfnetlink
+  dispatch_selector: nft message type + expression attrs
+  blocking_layer: nft transaction state or expression attrs
+```
+
+### 개발 순서
+
+1. **`run_hunt.py` 정리**
+   - `main()`에서 parser 구성, CVE resolve, dataset/new/fuzz 실행 로직을 분리한다.
+   - agent loop 생성 옵션을 한 곳에서 관리한다.
+   - 다음 단계의 experiment runner가 이 함수를 재사용할 수 있게 한다.
+
+2. **`case_registry.py` 도입**
+   - prebuilt case truth source를 `paths.py`에서 분리한다.
+   - 기존 `from paths import PREBUILT_TARGETS` 호환은 유지한다.
+   - 나중에 workdir-local metadata, expected subsystem, known target profile을 붙일 수 있게 한다.
+
+3. **`target_profile.py` 추가**
+   - target metadata와 syscall/corpus/context를 받아 `TargetProfile`을 만든다.
+   - 첫 버전은 heuristic 기반으로 구현한다.
+   - TC/nft/xfrm/packet/llc/vsock/BPF 정도의 high-level subsystem만 잡는다.
+
+4. **`agent_planner.py` 추가**
+   - `TargetProfile`과 round health를 받아 `Hypothesis`와 `AgentPlan`을 만든다.
+   - LLM prompt에는 seed 생성을 바로 시키지 않고, profile/blocking layer를 먼저 검증하게 한다.
+
+5. **`seed_pipeline/` 분리**
+   - `SeedPlan -> Encoder -> Validator -> Packer -> Injection` 인터페이스를 만든다.
+   - 기존 `semantic_seed.py`의 생성 로직을 바로 옮기기보다, agent loop에서 호출할 얇은 adapter부터 만든다.
+
+6. **TC encoder 우선 분리**
+   - case 0/2/6이 같은 TC/netlink structured 병목을 공유한다.
+   - 첫 domain encoder는 `tc_qdisc/tc_filter` dispatch selector를 명시하는 데 집중한다.
+
+### 더블 체크 기준
+
+개발을 시작하기 전에 이 계획이 아래 조건을 만족하는지 project.md 기준으로 다시 확인한다.
+
+- 기존 실험 결과와 충돌하지 않는가?
+- case 1/9처럼 agent loop가 이미 성공한 케이스의 경로를 깨지 않는가?
+- case 0/2/6/7 실패 원인을 설명하는 데 충분한가?
+- `run_hunt.py`에서 시작해도 전체 리팩터링 방향과 맞는가?
+- 지금 당장 대규모 domain encoder를 작성하지 않고도 incremental하게 검증 가능한가?
+
+### 1차 구현 상태
+
+완료:
+
+- `run_hunt.py`의 `main()`을 parser builder, mode handler, agent loop factory로 분리.
+- `case_registry.py` 추가. `paths.py`는 기존 `PREBUILT_TARGETS` import 호환 유지.
+- `target_profile.py` 추가. target/callfile/health 기반으로 subsystem, payload model, dispatch model, blocking layer를 추론.
+- `agent_planner.py` 추가. `TargetProfile`과 R4 health를 바탕으로 이번 round에서 공격할 focus layer를 선택.
+- `agent_taxonomy.py` 추가. 커널 target의 복합 구조 taxonomy를 shared prompt block으로 관리.
+- `agent_loop.py`가 triage 직후 profile/plan을 만들고 로그에 출력.
+- `llm_enhance.py`의 seed/codegen prompt에 `agent_context`를 optional로 주입.
+- seed prompt가 `classified_layers`, `blocking_layer`, `selected_strategy`를 JSON에 포함하도록 요구.
+- codegen prompt도 script 작성 전에 taxonomy 기준으로 내부 분류를 수행하도록 강제.
+
+샘플 더블 체크:
+
+```text
+case 0 tcindex_alloc_perfect_hash:
+  tc + netlink_nested_attrs + tcf_proto_ops + dispatch_selection
+  -> dispatch_selector
+
+case 2 fifo_set_limit:
+  tc + netlink_nested_attrs + qdisc_ops + state_or_nested_attr_precision
+  -> payload_or_state_precision
+
+case 6 tcf_exts_init_ex:
+  tc + netlink_nested_attrs + tcf_proto_ops + dispatch_selection
+  -> dispatch_selector
+
+case 7 nf_tables_newrule:
+  nftables + netlink_nested_attrs + nfnetlink + state_or_nested_attr_precision
+  -> payload_or_state_precision
+```
+
+남은 주의점:
+
+- case 5처럼 workdir-local target과 callfile/registry fallback이 충돌할 수 있다.
+- 실제 실행 시 `resolve_prebuilt_target()`가 workdir-local truth를 우선하지만, registry 자체도 최신 실험 layout과 맞도록 보강해야 한다.
+- 아직 domain encoder는 분리하지 않았다. 현재 변경은 planning layer와 prompt context 주입까지다.
+- 의도적으로 domain encoder를 많이 만들지 않는다. 먼저 taxonomy + planning context + corpus filtering으로 범용성을 확인한다.

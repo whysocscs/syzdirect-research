@@ -42,6 +42,9 @@ from runner_config import RunnerConfig
 from syzlang_parser import get_db as _get_syz_db
 from syzbot_mining import mine_seeds_for_target
 from vm_verify import iterative_deepen
+from target_profile import build_target_profile
+from agent_planner import build_agent_plan
+from agent_taxonomy import KERNEL_TARGET_STRUCTURE_TAXONOMY
 
 
 # Path to source/agent/ (relative to this repo)
@@ -96,6 +99,8 @@ class AgentLoop:
         self.dist_history = []
         self.last_semantic_plan = None
         self._syz_db = _get_syz_db()
+        self.target_profile = None
+        self._last_agent_plan = None
         self._sync_target_metadata()
 
     def _add_seed_corpus(self, path):
@@ -375,7 +380,11 @@ class AgentLoop:
             if failure_class == "SUCCESS":
                 break
 
-            # ── E. Enhance callfile ──────────────────────────────────
+            # ── E. Structural agent plan ─────────────────────────────
+            self._build_agent_plan(health=health, triage_result=triage_result)
+            self._print_agent_plan(prefix="planner")
+
+            # ── F. Enhance callfile ──────────────────────────────────
             self._last_health = health
             if round_num < self.max_rounds:
                 enhanced = self._enhance_callfile(triage_result, round_dir, round_num)
@@ -517,6 +526,70 @@ class AgentLoop:
                     call_names.add(related.lower())
                     call_names.add(related.split("$", 1)[0].lower())
         return call_names
+
+    def _load_current_callfile_entries(self):
+        callfile = self.layout.callfile(self.ci)
+        if not os.path.exists(callfile):
+            return []
+        try:
+            with open(callfile) as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return []
+
+    def _build_agent_plan(self, health=None, triage_result=None):
+        entries = self._load_current_callfile_entries()
+        self.target_profile = build_target_profile(
+            self.target,
+            callfile_entries=entries,
+            health=health,
+        )
+        self._last_agent_plan = build_agent_plan(
+            self.target_profile,
+            health=health,
+            triage_result=triage_result,
+        )
+        return self.target_profile, self._last_agent_plan
+
+    def _print_agent_plan(self, prefix="agent"):
+        if not self.target_profile or not self._last_agent_plan:
+            return
+        print(f"  [{prefix}] Profile: {self.target_profile.one_line()}")
+        for line in self._last_agent_plan.to_log_lines():
+            print(f"  [{prefix}] Plan: {line}")
+
+    def _agent_context_for_prompt(self):
+        if not self.target_profile or not self._last_agent_plan:
+            self._build_agent_plan()
+        if not self.target_profile or not self._last_agent_plan:
+            return ""
+
+        profile = self.target_profile
+        plan = self._last_agent_plan
+        lines = [
+            "",
+            KERNEL_TARGET_STRUCTURE_TAXONOMY.rstrip(),
+            "",
+            "AGENT STRUCTURAL PLAN:",
+            f"- target profile: {profile.one_line()}",
+            f"- syscall: {profile.primary_syscall or 'unknown'}",
+            f"- related syscalls: {', '.join(profile.related_syscalls) or 'none'}",
+            f"- resource chain: {' -> '.join(profile.resource_chain) or 'unknown'}",
+            f"- subsystem state: {profile.subsystem_state}",
+            f"- dispatch selector: {profile.dispatch_selector}",
+            f"- likely preconditions: {', '.join(profile.likely_preconditions) or 'unknown'}",
+            f"- current hypothesis: {plan.hypothesis}",
+            f"- focus layer for this round: {plan.focus_layer}",
+            "Prompt guardrails:",
+            "- First respect the profile, blocking layer, and dispatch selector above.",
+            "- Do not generate broad generic seeds when a selector/state layer is identified.",
+            "- Preserve existing resource/state setup when the target is close.",
+        ]
+        for action in plan.actions:
+            lines.append(f"- planned action: {action}")
+        for guardrail in plan.prompt_guardrails:
+            lines.append(f"- guardrail: {guardrail}")
+        return "\n".join(lines) + "\n"
 
     # ── Template enhancement ─────────────────────────────────────────────
 
@@ -731,6 +804,7 @@ class AgentLoop:
                 return  # semantic seeds are better, skip generic LLM path
 
         print("  [proactive] Querying LLM for seed programs...")
+        self._build_agent_plan()
         seed_db = llm_generate_seed_program(
             roadmap=roadmap,
             source_snippets=snippets,
@@ -740,6 +814,7 @@ class AgentLoop:
             syz_db_path=syz_db_path,
             output_dir=seed_out_dir,
             syz_resource_chain=self._build_syz_resource_chain(current_callfile),
+            agent_context=self._agent_context_for_prompt(),
         )
         if seed_db and self._seed_matches_target(seed_db):
             print(f"  [proactive] Seed corpus ready: {seed_db}")
@@ -1260,6 +1335,7 @@ class AgentLoop:
             closest_program=closest_prog, closest_dist=closest_dist,
             reverse_trace=rev_trace,
             syz_resource_chain=self._build_syz_resource_chain(current_callfile),
+            agent_context=self._agent_context_for_prompt(),
         )
         if seed_db and self._seed_matches_target(seed_db):
             print(f"  [R4] Seed corpus generated: {seed_db}")
@@ -1288,6 +1364,7 @@ class AgentLoop:
                 syz_resource_chain=self._build_syz_resource_chain(current_callfile),
                 current_dist=current_dist,
                 semantic_context=semantic_context,
+                agent_context=self._agent_context_for_prompt(),
             )
             if codegen_db and self._seed_matches_target(codegen_db):
                 print(f"  [R4] Codegen seed corpus generated: {codegen_db}")
