@@ -1969,3 +1969,48 @@ case 7 nf_tables_newrule:
 - 실제 실행 시 `resolve_prebuilt_target()`가 workdir-local truth를 우선하지만, registry 자체도 최신 실험 layout과 맞도록 보강해야 한다.
 - 아직 domain encoder는 분리하지 않았다. 현재 변경은 planning layer와 prompt context 주입까지다.
 - 의도적으로 domain encoder를 많이 만들지 않는다. 먼저 taxonomy + planning context + corpus filtering으로 범용성을 확인한다.
+
+## 2026-04-14 Hard Structure Dataset Rebuild
+
+목표:
+
+- 이미 distance 0을 만든 case 0/1/3/4/9/10/11은 다음 실험 dataset에서 제외한다.
+- 현재 실패/애매 케이스 2/5/6/7을 유지하되, case 5는 target이 `sco_sock_create`인데 callfile이 BPF로 물린 mismatch를 바로잡는다.
+- SyzDirect public GitHub dataset PDF의 faulty patch 후보 중 서로 다른 target structure profile을 가진 항목을 추가한다.
+
+새 dataset:
+
+```text
+dataset_hard_structures.xlsx
+```
+
+구성:
+
+```text
+2   tc + netlink_nested_attrs + qdisc_ops + child fifo state
+5   bluetooth + socket_state + proto_ops
+6   tc + netlink_nested_attrs + tcf_proto_ops + dispatch_selector
+7   nftables + netlink_nested_attrs + nfnetlink + transaction state
+20  tls + setsockopt_opt_struct + TCP_ULP/TLS optname
+21  tipc + socket_state + proto_ops/netns init
+22  tunnel + ioctl_cmd_struct + netdevice state
+23  tc_action + netlink_nested_attrs + action kind/options
+24  smc + socket lifecycle + proto_ops fallback
+25  gtp + generic_netlink_nested_attrs + genl family
+26  dma_buf + ioctl_cmd_struct + memfd/seal state
+27  bluetooth + socket_state + l2cap lifecycle
+```
+
+분석 결과:
+
+- case 2/6은 여전히 TC 계열이지만 blocking layer가 다르다. case 2는 child fifo/state precision, case 6은 dispatch selector다.
+- case 7은 TC가 아니라 nftables transaction state와 nested attrs 정밀도 문제다.
+- case 5는 실제 target subsystem이 Bluetooth인데 기존 callfile/corpus가 BPF였으므로, `TargetProfile`에서 target subsystem과 callfile subsystem mismatch를 명시적으로 잡아야 한다.
+
+코드 수정:
+
+- `run_hunt.py` dataset agent loop가 `function`, `file_path`, `recommend syscall`을 `target_info`로 넘기도록 수정.
+- `TargetProfile`에 `callfile_subsystem`과 `structure_mismatch`를 추가.
+- target subsystem과 callfile subsystem이 다르면 blocking layer를 `syscall_family_or_callfile_mismatch`로 설정.
+- `AgentPlan`은 이 경우 payload/dispatch보다 먼저 syscall family/callfile을 재생성하도록 focus를 `syscall_family`로 둔다.
+- taxonomy에 TLS, dma-buf/memfd, io_uring, generic netlink, tunnel/ioctl, mm VMA state를 추가.

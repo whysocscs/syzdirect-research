@@ -40,6 +40,26 @@ def build_agent_plan(profile, health=None, triage_result=None):
             actions=["continue current fuzzing strategy"],
         )
 
+    if profile.blocking_layer == "syscall_family_or_callfile_mismatch":
+        details = "; ".join(profile.structure_mismatch)
+        return AgentPlan(
+            phase="profile",
+            hypothesis=(
+                "callfile syscall family does not match target subsystem"
+                + (f" ({details})" if details else "")
+            ),
+            focus_layer="syscall_family",
+            actions=[
+                "discard seeds from the mismatched callfile subsystem",
+                "regenerate callfile from target subsystem and required resource chain",
+                "verify the primary syscall before payload or dispatch tuning",
+            ],
+            prompt_guardrails=[
+                "do not preserve a corpus whose syscall family conflicts with the target",
+                "choose syscalls from the target subsystem before generating payload attrs",
+            ],
+        )
+
     if failure_class == "R4" and profile.blocking_layer == "dispatch_selection":
         return AgentPlan(
             phase="hypothesize",

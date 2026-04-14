@@ -34,6 +34,17 @@ from agent_loop import AgentLoop
 DATASET_ACTION_NAMES = list(DatasetPipeline.ACTIONS.keys())
 
 
+def clean_dataset_value(value, default=""):
+    if value is None:
+        return default
+    try:
+        if value != value:
+            return default
+    except TypeError:
+        pass
+    return value
+
+
 def add_common_args(parser):
     parser.add_argument("-j", type=int, default=4, help="CPU cores (default: 4)")
     parser.add_argument("-uptime", type=int, default=24, help="Fuzzing hours (default: 24)")
@@ -170,11 +181,20 @@ def run_dataset_agent_loop(pipeline, args):
     print(f"{'=' * 60}\n")
     for dp in pipeline.datapoints:
         ci = dp["idx"]
+        target_syscall = clean_dataset_value(dp.get("recommend syscall"), [])
+        if isinstance(target_syscall, str):
+            target_syscall = [s.strip() for s in target_syscall.split(",") if s.strip()]
+        related = [s for s in target_syscall[1:] if s]
+        primary = target_syscall[0] if target_syscall else ""
         target_info = {
             "idx": ci,
-            "name": dp.get("repro bug title", f"case_{ci}"),
-            "commit": dp.get("kernel commit", ""),
+            "name": clean_dataset_value(dp.get("repro bug title"), f"case_{ci}"),
+            "commit": clean_dataset_value(dp.get("kernel commit")),
+            "function": clean_dataset_value(dp.get("function")),
+            "func_path": clean_dataset_value(dp.get("file_path")),
         }
+        if primary:
+            target_info["syscalls"] = [{"Target": primary, "Relate": related}]
         build_agent_loop(pipeline.layout, target_info, args).run()
 
 
