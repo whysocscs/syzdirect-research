@@ -61,6 +61,18 @@ def _replace_once(contents, original, replacement):
 
 def relax_kernel_build(src_dir, clang_path):
     """Apply all clang/kernel build compatibility relaxations to a source tree."""
+    _patch_file(
+        os.path.join(src_dir, "tools", "include", "linux", "string.h"),
+        {
+            "extern size_t strlcpy(char *dest, const char *src, size_t size);":
+                "#pragma GCC diagnostic push\n"
+                "#pragma GCC diagnostic ignored \"-Wredundant-decls\"\n"
+                "extern size_t strlcpy(char *dest, const char *src, size_t size);\n"
+                "#pragma GCC diagnostic pop",
+        },
+        "Relaxed host strlcpy declaration",
+    )
+
     ver = get_clang_version(clang_path)
     if ver is None or ver >= (15, 0, 0):
         return
@@ -363,8 +375,11 @@ def append_build_config(config_path, boot_profile="default", target_configs=None
         "CONFIG_DEBUG_INFO_SPLIT", "CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT",
         "CONFIG_DEBUG_INFO_DWARF4", "CONFIG_DEBUG_INFO_DWARF5",
         "CONFIG_GDB_SCRIPTS",
+        "CONFIG_FORTIFY_SOURCE",
         # clang 18 rejects 1E6L long-double literals in drivers/usb/dwc2/hcd_queue.c
         "CONFIG_USB_DWC2",
+        # Some older media drivers crash the LLVM bitcode wrapper with clang 18.
+        "CONFIG_DVB_B2C2_FLEXCOP_USB",
     ]
     lines = [f"{c}=n" for c in disabled]
     lines.extend([

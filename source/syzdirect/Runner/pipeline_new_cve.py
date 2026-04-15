@@ -399,8 +399,8 @@ class NewCVEPipeline:
         # contains kcov_mark_block markers for target_analyzer (step 4).
         write_makefile_kcov(src_raw, None, self.function)
         sh(f"cd {src} && "
-           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} olddefconfig && "
-           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} -j{self.cpus}", big=True)
+           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(bc)} olddefconfig && "
+           f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(bc)} -j{self.cpus}", big=True)
 
         if not os.path.exists(os.path.join(bc, "arch/x86/boot/bzImage")):
             sys.exit("[2/6] ERROR: Bitcode compilation failed!")
@@ -529,8 +529,8 @@ class NewCVEPipeline:
                             target_configs=target_configs)
 
         sh(f"cd {Q(src)} && "
-           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} olddefconfig && "
-           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} -j{self.cpus}", big=True)
+           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(temp)} olddefconfig && "
+           f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(temp)} -j{self.cpus}", big=True)
 
         bz_src = os.path.join(temp, "arch/x86/boot/bzImage")
         if not os.path.exists(bz_src):

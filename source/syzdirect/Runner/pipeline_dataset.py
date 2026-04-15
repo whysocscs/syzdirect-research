@@ -50,6 +50,44 @@ def _patch_subcmd_util_h(src_dir):
         f.write(txt)
 
 
+def _clean_recommend_syscalls(value):
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        items = value
+    else:
+        items = str(value).split(',')
+    return [str(item).strip() for item in items
+            if str(item).strip() and str(item).strip().lower() != 'nan']
+
+
+def _write_minimal_k2s(k2s_path, target_func, recommend_syscalls):
+    """Write a conservative k2s fallback when interface analysis cannot finish."""
+    calls = _clean_recommend_syscalls(recommend_syscalls)
+    target = str(target_func or '').strip()
+    if not target or target.lower() == 'nan' or not calls:
+        return False
+    os.makedirs(os.path.dirname(k2s_path), exist_ok=True)
+    with open(k2s_path, "w") as f:
+        json.dump({target: {"none": calls}}, f, indent="\t")
+    print(f"  Fallback k2s: mapped {target} -> {calls}")
+    return True
+
+
+def _compact_has_targets(path):
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return False
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception:
+        return False
+    if not data:
+        return False
+    return any(item.get("target syscall infos") for item in data
+               if isinstance(item, dict))
+
+
 class DatasetPipeline:
     """Run the original SyzDirect pipeline on all datapoints in a dataset.xlsx file."""
 
@@ -221,8 +259,8 @@ class DatasetPipeline:
             # Fix gcc 13 treating -Wuse-after-free as error in objtool build
             _patch_subcmd_util_h(src)
             sh(f"cd {Q(src)} && git checkout -- scripts/Makefile.kcov 2>/dev/null; "
-               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} olddefconfig && "
-               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(bc)} -j{self.cpus}", big=True)
+               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(bc)} olddefconfig && "
+               f"make CC={Q(emit)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(bc)} -j{self.cpus}", big=True)
 
             if os.path.exists(os.path.join(bc, "arch/x86/boot/bzImage")):
                 print(f"  [case {ci}] Bitcode compiled successfully")
@@ -244,21 +282,31 @@ class DatasetPipeline:
             os.makedirs(iface_dir, exist_ok=True)
             bc = self.layout.bc(ci)
             sig = self.layout.kernel_sig(ci)
+            k2s = self.layout.k2s(ci)
 
-            if not os.path.exists(sig):
+            if not os.path.exists(sig) and not os.path.exists(k2s):
                 ok = run_interface_generator_with_retries(
                     bc, iface_dir, sig, INTERFACE_GENERATOR)
                 if not ok:
                     print(f"  [case {ci}] ERROR: interface_generator failed!")
-                    continue
+                    if not _write_minimal_k2s(k2s, dp.get('function', ''),
+                                              dp.get('recommend syscall', [])):
+                        continue
+            elif not os.path.exists(sig) and os.path.exists(k2s):
+                print(f"  [case {ci}] Using existing k2s without kernel_signature_full")
 
-            k2s = self.layout.k2s(ci)
             if not os.path.exists(k2s):
                 ensure_script_dir_on_path()
                 from SyscallAnalyze.InterfaceGenerate import MatchSig
-                result = MatchSig(syz_sig, sig)
-                with open(k2s, "w") as f:
-                    json.dump(result, f, indent="\t")
+                try:
+                    result = MatchSig(syz_sig, sig)
+                    with open(k2s, "w") as f:
+                        json.dump(result, f, indent="\t")
+                except Exception as e:
+                    print(f"  [case {ci}] ERROR: MatchSig failed: {e}")
+                    if not _write_minimal_k2s(k2s, dp.get('function', ''),
+                                              dp.get('recommend syscall', [])):
+                        continue
 
             # V7: Augment k2s with indirect dispatch resolution
             src_dir = self.layout.src(ci)
@@ -267,7 +315,7 @@ class DatasetPipeline:
                and os.path.isdir(src_dir):
                 try:
                     from indirect_dispatch_resolver import augment_k2s
-                    target_file = dp.get('file', None)
+                    target_file = dp.get('file_path', dp.get('file', None))
                     augmented = augment_k2s(k2s, src_dir,
                                             str(target_func).strip(),
                                             str(target_file).strip()
@@ -318,6 +366,23 @@ class DatasetPipeline:
                    f"-kernel-interface-file={Q(k2s)} "
                    f"-multi-pos-points={Q(pts)} "
                    f"{Q(bc)} 2>&1 | tee log", big=True)
+
+            if not _compact_has_targets(compact):
+                target_func = dp.get('function', '')
+                if _write_minimal_k2s(k2s, target_func,
+                                      dp.get('recommend syscall', [])):
+                    print(f"  [case {ci}] Empty target analysis; retrying with fallback k2s")
+                    if os.path.exists(compact):
+                        os.remove(compact)
+                    tfinfo = self.layout.tfinfo(ci)
+                    if os.path.exists(tfinfo):
+                        os.remove(tfinfo)
+                    sh(f"cd {Q(tpa_dir)} && "
+                       f"{Q(TARGET_ANALYZER)} --verbose-level=4 "
+                       f"--distance-output={Q(tpa_dir)} "
+                       f"-kernel-interface-file={Q(k2s)} "
+                       f"-multi-pos-points={Q(pts)} "
+                       f"{Q(bc)} 2>&1 | tee log", big=True)
 
             dup = self.layout.dup_report(ci)
             if os.path.exists(dup):
@@ -389,8 +454,8 @@ class DatasetPipeline:
                 append_build_config(os.path.join(temp, ".config"))
 
                 sh(f"cd {Q(src)} && "
-                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} olddefconfig && "
-                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free' O={Q(temp)} -j{self.cpus}", big=True)
+                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(temp)} olddefconfig && "
+                   f"make ARCH=x86_64 CC={Q(CLANG_PATH)} HOSTCC=gcc 'HOSTCFLAGS=-Wno-error=use-after-free -Wno-error=redundant-decls -Wno-error=format-truncation' 'KCFLAGS=-fno-builtin-stpcpy' O={Q(temp)} -j{self.cpus}", big=True)
 
                 bz_src = os.path.join(temp, "arch/x86/boot/bzImage")
                 if not os.path.exists(bz_src):

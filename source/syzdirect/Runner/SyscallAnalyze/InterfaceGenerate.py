@@ -152,14 +152,15 @@ def parse_syzkaller_signature(filename):
 
 def parse_kernel_signature(filename):
     res = []
+    malformed = 0
     with open(filename, 'r') as f:
-        for line in f:
+        for lineno, line in enumerate(f, 1):
             mp = {}
             line_split = line.strip().split(" ")
             sig_split = []
             bbidx = -1
             for i, item in enumerate(line_split):
-                if item.isdigit() and line_split[i-1][-1] == "]":
+                if i > 0 and item.isdigit() and line_split[i-1][-1] == "]":
                     bbidx = i
                     break
                 sig_split.append(item)
@@ -168,6 +169,10 @@ def parse_kernel_signature(filename):
                 continue 
 
             bb_num = int(line_split[bbidx])
+            need_tokens = bbidx + 1 + 2 * bb_num + 1
+            if len(line_split) < need_tokens:
+                malformed += 1
+                continue
             mp["target block info"] = []
             for i in range(bb_num): # bbidx+1/bbidx+2 bbidx+3/bbidx+4 bbidx+5/bbidx+6
                 target_function = line_split[1 + 2*i + bbidx]
@@ -246,6 +251,8 @@ def parse_kernel_signature(filename):
             syscall_obj.args = tuple(syscall_obj.args)
             mp["syscall obj"] = syscall_obj 
             res.append(mp)
+    if malformed:
+        print(f"[parse_kernel_signature] skipped {malformed} malformed line(s) in {filename}")
     return res
 
 def cmp_device(kernel_device, syz_device):
