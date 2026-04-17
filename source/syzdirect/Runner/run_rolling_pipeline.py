@@ -157,7 +157,7 @@ class PipelineCase:
     def is_proactive_fuzzed(self) -> bool: return self._fuzzed(self.workdir_proactive)
 
     def _setup_symlinks(self, wdir: str):
-        for subdir in ("kwithdist", "fuzzinps"):
+        for subdir in ("kwithdist", "fuzzinps", "tpa", "interfaces", "consts"):
             bl_dir = os.path.join(wdir, subdir)
             os.makedirs(bl_dir, exist_ok=True)
             dst = os.path.join(bl_dir, f"case_{self.case_id}")
